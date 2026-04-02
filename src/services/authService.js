@@ -1,6 +1,12 @@
 /**
- * Auth Service
- * Handles login, logout, and reading the stored user from localStorage.
+ * services/authService.js
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Login, logout, and reading the stored user from localStorage.
+ *
+ * IMPORTANT — isAuthenticated() only checks whether a token STRING exists.
+ * It does NOT verify the token against the backend.
+ * App.jsx calls GET /api/auth/me on startup to do that validation.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import { post } from "./api";
@@ -10,7 +16,8 @@ const USER_KEY  = "rts_user";
 
 /**
  * POST /api/auth/login
- * Stores JWT and user payload in localStorage on success.
+ * Stores the JWT and user payload in localStorage on success.
+ * Returns the user object so App.jsx can set state immediately.
  */
 export async function login(email, password) {
   const data = await post("/auth/login", { email, password });
@@ -19,24 +26,18 @@ export async function login(email, password) {
   return data.user;
 }
 
-/**
- * Clears auth data from localStorage.
- */
+/** Removes auth data from localStorage. */
 export function logout() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
 }
 
-/**
- * Returns true if a JWT is stored (does not verify expiry).
- */
+/** Returns true only if a token string is stored locally. */
 export function isAuthenticated() {
   return !!localStorage.getItem(TOKEN_KEY);
 }
 
-/**
- * Returns the stored user object, or null if not logged in.
- */
+/** Returns the cached user object, or null if not logged in. */
 export function getStoredUser() {
   try {
     const raw = localStorage.getItem(USER_KEY);

@@ -14,16 +14,24 @@ import {
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 const DEPARTMENTS = [
-  "IT",
-  "HR",
-  "Admin",
-  "Finance",
-  "Operations",
-  "Procurement",
+  "Academic",
   "Accounts",
-  "Studio",
-  "Acadamics",
+  "Admin",
+  "Animation",
+  "Broadcasting",
+  "Business Development",
+  "Corporate Communications",
+  "Documentation",
+  "Govt. Relations",
+  "HR",
+  "Management",
+  "Marketing",
+  "Operation",
+  "Purchase",
   "Software",
+  "Store",
+  "System admin",
+  "Technical Support"
 ];
 
 /** Returns display info based on the file's MIME type */
@@ -117,9 +125,9 @@ function formatSize(bytes) {
  * all other types show a styled icon card with file name and size.
  * onSubmit receives { purpose, dept, description, file }
  */
-export default function AddRequestModal({ onClose, onSubmit }) {
+export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
   const [purpose, setPurpose] = useState("");
-  const [dept, setDept] = useState("");
+  const [assignedDept, setAssignedDept] = useState("");
   const [description, setDescription] = useState("");
   const [uploadedFile, setUploadedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -142,7 +150,7 @@ export default function AddRequestModal({ onClose, onSubmit }) {
 
   const handleSubmit = () => {
     if (!purpose.trim()) return;
-    onSubmit({ purpose, dept, description, file: uploadedFile });
+    onSubmit({ purpose, assignedDept, description, file: uploadedFile });
     onClose();
   };
 
@@ -173,14 +181,22 @@ export default function AddRequestModal({ onClose, onSubmit }) {
             onChange={(e) => setPurpose(e.target.value)}
           />
 
-          {/* Department */}
+          {/* Your Department (read-only info) */}
+          {currentUser?.dept && (
+            <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-2xl px-5 py-3">
+              <span className="text-[11px] font-black text-indigo-400 uppercase tracking-widest">Your Department</span>
+              <span className="text-[13px] font-black text-indigo-700 ml-auto">{currentUser.dept}</span>
+            </div>
+          )}
+
+          {/* Assign To Department */}
           <div className="relative">
             <select
               className="w-full appearance-none bg-slate-100 p-5 rounded-2xl text-center border-none font-medium cursor-pointer outline-none"
-              value={dept}
-              onChange={(e) => setDept(e.target.value)}
+              value={assignedDept}
+              onChange={(e) => setAssignedDept(e.target.value)}
             >
-              <option value="">Assign Department</option>
+              <option value="">Assign To Department</option>
               {DEPARTMENTS.map((d) => (
                 <option key={d} value={d}>
                   {d} Department
