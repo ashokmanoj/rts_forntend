@@ -9,18 +9,42 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { post } from "./api";
+import { post, postWithToken } from "./api";
 
 const TOKEN_KEY = "rts_token";
 const USER_KEY  = "rts_user";
 
 /**
  * POST /api/auth/login
- * Stores the JWT and user payload in localStorage on success.
- * Returns the user object so App.jsx can set state immediately.
+ * - Single-role users: stores JWT + user, returns user object.
+ * - Multi-role users: returns { needsRoleSelection, tempToken, availableRoles }
+ *   without touching localStorage (no token yet).
  */
 export async function login(email, password) {
   const data = await post("/auth/login", { email, password });
+  if (data.needsRoleSelection) return data;
+  localStorage.setItem(TOKEN_KEY, data.token);
+  localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+  return data.user;
+}
+
+/**
+ * POST /api/auth/select-role  (uses temp token, not localStorage token)
+ * Called after login when the user picks a role from the selection screen.
+ */
+export async function selectRole(tempToken, role, dept) {
+  const data = await postWithToken("/auth/select-role", { role, dept }, tempToken);
+  localStorage.setItem(TOKEN_KEY, data.token);
+  localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+  return data.user;
+}
+
+/**
+ * POST /api/auth/switch-role  (uses current full JWT from localStorage)
+ * Called when an already-logged-in user wants to switch their active role.
+ */
+export async function switchRole(role, dept) {
+  const data = await post("/auth/switch-role", { role, dept });
   localStorage.setItem(TOKEN_KEY, data.token);
   localStorage.setItem(USER_KEY, JSON.stringify(data.user));
   return data.user;
@@ -35,6 +59,16 @@ export function logout() {
 /** Returns true only if a token string is stored locally. */
 export function isAuthenticated() {
   return !!localStorage.getItem(TOKEN_KEY);
+}
+
+/** POST /api/auth/forgot-password */
+export async function forgotPassword(email) {
+  return post("/auth/forgot-password", { email });
+}
+
+/** POST /api/auth/reset-password/:token */
+export async function resetPassword(token, password) {
+  return post(`/auth/reset-password/${token}`, { password });
 }
 
 /** Returns the cached user object, or null if not logged in. */

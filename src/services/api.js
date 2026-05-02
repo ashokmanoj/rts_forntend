@@ -38,9 +38,11 @@ function handleUnauthorized() {
 }
 
 // ── Response handler ──────────────────────────────────────────────────────────
-async function handleResponse(res) {
+async function handleResponse(res, path) {
   if (res.status === 401) {
-    handleUnauthorized();
+    // Skip firing rts:logout if we're already on the logout endpoint
+    // to avoid a redundant state-clear cascade
+    if (!path?.includes("/auth/logout")) handleUnauthorized();
     throw Object.assign(new Error("Session expired. Please log in again."), {
       response: { status: 401, data: {} },
     });
@@ -71,10 +73,8 @@ async function safeFetch(url, options) {
 // ── HTTP methods ──────────────────────────────────────────────────────────────
 
 export async function get(path) {
-  const res = await safeFetch(`${BASE_URL}${path}`, {
-    headers: authHeaders(),
-  });
-  return handleResponse(res);
+  const res = await safeFetch(`${BASE_URL}${path}`, { headers: authHeaders() });
+  return handleResponse(res, path);
 }
 
 export async function post(path, body) {
@@ -83,17 +83,27 @@ export async function post(path, body) {
     headers: authHeaders({ "Content-Type": "application/json" }),
     body:    JSON.stringify(body),
   });
-  return handleResponse(res);
+  return handleResponse(res, path);
 }
 
 export async function postForm(path, formData) {
-  // Do NOT set Content-Type — the browser sets it with the multipart boundary.
   const res = await safeFetch(`${BASE_URL}${path}`, {
     method:  "POST",
     headers: authHeaders(),
     body:    formData,
   });
-  return handleResponse(res);
+  return handleResponse(res, path);
+}
+
+/** POST with a specific token instead of the one stored in localStorage.
+ *  Used for /auth/select-role which requires the short-lived temp token. */
+export async function postWithToken(path, body, token) {
+  const res = await safeFetch(`${BASE_URL}${path}`, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body:    JSON.stringify(body),
+  });
+  return handleResponse(res, path);
 }
 
 export async function patch(path, body) {
@@ -102,7 +112,7 @@ export async function patch(path, body) {
     headers: authHeaders({ "Content-Type": "application/json" }),
     body:    JSON.stringify(body),
   });
-  return handleResponse(res);
+  return handleResponse(res, path);
 }
 
 export async function patchForm(path, formData) {
@@ -111,5 +121,5 @@ export async function patchForm(path, formData) {
     headers: authHeaders(),
     body:    formData,
   });
-  return handleResponse(res);
+  return handleResponse(res, path);
 }

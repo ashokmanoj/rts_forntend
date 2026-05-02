@@ -10,7 +10,7 @@ export const INSTRUCTION_SECTIONS = [
     steps: [
       "Enter your Username / Email and Password on the login screen.",
       "Click Login to access the RTS dashboard.",
-      "Your name and role (Employee / RM / HOD / Admin) will be shown in the top-right corner.",
+      "Your name and role (User / RM / HOD / Admin) will be shown in the top-right corner.",
       "Click your avatar and select Logout to safely exit the system.",
     ],
   },

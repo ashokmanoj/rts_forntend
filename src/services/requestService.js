@@ -2,12 +2,15 @@ import { get, postForm, patch, patchForm } from "./api";
 
 export async function fetchRequests(params = {}) {
   const query = new URLSearchParams();
-  if (params.page)   query.set("page",   params.page);
-  if (params.limit)  query.set("limit",  params.limit);
-  if (params.status) query.set("status", params.status);
-  if (params.search) query.set("search", params.search);
+  Object.keys(params).forEach(key => {
+    if (params[key]) query.set(key, params[key]);
+  });
   const qs = query.toString();
   return get(`/requests${qs ? `?${qs}` : ""}`);
+}
+
+export async function fetchFilterOptions() {
+  return get("/requests/filters");
 }
 
 export async function createRequest({ purpose, assignedDept, description, file }) {

@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import VoiceMessageBubble from "./VoiceMessageBubble";
 import { getAvatarClass, getInitials } from "../../utils/roleStyles";
+import { sanitizeUrl } from "../../utils/security";
 
 function getFileIcon(fileName = "") {
   const n = fileName.toLowerCase();
@@ -43,7 +44,7 @@ function Lightbox({ src, fileName, onClose }) {
           </span>
           <div className="flex items-center gap-2">
             <a
-              href={src}
+              href={sanitizeUrl(src)}
               download={fileName}
               onClick={(e) => e.stopPropagation()}
               className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
@@ -62,7 +63,7 @@ function Lightbox({ src, fileName, onClose }) {
 
         {/* Full image */}
         <img
-          src={src}
+          src={sanitizeUrl(src)}
           alt={fileName}
           className="max-h-[82vh] max-w-full rounded-xl object-contain shadow-2xl"
         />
@@ -124,7 +125,7 @@ export default function MessageBubble({ log }) {
                 onClick={() => setLightbox(true)}
               >
                 <img
-                  src={log.fileUrl}
+                  src={sanitizeUrl(log.fileUrl)}
                   alt={log.fileName}
                   className="max-w-[220px] max-h-[170px] rounded-xl object-cover border border-slate-100 group-hover:brightness-90 transition-all"
                 />
@@ -140,7 +141,7 @@ export default function MessageBubble({ log }) {
             {/* ── Non-image file — download link ── */}
             {hasFile && !log.isImage && (
               <a
-                href={log.fileUrl}
+                href={sanitizeUrl(log.fileUrl)}
                 download={log.fileName}
                 className={`flex items-center gap-2 ${bg} rounded-xl px-3 py-2 text-[11px] font-bold hover:brightness-95 transition-all`}
               >
@@ -152,7 +153,7 @@ export default function MessageBubble({ log }) {
 
             {/* ── Voice ── */}
             {hasVoice && (
-              <VoiceMessageBubble src={log.voiceUrl} duration={log.duration} />
+              <VoiceMessageBubble src={sanitizeUrl(log.voiceUrl)} duration={log.duration} />
             )}
 
             {/* ── Text / caption ── */}

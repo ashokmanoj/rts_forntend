@@ -1,14 +1,27 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import fs from 'fs'
+import path from 'path'
+
+// Load LAN cert if it exists — enables HTTPS on LAN (required for Web Push)
+function loadCerts() {
+  const certDir = path.resolve(__dirname, 'certs');
+  const cert = path.join(certDir, '192.168.1.128+2.pem');
+  const key  = path.join(certDir, '192.168.1.128+2-key.pem');
+  if (fs.existsSync(cert) && fs.existsSync(key)) {
+    return { cert: fs.readFileSync(cert), key: fs.readFileSync(key) };
+  }
+  return undefined; // fall back to plain HTTP if certs not present
+}
 
 export default defineConfig({
   plugins: [react()],
   server: {
-    // Proxy all /api and /uploads requests to the backend in development.
-    // This eliminates CORS issues — the browser sees everything on the same origin.
+    host:  true, // listen on 0.0.0.0 so LAN devices can reach it
+    https: loadCerts(),
     proxy: {
-      '/api':     { target: 'http://localhost:5000', changeOrigin: true },
-      '/uploads': { target: 'http://localhost:5000', changeOrigin: true },
+      '/api':     { target: 'http://localhost:5001', changeOrigin: true },
+      '/uploads': { target: 'http://localhost:5001', changeOrigin: true },
     },
   },
 })

@@ -2,10 +2,11 @@ import { useState } from "react";
 import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Download, Bell, Send, ShieldCheck } from "lucide-react";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { getNowTime, getNowDate, getNowDateTime } from "../../utils/dateTime";
+import { sanitizeUrl } from "../../utils/security";
 import StatusBadge from "../table/StatusBadge";
 import ChatPanel   from "../chat/ChatPanel";
 
-const DEPARTMENTS = ["Academic","Accounts","Admin","Animation","Broadcasting","Business Development","Corporate Communications","Documentation","Govt. Relations","HR","Management","Marketing","Operation","Purchase","Software","Store","System admin","Technical Support"];
+const DEPARTMENTS = ["Academic","Accounts","Admin","Animation","Broadcasting","Business Development","Corporate Communications","Documentation","Food Committee","Govt. Relations","HR","Management","Marketing","Operation","Purchase","RTS Help Desk","Software","Store","System admin","TA Committee","Technical Support"];
 
 function ImageLightbox({ src, fileName, onClose }) {
   return (
@@ -14,11 +15,11 @@ function ImageLightbox({ src, fileName, onClose }) {
         <div className="flex items-center justify-between w-full px-2">
           <span className="text-white text-sm font-bold truncate max-w-[80%]">{fileName || "Image"}</span>
           <div className="flex items-center gap-2">
-            <a href={src} download={fileName} className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white"><Download size={16}/></a>
+            <a href={sanitizeUrl(src)} download={fileName} className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white"><Download size={16}/></a>
             <button onClick={onClose} className="p-2 bg-white/10 hover:bg-red-500 rounded-full text-white"><X size={16}/></button>
           </div>
         </div>
-        <img src={src} alt={fileName} className="max-h-[80vh] max-w-full rounded-xl object-contain shadow-2xl"/>
+        <img src={sanitizeUrl(src)} alt={fileName} className="max-h-[80vh] max-w-full rounded-xl object-contain shadow-2xl"/>
       </div>
     </div>
   );
@@ -95,10 +96,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const isAssignedToMyDept = req?.assignedDept === currentUser?.dept;
   const isTeamMemberIncoming = isFromOtherDept && isAssignedToMyDept;
 
-  // New logic: RM/HOD/DeptHOD requests approved by Management
-  const isSpecialRequest = ["RM", "HOD", "DeptHOD"].includes(req?.role); 
-  
-  const canApprove    = (isRM || isHOD || isDeptHOD || isManagement) && !isClosed && !isOwnRequest && (!isSpecialRequest || isManagement);
+  const canApprove    = (isRM || isHOD || isDeptHOD || isManagement) && !isClosed && !isOwnRequest;
   const canChangeDept = (isRM || isHOD || isDeptHOD || isManagement) && !isOwnRequest && !isClosed;
   // Users can close tickets of OTHER departments assigned to THEIR department
   const canClose      = ((isDeptHOD || isManagement) && !isOwnRequest && !isClosed) || (isTeamMemberIncoming && !isClosed && !isAdmin);
@@ -137,16 +135,16 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   return (
     <>
       {lightboxSrc && <ImageLightbox src={lightboxSrc} fileName={req?.fileName} onClose={() => setLightboxSrc(null)} />}
-      <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl border border-slate-200 flex flex-col" style={{maxHeight:"95vh"}}>
+      <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+        <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl w-full sm:max-w-4xl border border-slate-200 flex flex-col" style={{maxHeight:"95dvh"}}>
 
           {/* Header */}
-          <div className="p-4 border-b flex justify-between items-center bg-slate-50/50 flex-shrink-0 rounded-t-[2rem]">
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="p-3 sm:p-4 border-b flex justify-between items-center bg-slate-50/50 flex-shrink-0 rounded-t-[2rem]">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isRequestorMode?"bg-indigo-100 text-indigo-600":isManagement?"bg-rose-100 text-rose-600":"bg-blue-100 text-blue-600"}`}>
                 {isRequestorMode ? <Bell size={15}/> : isManagement ? <ShieldCheck size={14}/> : <Send size={14}/>}
               </div>
-              <h2 className="text-lg font-black uppercase tracking-tighter text-slate-800">#{req?.id} — {req?.purpose}</h2>
+              <h2 className="text-sm sm:text-lg font-black uppercase tracking-tighter text-slate-800 truncate max-w-[55vw] sm:max-w-none">#{req?.id} — {req?.purpose}</h2>
               {req?.forwarded && <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-black"><Forward size={10}/> Forwarded</span>}
               {isClosed && <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[10px] font-black">🔒 Closed</span>}
               {isOwnRequest && !isRequestorMode && <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black">Your Request</span>}
@@ -156,10 +154,10 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
           </div>
 
           {/* Body */}
-          <div className="flex flex-1 overflow-hidden min-h-0">
+          <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
 
             {/* LEFT PANEL */}
-            <div className="w-[48%] border-r border-slate-200 overflow-y-auto p-5 space-y-3 pb-8">
+            <div className="w-full md:w-[48%] border-b md:border-b-0 md:border-r border-slate-200 overflow-y-auto p-4 sm:p-5 space-y-3 pb-6 md:pb-8 max-h-[40dvh] md:max-h-none min-h-0">
 
               <ApprovalProgress rmStatus={req?.rmStatus} hodStatus={req?.hodStatus} deptHodStatus={req?.deptHodStatus} mgmtStatus={req?.mgmtStatus} isClosed={isClosed}/>
 
@@ -206,12 +204,12 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                   {req?.fileUrl ? (
                     isImageUrl(req.fileUrl) ? (
                       <div className="relative group cursor-pointer" onClick={() => setLightboxSrc(req.fileUrl)}>
-                        <img src={req.fileUrl} alt={req.fileName||"attachment"} className="rounded-lg shadow-md border-4 border-white max-h-48 object-contain group-hover:brightness-90 transition-all"/>
+                        <img src={sanitizeUrl(req.fileUrl)} alt={req.fileName||"attachment"} className="rounded-lg shadow-md border-4 border-white max-h-48 object-contain group-hover:brightness-90 transition-all"/>
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><div className="bg-black/50 rounded-full p-2"><ZoomIn size={20} className="text-white"/></div></div>
                         <p className="text-[10px] text-slate-400 text-center mt-1 font-medium">Click to view full size</p>
                       </div>
                     ) : (
-                      <a href={req.fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-bold text-[12px] underline">📎 {req.fileName||"View attachment"}</a>
+                      <a href={sanitizeUrl(req.fileUrl)} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-bold text-[12px] underline">📎 {req.fileName||"View attachment"}</a>
                     )
                   ) : (
                     <div className="flex flex-col items-center gap-1 text-slate-300"><ImageOff size={28}/><span className="text-[10px] font-bold text-slate-400">No attachment</span></div>
@@ -267,9 +265,9 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                    {req.closeData.fileUrl && (
                       <div className="pt-2">
                          {isImageUrl(req.closeData.fileUrl) ? (
-                            <img src={req.closeData.fileUrl} onClick={() => setLightboxSrc(req.closeData.fileUrl)} className="h-20 w-auto rounded-lg border-2 border-white shadow-sm cursor-pointer hover:brightness-95 transition-all"/>
+                            <img src={sanitizeUrl(req.closeData.fileUrl)} onClick={() => setLightboxSrc(req.closeData.fileUrl)} className="h-20 w-auto rounded-lg border-2 border-white shadow-sm cursor-pointer hover:brightness-95 transition-all"/>
                          ) : (
-                            <a href={req.closeData.fileUrl} target="_blank" rel="noreferrer" className="text-emerald-600 font-bold text-[10px] flex items-center gap-1 underline">📎 View Closure Attachment</a>
+                            <a href={sanitizeUrl(req.closeData.fileUrl)} target="_blank" rel="noreferrer" className="text-emerald-600 font-bold text-[10px] flex items-center gap-1 underline">📎 View Closure Attachment</a>
                          )}
                       </div>
                    )}

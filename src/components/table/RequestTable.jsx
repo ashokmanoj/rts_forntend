@@ -38,7 +38,7 @@ export default function RequestTable({ requests, currentUser, onOpenDetails, onM
       {contextMenu && (
         <div
           className="fixed z-[100] bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden py-1"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          style={{ top: Math.min(contextMenu.y, window.innerHeight - 60), left: Math.min(contextMenu.x, window.innerWidth - 180) }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
@@ -50,8 +50,8 @@ export default function RequestTable({ requests, currentUser, onOpenDetails, onM
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-xl border max-h-[80vh] overflow-auto">
-        <table className="w-full border-collapse">
+      <div className="bg-white rounded-xl shadow-xl border overflow-auto" style={{maxHeight:"calc(100dvh - 280px)", minHeight:"200px"}}>
+        <table className="w-full border-collapse min-w-[860px]">
           <thead>
             <tr className="text-slate-800 uppercase font-black text-[13px]">
               <th colSpan="9" className="sticky top-0 bg-blue-300 border border-black p-3 text-center z-20">

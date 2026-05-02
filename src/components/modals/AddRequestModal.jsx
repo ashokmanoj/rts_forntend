@@ -22,15 +22,18 @@ const DEPARTMENTS = [
   "Business Development",
   "Corporate Communications",
   "Documentation",
+  "Food Committee",
   "Govt. Relations",
   "HR",
   "Management",
   "Marketing",
   "Operation",
   "Purchase",
+  "RTS Help Desk",
   "Software",
   "Store",
   "System admin",
+  "TA Committee",
   "Technical Support"
 ];
 
@@ -175,7 +178,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
         <div className="p-8 space-y-4">
           {/* Title */}
           <input
-            className="w-full bg-slate-100 p-5 rounded-2xl text-center border-none focus:ring-2 focus:ring-indigo-500 font-medium outline-none"
+            className="w-full bg-slate-100 p-5 rounded-2xl text-center border-none focus:ring-2 focus:ring-indigo-500 font-[600] outline-none text-[17px]"
             placeholder="Enter title for your request purpose"
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
@@ -185,14 +188,14 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
           {currentUser?.dept && (
             <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-2xl px-5 py-3">
               <span className="text-[11px] font-black text-indigo-400 uppercase tracking-widest">Your Department</span>
-              <span className="text-[13px] font-black text-indigo-700 ml-auto">{currentUser.dept}</span>
+              <span className="text-[17px] font-black text-indigo-700 ml-auto">{currentUser.dept}</span>
             </div>
           )}
 
           {/* Assign To Department */}
           <div className="relative">
             <select
-              className="w-full appearance-none bg-slate-100 p-5 rounded-2xl text-center border-none font-medium cursor-pointer outline-none"
+              className="w-full appearance-none bg-slate-100 p-5 rounded-2xl text-center border-none font-medium cursor-pointer outline-none text-[14px]"
               value={assignedDept}
               onChange={(e) => setAssignedDept(e.target.value)}
             >
@@ -211,7 +214,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
 
           {/* Description */}
           <textarea
-            className="w-full bg-slate-100 p-6 rounded-2xl text-center border-none h-32 focus:ring-2 focus:ring-indigo-500 resize-none font-medium outline-none"
+            className="w-full bg-slate-100 p-6 rounded-2xl text-center border-none h-32 focus:ring-2 focus:ring-indigo-500 resize-none font-medium outline-none text-[15px]"
             placeholder="Input your request in detail here"
             value={description}
             onChange={(e) => setDescription(e.target.value)}

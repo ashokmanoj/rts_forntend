@@ -1,3 +1,125 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   React Datepicker Beautiful Theme Overrides
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Container & Shadow */
+.react-datepicker {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 1.25rem !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+  background-color: #ffffff !important;
+  overflow: hidden !important;
+  z-index: 9999 !important; /* Ensure it stays on top of everything */
+}
+
+/* Header Section */
+.react-datepicker__header {
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding-top: 1.25rem !important;
+  padding-bottom: 0.75rem !important;
+}
+
+.react-datepicker__current-month {
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+  font-size: 0.8rem !important;
+  letter-spacing: 0.075em !important;
+  color: #1e293b !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* Day Names (Sun, Mon...) */
+.react-datepicker__day-name {
+  color: #94a3b8 !important;
+  font-weight: 800 !important;
+  font-size: 0.65rem !important;
+  width: 2.2rem !important;
+  line-height: 2.2rem !important;
+}
+
+/* Day Cells */
+.react-datepicker__day {
+  color: #475569 !important;
+  font-weight: 600 !important;
+  width: 2.2rem !important;
+  line-height: 2.2rem !important;
+  margin: 0.15rem !important;
+  border-radius: 0.75rem !important;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: #eef2ff !important;
+  color: #4f46e5 !important;
+  transform: scale(1.1) !important;
+}
+
+/* Selected & In-Range Days */
+.react-datepicker__day--selected,
+.react-datepicker__day--in-selecting-range,
+.react-datepicker__day--in-range {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+  border-radius: 0.75rem !important;
+}
+
+.react-datepicker__day--range-start,
+.react-datepicker__day--range-end {
+  background-color: #3730a3 !important;
+  color: #ffffff !important;
+}
+
+.react-datepicker__day--keyboard-selected {
+  background-color: #e0e7ff !important;
+  color: #4338ca !important;
+}
+
+/* Outside Month */
+.react-datepicker__day--outside-month {
+  color: #cbd5e1 !important;
+  opacity: 0.3 !important;
+}
+
+/* Navigation Arrows */
+.react-datepicker__navigation {
+  top: 1.25rem !important;
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: #64748b !important;
+  border-width: 2px 2px 0 0 !important;
+}
+
+/* Clear Button */
+.react-datepicker__close-icon::after {
+  background-color: #6366f1 !important;
+  font-size: 14px !important;
+}
+
+/* Hide Triangle Pointer */
+.react-datepicker__triangle {
+  display: none !important;
+}
+
+/* ── Responsive scrollbar thin ────────────────────────────────────────────── */
+.overflow-x-auto::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar,
+.overflow-auto::-webkit-scrollbar { height: 4px; width: 4px; }
+.overflow-x-auto::-webkit-scrollbar-track,
+.overflow-y-auto::-webkit-scrollbar-track,
+.overflow-auto::-webkit-scrollbar-track { background: #f1f5f9; }
+.overflow-x-auto::-webkit-scrollbar-thumb,
+.overflow-y-auto::-webkit-scrollbar-thumb,
+.overflow-auto::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+/* ── Mobile-friendly touch targets ────────────────────────────────────────── */
+@media (max-width: 640px) {
+  button, select, input { min-height: 36px; }
+  .react-datepicker-popper { transform: none !important; left: 0 !important; }
+}
