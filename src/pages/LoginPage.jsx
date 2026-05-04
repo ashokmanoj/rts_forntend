@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link }     from "react-router-dom";
 import { login, selectRole } from "../services/authService";
 import { ShieldCheck } from "lucide-react";
+import InstructionsModal from "../components/modals/InstructionsModal";
 
 const ROLE_LABELS = {
   Requestor:     "Requestor",
@@ -23,6 +24,7 @@ export default function LoginPage({ onLogin }) {
   // Role selection state (multi-role users only)
   const [pending,   setPending]   = useState(null); // { tempToken, availableRoles }
   const [selecting, setSelecting] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -58,6 +60,26 @@ export default function LoginPage({ onLogin }) {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-100 to-indigo-50 font-sans p-4">
+
+      {/* Help / User Guide button */}
+      <button
+        onClick={() => setShowGuide(true)}
+        title="Open Login User Guide"
+        className="fixed top-6 right-6 z-50 h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg flex items-center gap-2 text-[12px] font-black transition-all hover:scale-105 active:scale-95"
+      >
+        <ShieldCheck size={15} /> Login User Guide
+      </button>
+
+      {showGuide && (
+        <InstructionsModal
+          onClose={() => setShowGuide(false)}
+          pdfSrc="/RTS-Login-Guide.pdf"
+          downloadName="RTS-Login-Guide.pdf"
+          title="Login & Account Access Guide"
+          subtitle="Step-by-Step Visual Guide"
+        />
+      )}
+
       <div className="w-full max-w-md">
         <div className="bg-white shadow-2xl rounded-3xl border border-slate-200 overflow-hidden">
           <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 p-6 sm:p-8 text-center">
