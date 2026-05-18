@@ -25,9 +25,24 @@ function getFileInfo(file) {
     return { kind: "csv",     label: "CSV",         color: "bg-teal-100",   iconColor: "text-teal-600",    Icon: FileSpreadsheet };
   if (t.includes("excel") || t.includes("spreadsheet") || /\.(xls|xlsx)$/.test(n))
     return { kind: "excel",   label: "Spreadsheet", color: "bg-green-100",  iconColor: "text-green-600",   Icon: FileSpreadsheet };
-  if (/\.(zip|rar|7z|tar|gz)$/.test(n))
+  if (t.includes("zip") || t.includes("rar") || t.includes("tar") || t.includes("7z") || /\.(zip|rar|7z|tar|gz)$/.test(n))
     return { kind: "archive", label: "Archive",     color: "bg-orange-100", iconColor: "text-orange-500",  Icon: Archive         };
   return   { kind: "other",   label: "File",        color: "bg-slate-100",  iconColor: "text-slate-500",   Icon: File            };
+}
+
+const CHAT_ALLOWED_EXT = [".jpg",".jpeg",".png",".gif",".webp",".bmp",".svg",".mp4",".mov",".avi",".mkv",".mp3",".wav",".ogg",".pdf",".doc",".docx",".csv",".xlsx",".xls",".zip",".rar",".7z",".tar",".gz"];
+
+function isAllowedFile(file) {
+  const t = file.type;
+  const n = (file.name || "").toLowerCase();
+  if (t.startsWith("image/") || t.startsWith("video/") || t.startsWith("audio/")) return true;
+  if (t === "application/pdf") return true;
+  if (t.includes("word") || n.endsWith(".doc") || n.endsWith(".docx")) return true;
+  if (t === "text/csv" || n.endsWith(".csv")) return true;
+  if (t.includes("excel") || t.includes("spreadsheet") || n.endsWith(".xlsx") || n.endsWith(".xls")) return true;
+  if (t.includes("zip") || t.includes("rar") || t.includes("tar") || t.includes("7z")) return true;
+  if (CHAT_ALLOWED_EXT.some(ext => n.endsWith(ext))) return true;
+  return false;
 }
 
 function formatSize(bytes) {
@@ -49,6 +64,7 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
   const [isRecording,    setIsRecording]    = useState(false);
   const [recordingTime,  setRecordingTime]  = useState(0);
   const [isDragging,     setIsDragging]     = useState(false);
+  const [fileError,      setFileError]      = useState(null);
 
   const fileInputRef         = useRef(null);
   const mediaRecorderRef     = useRef(null);
@@ -63,10 +79,18 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
   // ── add files (multi) ──────────────────────────────────────
   const addFiles = useCallback((newFiles) => {
     if (!newFiles.length) return;
-    setPendingFiles(prev => [...prev, ...newFiles]);
+    const allowed  = newFiles.filter(isAllowedFile);
+    const rejected = newFiles.filter(f => !isAllowedFile(f));
+    if (rejected.length) {
+      setFileError(`Unsupported file type${rejected.length > 1 ? "s" : ""}: ${rejected.map(f => f.name).join(", ")}`);
+    } else {
+      setFileError(null);
+    }
+    if (!allowed.length) return;
+    setPendingFiles(prev => [...prev, ...allowed]);
     setImagePreviews(prev => [
       ...prev,
-      ...newFiles.map(f => f.type.startsWith("image/") ? URL.createObjectURL(f) : null),
+      ...allowed.map(f => f.type.startsWith("image/") ? URL.createObjectURL(f) : null),
     ]);
   }, []);
 
@@ -81,6 +105,7 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
     imagePreviews.forEach(p => p && URL.revokeObjectURL(p));
     setPendingFiles([]);
     setImagePreviews([]);
+    setFileError(null);
   };
 
   const handleFileChange = (e) => {
@@ -313,7 +338,7 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
         >
           <Paperclip size={18} />
         </button>
-        <input type="file" accept="*" multiple ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+        <input type="file" accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.csv,.xlsx,.xls,.zip,.rar,.7z,.tar,.gz" multiple ref={fileInputRef} className="hidden" onChange={handleFileChange} />
 
         {/* Text input */}
         <input
@@ -353,6 +378,14 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
           <Send size={16} />
         </button>
       </div>
+
+      {fileError && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mt-1">
+          <span className="text-red-500 text-[11px] font-black flex-shrink-0">✕</span>
+          <p className="text-[11px] text-red-700 flex-1">{fileError}</p>
+          <button onClick={() => setFileError(null)} className="text-red-400 hover:text-red-600 flex-shrink-0"><X size={11} /></button>
+        </div>
+      )}
     </div>
   );
 }

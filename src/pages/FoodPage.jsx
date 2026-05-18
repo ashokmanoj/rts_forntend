@@ -20,8 +20,10 @@ import {
   downloadFoodReport,
   triggerFoodReminder,
 } from '../services/foodService';
-import FoodOptInModal from '../components/food/FoodOptInModal';
-import FoodCalendar   from '../components/food/FoodCalendar';
+import FoodOptInModal  from '../components/food/FoodOptInModal';
+import FoodCalendar    from '../components/food/FoodCalendar';
+import FoodGuideModal  from '../components/modals/FoodGuideModal';
+import { BookOpen } from 'lucide-react';
 
 const REPORT_DEPTS = ['HR', 'Food Committee'];
 const MONTHS = [
@@ -35,6 +37,8 @@ export default function FoodPage({ currentUser }) {
   const [testLoading, setTestLoading] = useState(false);
   const isReportRole = currentUser?.role === 'DeptHOD' && REPORT_DEPTS.includes(currentUser?.dept);
   const isRequestor  = ['Requestor', 'RM', 'HOD', 'HR', 'FoodCommittee', 'Intern'].includes(currentUser?.role);
+
+  const [showGuide, setShowGuide] = useState(false);
 
   // ── Status ────────────────────────────────────────────────────────────────
   const [status,        setStatus]        = useState(null);
@@ -329,6 +333,9 @@ export default function FoodPage({ currentUser }) {
 
   return (
     <div className="space-y-6">
+      {/* Food Guide Modal */}
+      {showGuide && <FoodGuideModal onClose={() => setShowGuide(false)} />}
+
       {/* Opt-In Modal */}
       {showOptIn && isRequestor && (
         <FoodOptInModal loading={optInLoading} onConfirm={handleOptIn} onDecline={() => setShowOptIn(false)} />
@@ -352,6 +359,16 @@ export default function FoodPage({ currentUser }) {
       {isRequestor && (
         <>
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-5">
+
+            {/* Guide link */}
+            <div className="flex justify-end -mt-1">
+              <button
+                onClick={() => setShowGuide(true)}
+                className="flex items-center gap-1.5 text-[11px] font-black text-slate-400 hover:text-orange-500 transition-colors"
+              >
+                <BookOpen size={12} /> How to use this tab
+              </button>
+            </div>
 
             {/* Subscription info row */}
             <div className="flex items-center justify-between flex-wrap gap-4">
@@ -777,7 +794,6 @@ export default function FoodPage({ currentUser }) {
                           Grand Total — {reportData.data.length} users
                         </td>
                         <td className="px-4 py-3 text-center font-black text-indigo-700">
-                          {reportData.data.reduce((s, r) => s + r.workingDays, 0)}
                         </td>
                         <td className="px-4 py-3 font-black text-green-700">
                           ₹{reportData.data.reduce((s, r) => s + r.totalAmount, 0)}

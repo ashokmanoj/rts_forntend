@@ -11,7 +11,7 @@ import AddRequestModal   from "../components/modals/AddRequestModal";
 import InstructionsModal from "../components/modals/InstructionsModal";
 import FoodPage          from "./FoodPage";
 import UserManagementPage from "./UserManagementPage";
-import { UtensilsCrossed, ClipboardList, LogOut, Users } from "lucide-react";
+import { UtensilsCrossed, ClipboardList, LogOut, Users, CheckCircle2, XCircle } from "lucide-react";
 
 export default function DashboardPage({ currentUser: currentUserProp, onLogout, onSwitchRole }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -41,6 +41,8 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   const [loadingReqs,      setLoadingReqs]      = useState(true);
   const [isFiltering,      setIsFiltering]      = useState(false); // For subtle loading state
   const [fetchError,       setFetchError]       = useState("");
+  const [toast,            setToast]            = useState(null); // { type: "success"|"error", message: string }
+  const toastTimerRef = useRef(null);
   const [currentPage,      setCurrentPage]      = useState(Number(searchParams.get("page")) || 1);
   
   const pollTimerRef = useRef(null);
@@ -171,22 +173,22 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
       if      (message.type === "message")                          saved = await sendText(reqId, message.text, message.replyTo);
       else if (message.type === "voice")                            saved = await sendVoice(reqId, message.voiceBlob, message.duration, message.replyTo);
       else if (message.type === "file" || message.type === "mixed") saved = await sendFile(reqId, message.fileBlob, message.text, message.replyTo);
-      
+
       if (saved) {
         setChatLogs((prev) => ({ ...prev, [reqId]: (prev[reqId] || []).map((m) => (m === message ? saved : m)) }));
+        loadRequests(currentPage, filters, true);
       }
-      loadRequests(currentPage, filters, true);
     } catch (err) {}
   };
 
   const handleApproval = async (reqId, decision, dateTime, user, comment, newDept, checkingDeadline, checkingReason) => {
+    const updated = await submitApproval(reqId, decision, comment, newDept, checkingDeadline, checkingReason);
+    setRequests((prev) => prev.map((r) => (r.id === reqId ? { ...updated, seen: true } : r)));
+    if (selectedReq?.id === reqId) setSelectedReq({ ...updated, seen: true });
     try {
-      const updated = await submitApproval(reqId, decision, comment, newDept, checkingDeadline, checkingReason);
-      setRequests((prev) => prev.map((r) => (r.id === reqId ? { ...updated, seen: true } : r)));
-      if (selectedReq?.id === reqId) setSelectedReq({ ...updated, seen: true });
       const result = await fetchChat(reqId);
       setChatLogs((prev) => ({ ...prev, [reqId]: result?.data ?? result }));
-    } catch (err) {}
+    } catch (_) {}
   };
 
   const handleAcknowledge = async (reqId, status) => {
@@ -197,10 +199,21 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
     } catch (err) {}
   };
 
+  const showToast = (type, message) => {
+    clearTimeout(toastTimerRef.current);
+    setToast({ type, message });
+    toastTimerRef.current = setTimeout(() => setToast(null), 4000);
+  };
+
   const handleAddRequest = async (data) => {
-    const saved = await createRequest(data);
-    setRequests((prev) => [saved, ...prev]);
-    setActiveModal(null);
+    try {
+      const saved = await createRequest(data);
+      setRequests((prev) => [saved, ...prev]);
+      setActiveModal(null);
+      showToast("success", "Request added successfully.");
+    } catch (err) {
+      showToast("error", err?.response?.data?.error || err?.message || "Failed to add request. Please try again.");
+    }
   };
 
   const handleConfirmCloseTicket = async (reqId, note, file) => {
@@ -389,6 +402,31 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
         )}
 
       </div>
+
+      {/* ── Toast Notification ──────────────────────────────────────────────── */}
+      {toast && (
+        <div className={`fixed top-5 left-1/2 -translate-x-1/2 z-[9999] flex items-start gap-3.5 px-5 py-4 rounded-2xl shadow-2xl border min-w-[320px] max-w-[480px]
+          ${toast.type === "success"
+            ? "bg-white border-emerald-200"
+            : "bg-white border-red-200"}`}>
+          <div className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center
+            ${toast.type === "success" ? "bg-emerald-50" : "bg-red-50"}`}>
+            {toast.type === "success"
+              ? <CheckCircle2 size={20} className="text-emerald-500" />
+              : <XCircle size={20} className="text-red-500" />}
+          </div>
+          <div className="flex-1 min-w-0 pt-0.5">
+            <p className={`text-[13px] font-bold leading-tight ${toast.type === "success" ? "text-emerald-700" : "text-red-700"}`}>
+              {toast.type === "success" ? "Success" : "Error"}
+            </p>
+            <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">{toast.message}</p>
+          </div>
+          <button onClick={() => setToast(null)} className="flex-shrink-0 mt-0.5 text-slate-300 hover:text-slate-500 transition-colors">
+            <XCircle size={16} />
+          </button>
+        </div>
+      )}
+
     </div>
   );
 }

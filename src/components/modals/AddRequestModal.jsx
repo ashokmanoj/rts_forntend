@@ -14,6 +14,21 @@ const DEPARTMENTS = [
   "System admin","TA Committee","Technical Support",
 ];
 
+const ALLOWED_EXTENSIONS = [".jpg",".jpeg",".png",".gif",".webp",".bmp",".svg",".mp4",".mov",".avi",".mkv",".mp3",".wav",".ogg",".pdf",".doc",".docx",".csv",".xlsx",".xls",".zip",".rar",".7z",".tar",".gz"];
+
+function isAllowedFile(file) {
+  const t    = file.type;
+  const name = (file.name || "").toLowerCase();
+  if (t.startsWith("image/") || t.startsWith("video/") || t.startsWith("audio/")) return true;
+  if (t === "application/pdf") return true;
+  if (t.includes("word") || name.endsWith(".doc") || name.endsWith(".docx")) return true;
+  if (t === "text/csv" || name.endsWith(".csv")) return true;
+  if (t.includes("excel") || t.includes("spreadsheet") || name.endsWith(".xlsx") || name.endsWith(".xls")) return true;
+  if (t.includes("zip") || t.includes("rar") || t.includes("tar") || t.includes("7z")) return true;
+  if (ALLOWED_EXTENSIONS.some(ext => name.endsWith(ext))) return true;
+  return false;
+}
+
 function getFileInfo(file) {
   const t    = file.type;
   const name = (file.name || "").toLowerCase();
@@ -21,12 +36,13 @@ function getFileInfo(file) {
   if (t.startsWith("video/"))  return { kind:"video",   label:"Video",       color:"bg-pink-100",   iconColor:"text-pink-500"   };
   if (t.startsWith("audio/"))  return { kind:"audio",   label:"Audio",       color:"bg-yellow-100", iconColor:"text-yellow-500" };
   if (t === "application/pdf") return { kind:"pdf",     label:"PDF",         color:"bg-red-100",    iconColor:"text-red-500"    };
-  if (t.includes("word"))      return { kind:"word",    label:"Word Doc",    color:"bg-blue-100",   iconColor:"text-blue-600"   };
+  if (t.includes("word") || name.endsWith(".doc") || name.endsWith(".docx"))
+    return { kind:"word",    label:"Word Doc",    color:"bg-blue-100",   iconColor:"text-blue-600"   };
   if (t === "text/csv" || name.endsWith(".csv"))
     return { kind:"csv", label:"CSV File", color:"bg-teal-100", iconColor:"text-teal-600" };
   if (t.includes("excel") || t.includes("spreadsheet") || name.endsWith(".xlsx") || name.endsWith(".xls"))
     return { kind:"excel", label:"Spreadsheet", color:"bg-green-100",  iconColor:"text-green-600"  };
-  if (t.includes("zip")||t.includes("rar")||t.includes("tar")||t.includes("7z"))
+  if (t.includes("zip")||t.includes("rar")||t.includes("tar")||t.includes("7z")||name.endsWith(".zip")||name.endsWith(".rar")||name.endsWith(".7z")||name.endsWith(".tar")||name.endsWith(".gz"))
     return { kind:"archive", label:"Archive",   color:"bg-orange-100", iconColor:"text-orange-500" };
   return { kind:"other", label:"File", color:"bg-slate-100", iconColor:"text-slate-500" };
 }
@@ -215,6 +231,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
   const [dueDate,      setDueDate]      = useState("");
 
   const [isDragging, setIsDragging] = useState(false);
+  const [fileError,  setFileError]  = useState(null);
   const fileInputRef   = useRef(null);
   const dragCounterRef = useRef(0);
 
@@ -222,10 +239,18 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
 
   const addFiles = useCallback((newFiles) => {
     if (!newFiles.length) return;
-    setUploadedFiles(prev => [...prev, ...newFiles]);
+    const allowed  = newFiles.filter(isAllowedFile);
+    const rejected = newFiles.filter(f => !isAllowedFile(f));
+    if (rejected.length) {
+      setFileError(`Unsupported file type${rejected.length > 1 ? "s" : ""}: ${rejected.map(f => f.name).join(", ")}. Allowed: images, video, audio, PDF, Word, Excel, CSV, ZIP, RAR.`);
+    } else {
+      setFileError(null);
+    }
+    if (!allowed.length) return;
+    setUploadedFiles(prev => [...prev, ...allowed]);
     setImagePreviews(prev => [
       ...prev,
-      ...newFiles.map(f => f.type.startsWith("image/") ? URL.createObjectURL(f) : null),
+      ...allowed.map(f => f.type.startsWith("image/") ? URL.createObjectURL(f) : null),
     ]);
   }, []);
 
@@ -280,6 +305,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
     imagePreviews.forEach(p => p && URL.revokeObjectURL(p));
     setUploadedFiles([]);
     setImagePreviews([]);
+    setFileError(null);
   };
 
   const handleSubmit = () => {
@@ -396,7 +422,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
               <>
                 <Upload className={`mb-2 transition-colors ${isDragging ? "text-indigo-400" : "text-slate-300 group-hover:text-blue-400"}`} size={30} />
                 <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px] text-center">
-                  Upload images, files or CSV
+                  Upload images, PDF, Excel, CSV, ZIP, RAR
                 </span>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-[9px] text-slate-300 font-medium">Drag & drop</span>
@@ -451,8 +477,15 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
                 </div>
               </div>
             )}
-            <input type="file" ref={fileInputRef} className="hidden" accept="*" multiple onChange={handleFileChange} />
+            <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.csv,.xlsx,.xls,.zip,.rar,.7z,.tar,.gz" multiple onChange={handleFileChange} />
           </div>
+
+          {fileError && (
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 -mt-1">
+              <span className="text-red-500 text-[11px] font-black flex-shrink-0 mt-px">✕</span>
+              <p className="text-[11px] text-red-700 leading-relaxed">{fileError}</p>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-4 pt-2">

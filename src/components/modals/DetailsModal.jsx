@@ -67,6 +67,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const [checkingDate,      setCheckingDate]      = useState("");
   const [checkingReason,    setCheckingReason]    = useState("");
   const [ackLoading,        setAckLoading]        = useState(false);
+  const [approvalLoading,   setApprovalLoading]   = useState(false);
 
   useEscapeKey(lightboxData ? () => setLightboxData(null) : onClose);
 
@@ -87,6 +88,8 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const isAssignedToMyDept = req?.assignedDept === currentUser?.dept;
   const isTeamMemberIncoming = isFromOtherDept && isAssignedToMyDept;
 
+  const myApprovalStatus = isRM ? req?.rmStatus : isHOD ? req?.hodStatus : (isDeptHOD || isManagement) ? req?.deptHodStatus : "--";
+  const hasAlreadyActed = myApprovalStatus && myApprovalStatus !== "--";
   const canApprove    = (isRM || isHOD || isDeptHOD || isManagement) && !isClosed && !isPendingAck && !isOwnRequest;
   const canChangeDept = (isRM || isHOD || isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck;
   const canClose      = ((isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck) || (isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin);
@@ -101,18 +104,16 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
 
   const [spreadsheetPreview, setSpreadsheetPreview] = useState(null); // { url, fileName }
 
-  const handleApproval = (decision, checkingDeadline = null, checkingReasonVal = null) => {
-    const dateTime = getNowDateTime();
-    onApproval(req.id, decision, dateTime, currentUser, approvalComment, selectedDept, checkingDeadline, checkingReasonVal);
-    onSendMessage(req.id, {
-      id: Date.now(), author: currentUser.name, role: currentUser.role,
-      text: approvalComment || `${decision} the request.${checkingReasonVal ? ` Reason: ${checkingReasonVal}` : ""}`,
-      time: getNowTime(), date: getNowDate(),
-      type: "approval", status: decision, purpose: req.purpose,
-      changedDept: decision === "Forwarded" ? selectedDept : null,
-      originalDept: req.assignedDept,
-    });
-    setApprovalComment("");
+  const handleApproval = async (decision, checkingDeadline = null, checkingReasonVal = null) => {
+    if (approvalLoading) return;
+    setApprovalLoading(true);
+    try {
+      const dateTime = getNowDateTime();
+      await onApproval(req.id, decision, dateTime, currentUser, approvalComment, selectedDept, checkingDeadline, checkingReasonVal);
+      setApprovalComment("");
+    } finally {
+      setApprovalLoading(false);
+    }
   };
 
   const handleCheckingConfirm = () => {
@@ -360,18 +361,30 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                           </div>
                         ))}
                       </div>
+                      {hasAlreadyActed ? (
+                        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                          <CheckCircle size={14} className="text-slate-400 flex-shrink-0" />
+                          <p className="text-[11px] text-slate-500 font-black">
+                            You have already <span className="text-slate-700">{myApprovalStatus}</span> this request.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
                       <textarea value={approvalComment} onChange={(e) => setApprovalComment(e.target.value)}
                         className="w-full border-2 border-slate-100 p-3 rounded-xl h-16 outline-none focus:border-indigo-400 bg-slate-50 transition-all font-medium text-[12px] resize-none"
-                        placeholder="Add your official comments here..."/>
+                        placeholder="Add your official comments here..."
+                        disabled={approvalLoading}/>
                       <div className="grid grid-cols-3 gap-2">
                         {deptChanged ? (
-                          <button onClick={() => handleApproval("Forwarded")} className="bg-blue-500 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-blue-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"><Forward size={13}/> Forward</button>
+                          <button onClick={() => handleApproval("Forwarded")} disabled={approvalLoading} className="bg-blue-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-blue-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"><Forward size={13}/> Forward</button>
                         ) : (
-                          <button onClick={() => handleApproval("Approved")} className="bg-emerald-500 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-emerald-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"><CheckCircle size={13}/> Approve</button>
+                          <button onClick={() => handleApproval("Approved")} disabled={approvalLoading} className="bg-emerald-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-emerald-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"><CheckCircle size={13}/> Approve</button>
                         )}
-                        <button onClick={() => setShowCheckingModal(true)} className="bg-amber-500 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-amber-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"><Clock size={13}/> Checking</button>
-                        <button onClick={() => handleApproval("Rejected")} className="bg-red-500 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-red-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"><XCircle size={13}/> Reject</button>
+                        <button onClick={() => setShowCheckingModal(true)} disabled={approvalLoading} className="bg-amber-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-amber-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"><Clock size={13}/> Checking</button>
+                        <button onClick={() => handleApproval("Rejected")} disabled={approvalLoading} className="bg-red-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-red-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"><XCircle size={13}/> Reject</button>
                       </div>
+                        </>
+                      )}
                     </>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
