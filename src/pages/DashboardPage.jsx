@@ -206,14 +206,11 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   };
 
   const handleAddRequest = async (data) => {
-    try {
-      const saved = await createRequest(data);
-      setRequests((prev) => [saved, ...prev]);
-      setActiveModal(null);
-      showToast("success", "Request added successfully.");
-    } catch (err) {
-      showToast("error", err?.response?.data?.error || err?.message || "Failed to add request. Please try again.");
-    }
+    // No try/catch — errors propagate to AddRequestModal which shows them inline
+    const saved = await createRequest(data);
+    setRequests((prev) => [saved, ...prev]);
+    setActiveModal(null);
+    showToast("success", "Request added successfully.");
   };
 
   const handleConfirmCloseTicket = async (reqId, note, file) => {

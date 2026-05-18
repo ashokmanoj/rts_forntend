@@ -230,9 +230,10 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
   const [selectedDept, setSelectedDept] = useState("");
   const [dueDate,      setDueDate]      = useState("");
 
-  const [isDragging,  setIsDragging]  = useState(false);
-  const [fileError,   setFileError]   = useState(null);
-  const [submitting,  setSubmitting]  = useState(false);
+  const [isDragging,   setIsDragging]   = useState(false);
+  const [fileError,    setFileError]    = useState(null);
+  const [submitError,  setSubmitError]  = useState(null);
+  const [submitting,   setSubmitting]   = useState(false);
   const fileInputRef   = useRef(null);
   const dragCounterRef = useRef(0);
 
@@ -339,6 +340,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
   const handleSubmit = async () => {
     if (!purpose.trim() || submitting) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
       await onSubmit({
         purpose,
@@ -350,9 +352,8 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
         assignedPersonEmpId: null,
         assignedPersonName:  null,
       });
-      // parent closes the modal on success via setActiveModal(null)
-    } catch {
-      // parent shows error toast; modal stays open so user can fix & retry
+    } catch (err) {
+      setSubmitError(err?.response?.data?.error || err?.message || "Failed to submit. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -519,6 +520,14 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 -mt-1">
               <span className="text-red-500 text-[11px] font-black flex-shrink-0 mt-px">✕</span>
               <p className="text-[11px] text-red-700 leading-relaxed">{fileError}</p>
+            </div>
+          )}
+
+          {/* Submit error */}
+          {submitError && (
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+              <span className="text-red-500 text-[11px] font-black flex-shrink-0 mt-px">✕</span>
+              <p className="text-[11px] text-red-700 leading-relaxed font-medium">{submitError}</p>
             </div>
           )}
 
