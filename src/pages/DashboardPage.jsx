@@ -11,7 +11,7 @@ import AddRequestModal   from "../components/modals/AddRequestModal";
 import InstructionsModal from "../components/modals/InstructionsModal";
 import FoodPage          from "./FoodPage";
 import UserManagementPage from "./UserManagementPage";
-import { UtensilsCrossed, ClipboardList, LogOut, Users, CheckCircle2, XCircle } from "lucide-react";
+import { UtensilsCrossed, ClipboardList, LogOut, Users, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 
 export default function DashboardPage({ currentUser: currentUserProp, onLogout, onSwitchRole }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -272,8 +272,8 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
         )}
       </div>
 
-      {/* ── Tab Navigation (shrinks to content) ─────────────────────────────── */}
-      <div className="flex-shrink-0 px-3 sm:px-6 pt-2 pb-1">
+      {/* ── Tab Navigation ───────────────────────────────────────────────────── */}
+      <div className="flex-shrink-0 px-3 sm:px-6 pt-2 pb-1 flex items-center justify-between gap-3">
         {(() => {
           const loc             = currentUser?.location?.toLowerCase() || '';
           const isBengaluru     = loc.includes('bangalore') || loc.includes('bengaluru') || loc.includes('ngal');
@@ -320,6 +320,17 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
             </div>
           );
         })()}
+
+        {/* Refresh button */}
+        <button
+          onClick={() => loadRequests(currentPage, filters, true)}
+          disabled={isFiltering || loadingReqs}
+          title="Refresh"
+          className="flex items-center gap-1.5 h-9 px-3 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 shadow-sm disabled:opacity-50 flex-shrink-0"
+        >
+          <RefreshCw size={13} className={isFiltering || loadingReqs ? "animate-spin" : ""} />
+          <span className="hidden sm:inline">Refresh</span>
+        </button>
       </div>
 
       {/* ── Main content: takes all remaining height ─────────────────────────── */}

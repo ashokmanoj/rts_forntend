@@ -148,7 +148,10 @@ export default function FilterBar({
               <div className="relative">
                 <select value={activeFilters.assignedStatus || ""} onChange={e => updateFilter("assignedStatus", e.target.value)} className={selectStyle}>
                   <option value="">All</option>
-                  {assignedStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                  <option value="Open">Open</option>
+                  <option value="Checking">Checking</option>
+                  <option value="Pending Acknowledgement">Pending Ack.</option>
+                  <option value="Closed">Closed</option>
                 </select>
                 <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
               </div>
