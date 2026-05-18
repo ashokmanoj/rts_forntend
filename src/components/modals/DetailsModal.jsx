@@ -361,30 +361,28 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                           </div>
                         ))}
                       </div>
-                      {hasAlreadyActed ? (
-                        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
-                          <CheckCircle size={14} className="text-slate-400 flex-shrink-0" />
-                          <p className="text-[11px] text-slate-500 font-black">
-                            You have already <span className="text-slate-700">{myApprovalStatus}</span> this request.
-                          </p>
-                        </div>
-                      ) : (
-                        <>
                       <textarea value={approvalComment} onChange={(e) => setApprovalComment(e.target.value)}
                         className="w-full border-2 border-slate-100 p-3 rounded-xl h-16 outline-none focus:border-indigo-400 bg-slate-50 transition-all font-medium text-[12px] resize-none"
                         placeholder="Add your official comments here..."
                         disabled={approvalLoading}/>
                       <div className="grid grid-cols-3 gap-2">
                         {deptChanged ? (
-                          <button onClick={() => handleApproval("Forwarded")} disabled={approvalLoading} className="bg-blue-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-blue-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"><Forward size={13}/> Forward</button>
+                          <button onClick={() => handleApproval("Forwarded")} disabled={approvalLoading || myApprovalStatus === "Forwarded"} className="bg-blue-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-blue-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5 relative">
+                            {myApprovalStatus === "Forwarded" ? <CheckCircle size={13}/> : <Forward size={13}/>} Forward
+                            {myApprovalStatus === "Forwarded" && <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center"><CheckCircle size={10} className="text-blue-500"/></span>}
+                          </button>
                         ) : (
-                          <button onClick={() => handleApproval("Approved")} disabled={approvalLoading} className="bg-emerald-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-emerald-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"><CheckCircle size={13}/> Approve</button>
+                          <button onClick={() => handleApproval("Approved")} disabled={approvalLoading || myApprovalStatus === "Approved"} className="bg-emerald-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-emerald-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5 relative">
+                            <CheckCircle size={13}/> Approve
+                            {myApprovalStatus === "Approved" && <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center"><CheckCircle size={10} className="text-emerald-500"/></span>}
+                          </button>
                         )}
                         <button onClick={() => setShowCheckingModal(true)} disabled={approvalLoading} className="bg-amber-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-amber-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"><Clock size={13}/> Checking</button>
-                        <button onClick={() => handleApproval("Rejected")} disabled={approvalLoading} className="bg-red-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-red-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"><XCircle size={13}/> Reject</button>
+                        <button onClick={() => handleApproval("Rejected")} disabled={approvalLoading || myApprovalStatus === "Rejected"} className="bg-red-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-red-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5 relative">
+                          <XCircle size={13}/> Reject
+                          {myApprovalStatus === "Rejected" && <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center"><XCircle size={10} className="text-red-500"/></span>}
+                        </button>
                       </div>
-                        </>
-                      )}
                     </>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
