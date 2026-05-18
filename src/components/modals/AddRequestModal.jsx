@@ -230,29 +230,57 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
   const [selectedDept, setSelectedDept] = useState("");
   const [dueDate,      setDueDate]      = useState("");
 
-  const [isDragging, setIsDragging] = useState(false);
-  const [fileError,  setFileError]  = useState(null);
+  const [isDragging,  setIsDragging]  = useState(false);
+  const [fileError,   setFileError]   = useState(null);
+  const [submitting,  setSubmitting]  = useState(false);
   const fileInputRef   = useRef(null);
   const dragCounterRef = useRef(0);
 
   useEscapeKey(onClose);
 
+  const MAX_FILES     = 10;
+  const MAX_TOTAL_MB  = 20;
+  const MAX_TOTAL_BYTES = MAX_TOTAL_MB * 1024 * 1024;
+
   const addFiles = useCallback((newFiles) => {
     if (!newFiles.length) return;
+
     const allowed  = newFiles.filter(isAllowedFile);
     const rejected = newFiles.filter(f => !isAllowedFile(f));
+
     if (rejected.length) {
       setFileError(`Unsupported file type${rejected.length > 1 ? "s" : ""}: ${rejected.map(f => f.name).join(", ")}. Allowed: images, video, audio, PDF, Word, Excel, CSV, ZIP, RAR.`);
-    } else {
-      setFileError(null);
+      if (!allowed.length) return;
     }
-    if (!allowed.length) return;
-    setUploadedFiles(prev => [...prev, ...allowed]);
+
+    const combined = [...uploadedFiles, ...allowed];
+
+    if (combined.length > MAX_FILES) {
+      setFileError(`You can upload a maximum of ${MAX_FILES} files at once.`);
+      return;
+    }
+
+    const totalBytes = combined.reduce((sum, f) => sum + f.size, 0);
+    if (totalBytes > MAX_TOTAL_BYTES) {
+      const hasArchive = combined.some(f => {
+        const n = f.name.toLowerCase();
+        return n.endsWith(".zip") || n.endsWith(".rar") || n.endsWith(".7z") || n.endsWith(".tar") || n.endsWith(".gz") || f.type.includes("zip");
+      });
+      setFileError(
+        hasArchive
+          ? `Total size exceeds ${MAX_TOTAL_MB} MB. Your compressed archive is also too large — please split it into smaller parts.`
+          : `Total file size exceeds ${MAX_TOTAL_MB} MB. Please compress your files into a ZIP and upload that instead.`
+      );
+      return;
+    }
+
+    if (!rejected.length) setFileError(null);
+    setUploadedFiles(combined);
     setImagePreviews(prev => [
       ...prev,
       ...allowed.map(f => f.type.startsWith("image/") ? URL.createObjectURL(f) : null),
     ]);
-  }, []);
+  }, [uploadedFiles]);
 
   const handleFileChange = (e) => {
     addFiles(Array.from(e.target.files));
@@ -308,19 +336,26 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
     setFileError(null);
   };
 
-  const handleSubmit = () => {
-    if (!purpose.trim()) return;
-    onSubmit({
-      purpose,
-      assignedDept:  selectedDept || "",
-      assignedDepts: selectedDept || "",
-      description,
-      files: uploadedFiles.length > 0 ? uploadedFiles : null,
-      dueDate: dueDate || null,
-      assignedPersonEmpId: null,
-      assignedPersonName:  null,
-    });
-    onClose();
+  const handleSubmit = async () => {
+    if (!purpose.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        purpose,
+        assignedDept:  selectedDept || "",
+        assignedDepts: selectedDept || "",
+        description,
+        files: uploadedFiles.length > 0 ? uploadedFiles : null,
+        dueDate: dueDate || null,
+        assignedPersonEmpId: null,
+        assignedPersonName:  null,
+      });
+      // parent closes the modal on success via setActiveModal(null)
+    } catch {
+      // parent shows error toast; modal stays open so user can fix & retry
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const urgencyInfo  = priorityFromDueDate(dueDate);
@@ -422,7 +457,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
               <>
                 <Upload className={`mb-2 transition-colors ${isDragging ? "text-indigo-400" : "text-slate-300 group-hover:text-blue-400"}`} size={30} />
                 <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px] text-center">
-                  Upload images, PDF, Excel, CSV, ZIP, RAR
+                  Upload images, PDF, Excel, CSV, ZIP, RAR — max 10 files / 20 MB total
                 </span>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-[9px] text-slate-300 font-medium">Drag & drop</span>
@@ -494,10 +529,10 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!purpose.trim()}
+              disabled={!purpose.trim() || submitting}
               className="flex-1 bg-emerald-500 text-white py-4 rounded-2xl font-black text-base hover:bg-emerald-600 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
             >
-              Submit
+              {submitting ? "Submitting…" : "Submit"}
             </button>
           </div>
         </div>
