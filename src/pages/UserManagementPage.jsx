@@ -8,20 +8,25 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { get, post, patch } from "../services/api";
-import { 
-  UserPlus, 
-  UserMinus, 
-  UserCheck, 
-  Search, 
-  X, 
-  ChevronDown, 
-  Save, 
+import {
+  UserPlus,
+  UserMinus,
+  UserCheck,
+  Search,
+  X,
+  ChevronDown,
+  Save,
   ShieldAlert,
   Users,
-  Edit2
+  Edit2,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Copy,
+  CheckCircle2
 } from "lucide-react";
 
-const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin"];
+const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Intern"];
 const DEPARTMENTS = [
   "Academic", "Accounts", "Admin", "Animation", "Broadcasting", 
   "Business Development", "Corporate Communications", "Documentation", 
@@ -36,6 +41,16 @@ export default function UserManagementPage({ currentUser }) {
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordTarget, setPasswordTarget] = useState(null);
+  const [pwNew, setPwNew] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwShowNew, setPwShowNew] = useState(false);
+  const [pwShowConfirm, setPwShowConfirm] = useState(false);
+  const [pwError, setPwError] = useState("");
+  const [pwSuccess, setPwSuccess] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwCopied, setPwCopied] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -161,6 +176,42 @@ export default function UserManagementPage({ currentUser }) {
     }
   };
 
+  const openPasswordModal = (user) => {
+    setPasswordTarget(user);
+    setPwNew("");
+    setPwConfirm("");
+    setPwError("");
+    setPwSuccess("");
+    setPwCopied(false);
+    setPwShowNew(false);
+    setPwShowConfirm(false);
+    setShowPasswordModal(true);
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setPwError("");
+    if (pwNew.length < 6) { setPwError("Password must be at least 6 characters."); return; }
+    if (pwNew !== pwConfirm) { setPwError("Passwords do not match."); return; }
+    setPwLoading(true);
+    try {
+      await patch(`/admin/reset-password/${passwordTarget.empId}`, { newPassword: pwNew });
+      setPwSuccess(pwNew);
+      setPwNew("");
+      setPwConfirm("");
+    } catch (err) {
+      setPwError(err.response?.data?.error || "Failed to reset password.");
+    } finally {
+      setPwLoading(false);
+    }
+  };
+
+  const handleCopyPassword = () => {
+    navigator.clipboard.writeText(pwSuccess);
+    setPwCopied(true);
+    setTimeout(() => setPwCopied(false), 2000);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Actions */}
@@ -220,13 +271,16 @@ export default function UserManagementPage({ currentUser }) {
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Dept & Role</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">RM & HOD ID</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
+                {currentUser?.role === "SuperUser" && (
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Password</th>
+                )}
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-[12px]">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-10 text-center">
+                  <td colSpan={currentUser?.role === "SuperUser" ? 8 : 7} className="px-6 py-10 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                       <p className="text-slate-400 font-bold uppercase text-[10px]">Loading users...</p>
@@ -262,6 +316,11 @@ export default function UserManagementPage({ currentUser }) {
                         {user.isActive ? 'Active' : 'Disabled'}
                       </span>
                     </td>
+                    {currentUser?.role === "SuperUser" && (
+                      <td className="px-6 py-4 text-center">
+                        <span className="font-mono text-slate-400 text-[13px] tracking-widest">••••••••</span>
+                      </td>
+                    )}
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
                         <button
@@ -271,6 +330,15 @@ export default function UserManagementPage({ currentUser }) {
                         >
                           <Edit2 size={16} />
                         </button>
+                        {currentUser?.role === "SuperUser" && (
+                          <button
+                            onClick={() => openPasswordModal(user)}
+                            className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-all active:scale-95"
+                            title="Reset Password"
+                          >
+                            <KeyRound size={16} />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleToggleStatus(user.empId, user.isActive)}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-black text-[10px] transition-all active:scale-95 ${user.isActive ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
@@ -287,7 +355,7 @@ export default function UserManagementPage({ currentUser }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="px-6 py-20 text-center">
+                  <td colSpan={currentUser?.role === "SuperUser" ? 8 : 7} className="px-6 py-20 text-center">
                     <p className="text-slate-400 font-black uppercase text-[12px]">No users found</p>
                   </td>
                 </tr>
@@ -462,6 +530,117 @@ export default function UserManagementPage({ currentUser }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {showPasswordModal && passwordTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-zoom-in">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-amber-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-500 text-white rounded-xl">
+                  <KeyRound size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-800">Reset Password</h3>
+                  <p className="text-[11px] text-slate-500 font-bold">{passwordTarget.name} · {passwordTarget.empId}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowPasswordModal(false)} className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {pwSuccess ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <CheckCircle2 size={20} />
+                    <p className="font-black text-[13px]">Password reset successfully!</p>
+                  </div>
+                  <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+                    <p className="text-[10px] font-black text-green-600 uppercase tracking-wider mb-2">New Password (copy now)</p>
+                    <div className="flex items-center gap-2">
+                      <span className="flex-1 font-mono font-bold text-green-800 text-[15px] bg-white border border-green-200 rounded-xl px-3 py-2 select-all">{pwSuccess}</span>
+                      <button
+                        onClick={handleCopyPassword}
+                        className={`p-2 rounded-xl transition-all active:scale-95 ${pwCopied ? 'bg-green-500 text-white' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
+                        title="Copy password"
+                      >
+                        {pwCopied ? <CheckCircle2 size={18} /> : <Copy size={18} />}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-green-600 font-bold mt-2">Share this password securely with the user.</p>
+                  </div>
+                  <button
+                    onClick={() => setShowPasswordModal(false)}
+                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black transition-all active:scale-95"
+                  >
+                    CLOSE
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  {pwError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2.5 rounded-xl text-[12px] font-bold flex items-center gap-2">
+                      <ShieldAlert size={14} /> {pwError}
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-black text-slate-500 uppercase ml-1">New Password *</label>
+                    <div className="relative">
+                      <input
+                        required
+                        type={pwShowNew ? "text" : "password"}
+                        value={pwNew}
+                        onChange={(e) => setPwNew(e.target.value)}
+                        className="w-full p-3 pr-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                        placeholder="Min 6 characters"
+                        autoComplete="new-password"
+                      />
+                      <button type="button" onClick={() => setPwShowNew(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                        {pwShowNew ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Confirm Password *</label>
+                    <div className="relative">
+                      <input
+                        required
+                        type={pwShowConfirm ? "text" : "password"}
+                        value={pwConfirm}
+                        onChange={(e) => setPwConfirm(e.target.value)}
+                        className="w-full p-3 pr-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                        placeholder="Re-enter new password"
+                        autoComplete="new-password"
+                      />
+                      <button type="button" onClick={() => setPwShowConfirm(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                        {pwShowConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordModal(false)}
+                      className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl font-black transition-all active:scale-95"
+                    >
+                      CANCEL
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={pwLoading}
+                      className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black shadow-lg shadow-amber-200 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60"
+                    >
+                      <KeyRound size={16} /> {pwLoading ? "RESETTING..." : "RESET PASSWORD"}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       )}

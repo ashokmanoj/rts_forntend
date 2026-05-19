@@ -123,3 +123,11 @@ export async function patchForm(path, formData) {
   });
   return handleResponse(res, path);
 }
+
+export async function del(path) {
+  const res = await safeFetch(`${BASE_URL}${path}`, {
+    method:  "DELETE",
+    headers: authHeaders(),
+  });
+  return handleResponse(res, path);
+}

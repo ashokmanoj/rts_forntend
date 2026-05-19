@@ -35,8 +35,8 @@ export default function FoodPage({ currentUser }) {
   const now          = new Date();
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, loading: pushLoading, error: pushError, subscribe: enablePush, unsubscribe: disablePush } = usePushNotifications();
   const [testLoading, setTestLoading] = useState(false);
-  const isReportRole = currentUser?.role === 'DeptHOD' && REPORT_DEPTS.includes(currentUser?.dept);
-  const isRequestor  = ['Requestor', 'RM', 'HOD', 'HR', 'FoodCommittee', 'Intern'].includes(currentUser?.role);
+  const isReportRole = currentUser?.role === 'SuperUser' || (currentUser?.role === 'DeptHOD' && REPORT_DEPTS.includes(currentUser?.dept));
+  const isRequestor  = ['Requestor', 'RM', 'HOD', 'HR', 'FoodCommittee', 'Intern', 'SuperUser'].includes(currentUser?.role);
 
   const [showGuide, setShowGuide] = useState(false);
 

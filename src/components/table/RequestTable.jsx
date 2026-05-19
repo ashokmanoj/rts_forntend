@@ -4,10 +4,10 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Forward, EyeOff, Bell, Send, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Forward, EyeOff, Bell, Send, ThumbsUp, ThumbsDown, Pencil, Trash2 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 
-export default function RequestTable({ requests, currentUser, onOpenDetails, onMarkUnread, onAcknowledge }) {
+export default function RequestTable({ requests, currentUser, onOpenDetails, onMarkUnread, onAcknowledge, onEdit, onDelete }) {
   const [contextMenu, setContextMenu] = useState(null);
   // key: `${rowId}-${action}` e.g. "42-Received"
   const [pendingAck, setPendingAck] = useState(null);
@@ -26,9 +26,9 @@ export default function RequestTable({ requests, currentUser, onOpenDetails, onM
     return () => window.removeEventListener("click", close);
   }, []);
 
-  const handleRightClick = (e, rowId) => {
+  const handleRightClick = (e, rowId, row) => {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, rowId });
+    setContextMenu({ x: e.clientX, y: e.clientY, rowId, row });
   };
 
   const handleMarkUnread = (rowId) => {
@@ -48,7 +48,7 @@ export default function RequestTable({ requests, currentUser, onOpenDetails, onM
       {contextMenu && (
         <div
           className="fixed z-[100] bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden py-1"
-          style={{ top: Math.min(contextMenu.y, window.innerHeight - 60), left: Math.min(contextMenu.x, window.innerWidth - 180) }}
+          style={{ top: Math.min(contextMenu.y, window.innerHeight - 120), left: Math.min(contextMenu.x, window.innerWidth - 200) }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
@@ -57,6 +57,22 @@ export default function RequestTable({ requests, currentUser, onOpenDetails, onM
           >
             <EyeOff size={14} className="text-blue-500" /> Mark as Unread
           </button>
+          {onEdit && (
+            <button
+              onClick={() => { onEdit(contextMenu.row); setContextMenu(null); }}
+              className="flex items-center gap-2 px-4 py-2.5 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 w-full text-left font-bold text-[12px] transition-colors"
+            >
+              <Pencil size={14} className="text-indigo-500" /> Edit Request
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => { onDelete(contextMenu.row); setContextMenu(null); }}
+              className="flex items-center gap-2 px-4 py-2.5 hover:bg-red-50 text-slate-700 hover:text-red-700 w-full text-left font-bold text-[12px] transition-colors"
+            >
+              <Trash2 size={14} className="text-red-500" /> Delete Request
+            </button>
+          )}
         </div>
       )}
 
@@ -122,7 +138,7 @@ export default function RequestTable({ requests, currentUser, onOpenDetails, onM
                 <tr
                   key={row.id}
                   className={`hover:bg-blue-50/50 transition-colors border-b border-l border-black ${rowBg}`}
-                  onContextMenu={(e) => handleRightClick(e, row.id)}
+                  onContextMenu={(e) => handleRightClick(e, row.id, row)}
                 >
                   {[idx + 1, row.date, row.empId, row.name, row.dept, row.designation, row.location].map((val, i) => (
                     <td key={i} className={`border-r border-black p-2 text-center text-[11px] ${bold} whitespace-nowrap`}>

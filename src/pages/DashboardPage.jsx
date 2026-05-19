@@ -277,13 +277,14 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
         {(() => {
           const loc             = currentUser?.location?.toLowerCase() || '';
           const isBengaluru     = loc.includes('bangalore') || loc.includes('bengaluru') || loc.includes('ngal');
+          const isSuperUser     = currentUser?.role === 'SuperUser';
           const isInternRole    = currentUser?.role === 'Intern';
           const isRequestorRole = currentUser?.role === 'Requestor';
           const isFoodReportHOD = currentUser?.role === 'DeptHOD' &&
                                    ['HR', 'Food Committee'].includes(currentUser?.dept);
-          const showFoodTab     = ((isRequestorRole || isInternRole) && isBengaluru) || isFoodReportHOD;
+          const showFoodTab     = isSuperUser || ((isRequestorRole || isInternRole) && isBengaluru) || isFoodReportHOD;
           const isHRDeptHOD     = currentUser?.role === 'DeptHOD' && currentUser?.dept === 'HR';
-          const showMgmtTab     = isHRDeptHOD;
+          const showMgmtTab     = isSuperUser || isHRDeptHOD;
 
           return (
             <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit max-w-full overflow-x-auto shadow-sm">

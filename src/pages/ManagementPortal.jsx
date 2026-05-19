@@ -7,12 +7,14 @@
  * main request table's HOD Status column.
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { fetchHodPendingRequests, submitHodApproval } from "../services/managementService";
 import { post } from "../services/api";
 import {
   LogOut, RefreshCw, CheckCircle2, XCircle, Clock,
   ChevronDown, ChevronUp, ShieldCheck, AlertCircle,
+  Search, X, SlidersHorizontal, LayoutDashboard,
 } from "lucide-react";
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -44,50 +46,32 @@ function ActionPanel({ row, onSubmit, onCancel, loading }) {
       </p>
 
       <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setDecision("Approved")}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black transition-all border-2 ${
-            decision === "Approved"
-              ? "bg-emerald-600 text-white border-emerald-600 shadow"
-              : "bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50"
-          }`}
-        >
-          <CheckCircle2 size={14} /> Approve
-        </button>
-        {isGnRow && (
-          <button
-            onClick={() => setDecision("Checking")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black transition-all border-2 ${
-              decision === "Checking"
-                ? "bg-blue-600 text-white border-blue-600 shadow"
-                : "bg-white text-blue-700 border-blue-300 hover:bg-blue-50"
-            }`}
-          >
-            <Clock size={14} /> Checking
-          </button>
-        )}
-        <button
-          onClick={() => setDecision("Rejected")}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black transition-all border-2 ${
-            decision === "Rejected"
-              ? "bg-red-600 text-white border-red-600 shadow"
-              : "bg-white text-red-700 border-red-300 hover:bg-red-50"
-          }`}
-        >
-          <XCircle size={14} /> Reject
-        </button>
-        {isGnRow && (
-          <button
-            onClick={() => setDecision("Close")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black transition-all border-2 ${
-              decision === "Close"
-                ? "bg-slate-700 text-white border-slate-700 shadow"
-                : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
-            }`}
-          >
-            <XCircle size={14} /> Close Ticket
-          </button>
-        )}
+        {[
+          { key: "Approved", label: "Approve",      icon: <CheckCircle2 size={14} />, active: "bg-emerald-600 text-white border-emerald-600 shadow", idle: "bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50" },
+          ...(isGnRow ? [{ key: "Checking", label: "Checking", icon: <Clock size={14} />, active: "bg-blue-600 text-white border-blue-600 shadow", idle: "bg-white text-blue-700 border-blue-300 hover:bg-blue-50" }] : []),
+          { key: "Rejected", label: "Reject",       icon: <XCircle size={14} />,    active: "bg-red-600 text-white border-red-600 shadow",     idle: "bg-white text-red-700 border-red-300 hover:bg-red-50" },
+          { key: "Close",    label: "Close Ticket", icon: <XCircle size={14} />,    active: "bg-slate-700 text-white border-slate-700 shadow",  idle: "bg-white text-slate-600 border-slate-300 hover:bg-slate-50" },
+        ].map(({ key, label, icon, active, idle }) => {
+          const isCurrentStatus = row.hodStatus === key;
+          const isSelected      = decision === key;
+          return (
+            <button
+              key={key}
+              onClick={() => !isCurrentStatus && setDecision(key)}
+              disabled={isCurrentStatus}
+              title={isCurrentStatus ? "Already selected" : undefined}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black transition-all border-2 ${
+                isCurrentStatus
+                  ? "opacity-40 cursor-not-allowed bg-slate-100 text-slate-500 border-slate-200"
+                  : isSelected
+                  ? active
+                  : idle
+              }`}
+            >
+              {icon} {label}
+            </button>
+          );
+        })}
       </div>
 
       <textarea
@@ -205,33 +189,37 @@ function RequestRow({ row, index, onActionComplete }) {
         <td className="px-3 py-3 text-center">
           <HodBadge status={row.hodStatus} />
         </td>
+        {/* Assigned Dept */}
+        <td className="px-3 py-3 text-xs text-slate-700 font-bold whitespace-nowrap">
+          {row.assignedDept || <span className="text-slate-300">—</span>}
+        </td>
         {/* Actions */}
         <td className="px-3 py-3 text-center">
-          {isPending ? (
-            actioning ? (
-              <button
-                onClick={() => setActioning(false)}
-                className="text-[10px] text-slate-500 hover:text-slate-700 font-bold underline"
-              >
-                Cancel
-              </button>
-            ) : (
-              <button
-                onClick={() => setActioning(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-[11px] font-black rounded-lg transition-all active:scale-95 mx-auto whitespace-nowrap"
-              >
-                <ShieldCheck size={13} /> Take Action
-              </button>
-            )
+          {row.isClosed ? (
+            <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg whitespace-nowrap">
+              Ticket Closed
+            </span>
+          ) : actioning ? (
+            <button
+              onClick={() => setActioning(false)}
+              className="text-[10px] text-slate-500 hover:text-slate-700 font-bold underline"
+            >
+              Cancel
+            </button>
           ) : (
-            <span className="text-[10px] text-slate-400 font-medium">—</span>
+            <button
+              onClick={() => setActioning(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-[11px] font-black rounded-lg transition-all active:scale-95 mx-auto whitespace-nowrap"
+            >
+              <ShieldCheck size={13} /> Take Action
+            </button>
           )}
         </td>
       </tr>
 
       {actioning && (
         <tr>
-          <td colSpan={7} className="px-4 pb-3">
+          <td colSpan={8} className="px-4 pb-3">
             <ActionPanel
               row={row}
               onSubmit={handleSubmit}
@@ -247,11 +235,18 @@ function RequestRow({ row, index, onActionComplete }) {
 
 // ── Main Portal ───────────────────────────────────────────────────────────────
 export default function ManagementPortal({ currentUser, onLogout }) {
+  const navigate = useNavigate();
   const [requests,   setRequests]   = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState("");
   const [lastRefresh, setLastRefresh] = useState(null);
   const [refreshing, setRefreshing]  = useState(false);
+
+  // ── Filters ──
+  const [search,        setSearch]        = useState("");
+  const [statusFilter,  setStatusFilter]  = useState("all");   // all | pending | approved | rejected
+  const [rmFilter,      setRmFilter]      = useState("all");   // all | pending | approved | rejected | checking
+  const [deptFilter,    setDeptFilter]    = useState("all");   // all | <dept name>
 
   const pollRef = useRef(null);
 
@@ -292,8 +287,52 @@ export default function ManagementPortal({ currentUser, onLogout }) {
     !r.isClosed && (!r.hodStatus || r.hodStatus === "--" || r.hodStatus === "Checking")
   ).length;
 
+  // Unique sorted dept list derived from loaded requests
+  const deptOptions = useMemo(() =>
+    [...new Set(requests.map(r => r.dept).filter(Boolean))].sort()
+  , [requests]);
+
+  const filteredRequests = useMemo(() => {
+    return requests.filter(r => {
+      // Search across name, empId, dept, purpose, description
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const match = [r.name, r.empId, r.dept, r.purpose, r.description]
+          .some(v => v?.toLowerCase().includes(q));
+        if (!match) return false;
+      }
+      // HOD status filter
+      const isPend = !r.isClosed && (!r.hodStatus || r.hodStatus === "--" || r.hodStatus === "Checking");
+      if (statusFilter === "pending"  && !isPend) return false;
+      if (statusFilter === "approved" && r.hodStatus !== "Approved") return false;
+      if (statusFilter === "rejected" && r.hodStatus !== "Rejected") return false;
+      // RM status filter
+      if (rmFilter === "pending"  && r.rmStatus && r.rmStatus !== "--") return false;
+      if (rmFilter === "approved" && r.rmStatus !== "Approved") return false;
+      if (rmFilter === "rejected" && r.rmStatus !== "Rejected") return false;
+      if (rmFilter === "checking" && r.rmStatus !== "Checking") return false;
+      // Department filter
+      if (deptFilter !== "all" && r.dept !== deptFilter) return false;
+      return true;
+    });
+  }, [requests, search, statusFilter, rmFilter, deptFilter]);
+
+  const activeFilterCount = [
+    search.trim() !== "",
+    statusFilter !== "all",
+    rmFilter     !== "all",
+    deptFilter   !== "all",
+  ].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setRmFilter("all");
+    setDeptFilter("all");
+  };
+
   return (
-    <div className="h-dvh bg-gradient-to-br from-amber-50 to-orange-50 font-sans flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 font-sans flex flex-col" style={{height:"100dvh"}}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="flex-shrink-0 bg-gradient-to-r from-amber-600 to-orange-600 shadow-lg">
@@ -308,11 +347,19 @@ export default function ManagementPortal({ currentUser, onLogout }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
               <p className="text-white text-xs font-black">{currentUser?.name}</p>
               <p className="text-amber-200 text-[10px]">{currentUser?.empId} · {currentUser?.dept}</p>
             </div>
+            {currentUser?.role === "SuperUser" && (
+              <button
+                onClick={() => navigate("/super")}
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white px-4 py-2 rounded-xl text-xs font-black transition-all active:scale-95"
+              >
+                <LayoutDashboard size={14} /> Hub
+              </button>
+            )}
             <button
               onClick={onLogout}
               className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white px-4 py-2 rounded-xl text-xs font-black transition-all active:scale-95"
@@ -323,7 +370,7 @@ export default function ManagementPortal({ currentUser, onLogout }) {
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-5 flex flex-col gap-4 overflow-hidden">
+      <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-5 pb-6 flex flex-col gap-4 overflow-hidden">
 
         {/* ── Stats bar ──────────────────────────────────────────────────────── */}
         <div className="flex-shrink-0 grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -332,7 +379,10 @@ export default function ManagementPortal({ currentUser, onLogout }) {
               <Clock size={22} className="text-amber-600" />
             </div>
             <div>
-              <p className="text-2xl font-black text-slate-800">{pendingCount}</p>
+              <p className="text-2xl font-black text-slate-800">
+                {pendingCount}
+                <span className="text-base font-bold text-slate-400"> / {requests.length}</span>
+              </p>
               <p className="text-xs text-slate-500 font-bold">Pending Approval</p>
             </div>
           </div>
@@ -375,7 +425,7 @@ export default function ManagementPortal({ currentUser, onLogout }) {
             )}
             {requests.length > 0 && (
               <span className="bg-slate-100 text-slate-500 text-[11px] font-black px-2 py-0.5 rounded-full">
-                {requests.length} Total
+                {activeFilterCount > 0 ? `${filteredRequests.length} / ${requests.length}` : `${requests.length} Total`}
               </span>
             )}
           </h2>
@@ -387,6 +437,75 @@ export default function ManagementPortal({ currentUser, onLogout }) {
             <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />
             Refresh
           </button>
+        </div>
+
+        {/* ── Filter bar ─────────────────────────────────────────────────────── */}
+        <div className="flex-shrink-0 bg-white border border-slate-200 rounded-2xl shadow-sm px-4 py-3 flex flex-wrap gap-3 items-center">
+          <SlidersHorizontal size={15} className="text-amber-500 flex-shrink-0" />
+
+          {/* Search */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search name, ID, dept, purpose…"
+              className="w-full pl-8 pr-3 py-2 text-[12px] font-medium bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all"
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {/* HOD Status */}
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className={`px-3 py-2 text-[12px] font-bold rounded-xl border outline-none transition-all cursor-pointer ${statusFilter !== "all" ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-slate-50 border-slate-200 text-slate-600"}`}
+          >
+            <option value="all">HOD Status: All</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+
+          {/* RM Status */}
+          <select
+            value={rmFilter}
+            onChange={e => setRmFilter(e.target.value)}
+            className={`px-3 py-2 text-[12px] font-bold rounded-xl border outline-none transition-all cursor-pointer ${rmFilter !== "all" ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-slate-50 border-slate-200 text-slate-600"}`}
+          >
+            <option value="all">RM Status: All</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="checking">Checking</option>
+          </select>
+
+          {/* Department */}
+          <select
+            value={deptFilter}
+            onChange={e => setDeptFilter(e.target.value)}
+            className={`px-3 py-2 text-[12px] font-bold rounded-xl border outline-none transition-all cursor-pointer ${deptFilter !== "all" ? "bg-purple-50 border-purple-300 text-purple-700" : "bg-slate-50 border-slate-200 text-slate-600"}`}
+          >
+            <option value="all">Department: All</option>
+            {deptOptions.map(d => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+
+          {/* Clear */}
+          {activeFilterCount > 0 && (
+            <button
+              onClick={clearFilters}
+              className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-[11px] font-black rounded-xl transition-all active:scale-95 whitespace-nowrap"
+            >
+              <X size={11} /> Clear ({activeFilterCount})
+            </button>
+          )}
         </div>
 
         {/* ── Content ────────────────────────────────────────────────────────── */}
@@ -415,7 +534,7 @@ export default function ManagementPortal({ currentUser, onLogout }) {
             <p className="text-sm text-slate-400">HOD requests and GN employee tickets will appear here.</p>
           </div>
         ) : (
-          <div className="flex-1 min-h-0 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-auto">
+          <div className="flex-1 min-h-0 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-auto pb-4">
             <table className="w-full border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-amber-600 text-white text-[11px] font-black uppercase tracking-wide">
@@ -425,18 +544,33 @@ export default function ManagementPortal({ currentUser, onLogout }) {
                   <th className="px-3 py-3 text-left">Purpose / Description</th>
                   <th className="px-3 py-3 text-center">RM Status</th>
                   <th className="px-3 py-3 text-center">HOD Status</th>
+                  <th className="px-3 py-3 text-left">Assigned Dept</th>
                   <th className="px-3 py-3 text-center">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {requests.map((row, idx) => (
-                  <RequestRow
-                    key={row.id}
-                    row={row}
-                    index={idx}
-                    onActionComplete={handleActionComplete}
-                  />
-                ))}
+                {filteredRequests.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-16 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <Search size={28} className="text-slate-300" />
+                        <p className="text-sm font-black text-slate-500">No results match your filters.</p>
+                        <button onClick={clearFilters} className="text-xs text-amber-600 font-bold underline hover:text-amber-800">
+                          Clear filters
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRequests.map((row, idx) => (
+                    <RequestRow
+                      key={row.id}
+                      row={row}
+                      index={idx}
+                      onActionComplete={handleActionComplete}
+                    />
+                  ))
+                )}
               </tbody>
             </table>
           </div>

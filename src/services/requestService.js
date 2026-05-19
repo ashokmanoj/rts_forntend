@@ -1,4 +1,4 @@
-import { get, postForm, patch, patchForm } from "./api";
+import { get, postForm, patch, patchForm, del } from "./api";
 
 export async function fetchRequests(params = {}) {
   const query = new URLSearchParams();
@@ -41,4 +41,12 @@ export async function closeRequest(id, note = "", file = null) {
   if (note) fd.append("note", note);
   if (file) fd.append("file", file);
   return patchForm(`/requests/${id}/close`, fd);
+}
+
+export async function editRequest(id, data) {
+  return patch(`/requests/${id}/edit`, data);
+}
+
+export async function deleteRequest(id) {
+  return del(`/requests/${id}`);
 }

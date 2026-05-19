@@ -16,6 +16,7 @@ import ResetPasswordPage    from "./pages/ResetPasswordPage";
 import DashboardPage        from "./pages/DashboardPage";
 import AdminReportPage      from "./pages/AdminReportPage";
 import ManagementPortal     from "./pages/ManagementPortal";
+import SuperUserHome        from "./pages/SuperUserHome";
 
 export default function App() {
   const [isLoggedIn,  setIsLoggedIn]  = useState(false);
@@ -105,6 +106,26 @@ export default function App() {
   }
 
   const isManagement = currentUser?.role === "Management";
+  const isSuperUser  = currentUser?.role === "SuperUser";
+
+  // SuperUser gets access to all routes with a dedicated hub home.
+  if (isSuperUser) {
+    return (
+      <Routes>
+        <Route path="/super" element={
+          <SuperUserHome currentUser={currentUser} onLogout={handleLogout} onSwitchRole={handleSwitchRole} />
+        } />
+        <Route path="/" element={
+          <DashboardPage currentUser={currentUser} onLogout={handleLogout} onSwitchRole={handleSwitchRole} />
+        } />
+        <Route path="/management" element={
+          <ManagementPortal currentUser={currentUser} onLogout={handleLogout} />
+        } />
+        <Route path="/admin/report" element={<AdminReportPage />} />
+        <Route path="*" element={<Navigate to="/super" replace />} />
+      </Routes>
+    );
+  }
 
   // Management users are routed to their dedicated portal by default.
   if (isManagement) {
