@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Upload, Paperclip } from "lucide-react";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
+import Spinner from "../ui/Spinner";
 
 /**
  * Popup for closing a ticket — resolution note + optional file upload.
@@ -10,8 +11,9 @@ export default function CloseTicketModal({ req, onClose, onConfirmClose }) {
   const [note, setNote] = useState("");
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  useEscapeKey(onClose);
+  useEscapeKey(loading ? null : onClose);
 
   const handleFileChange = (e) => {
     const f = e.target.files[0];
@@ -20,9 +22,14 @@ export default function CloseTicketModal({ req, onClose, onConfirmClose }) {
     setFilePreview(f.type.startsWith("image/") ? URL.createObjectURL(f) : null);
   };
 
-  const handleConfirm = () => {
-    onConfirmClose(req.id, note, file);
-    onClose();
+  const handleConfirm = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      await onConfirmClose(req.id, note, file);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -109,15 +116,17 @@ export default function CloseTicketModal({ req, onClose, onConfirmClose }) {
           <div className="flex gap-3 mt-2">
             <button
               onClick={onClose}
-              className="flex-1 bg-slate-200 text-slate-700 py-3 rounded-2xl font-black text-[12px] hover:bg-slate-300 transition-all"
+              disabled={loading}
+              className="flex-1 bg-slate-200 text-slate-700 py-3 rounded-2xl font-black text-[12px] hover:bg-slate-300 transition-all disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               onClick={handleConfirm}
-              className="flex-1 bg-red-500 text-white py-3 rounded-2xl font-black text-[12px] hover:bg-red-600 shadow-md transition-all"
+              disabled={loading}
+              className="flex-1 bg-red-500 text-white py-3 rounded-2xl font-black text-[12px] hover:bg-red-600 shadow-md transition-all disabled:opacity-60 flex items-center justify-center gap-2"
             >
-              Close Ticket
+              {loading ? <><Spinner size={14}/> Closing…</> : "Close Ticket"}
             </button>
           </div>
         </div>

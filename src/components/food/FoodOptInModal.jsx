@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { UtensilsCrossed, X } from 'lucide-react';
+import { UtensilsCrossed } from 'lucide-react';
+import Spinner from '../ui/Spinner';
 
 export default function FoodOptInModal({ onConfirm, onDecline, loading }) {
   return (
@@ -60,9 +60,9 @@ export default function FoodOptInModal({ onConfirm, onDecline, loading }) {
           <button
             onClick={onConfirm}
             disabled={loading}
-            className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[12px] shadow-md transition-all active:scale-95 disabled:opacity-60"
+            className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[12px] shadow-md transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            {loading ? 'Opting in...' : 'Yes, Opt In'}
+            {loading ? <><Spinner size={13}/> Opting in…</> : 'Yes, Opt In'}
           </button>
         </div>
       </div>

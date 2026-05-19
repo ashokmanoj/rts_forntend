@@ -8,6 +8,7 @@ import StatusBadge            from "../table/StatusBadge";
 import ChatPanel              from "../chat/ChatPanel";
 import SpreadsheetPreviewModal from "./SpreadsheetPreviewModal";
 import GalleryLightbox         from "./GalleryLightbox";
+import Spinner                 from "../ui/Spinner";
 
 const DEPARTMENTS = ["Academic","Accounts","Admin","Animation","Broadcasting","Business Development","Corporate Communications","Documentation","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing","Operation","Purchase","RTS Help Desk","Software","Store","System admin","TA Committee","Technical Support"];
 
@@ -66,8 +67,9 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const [showCheckingModal, setShowCheckingModal] = useState(false);
   const [checkingDate,      setCheckingDate]      = useState("");
   const [checkingReason,    setCheckingReason]    = useState("");
-  const [ackLoading,        setAckLoading]        = useState(false);
   const [approvalLoading,   setApprovalLoading]   = useState(false);
+  const [pendingDecision,   setPendingDecision]   = useState(null);
+  const [pendingAck,        setPendingAck]        = useState(null);
 
   useEscapeKey(lightboxData ? () => setLightboxData(null) : onClose);
 
@@ -97,7 +99,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const isRequestorMode = roleLow === "requestor" || isOwnRequest;
 
   // Team members can click "Checking" on incoming requests from other departments
-  const canUserCheck = isTeamMemberIncoming && !isClosed && !isAdmin && !canApprove;
+  const canUserCheck = isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !canApprove;
 
   const isImageUrl       = (url) => url && /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
   const isSpreadsheetUrl = (url) => url && /\.(csv|xlsx|xls)(\?.*)?$/i.test(url);
@@ -106,6 +108,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
 
   const handleApproval = async (decision, checkingDeadline = null, checkingReasonVal = null) => {
     if (approvalLoading) return;
+    setPendingDecision(decision);
     setApprovalLoading(true);
     try {
       const dateTime = getNowDateTime();
@@ -113,6 +116,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
       setApprovalComment("");
     } finally {
       setApprovalLoading(false);
+      setPendingDecision(null);
     }
   };
 
@@ -124,10 +128,10 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   };
 
   const handleAcknowledge = async (status) => {
-    if (!onAcknowledge) return;
-    setAckLoading(true);
+    if (!onAcknowledge || pendingAck) return;
+    setPendingAck(status);
     try { await onAcknowledge(req.id, status); }
-    finally { setAckLoading(false); }
+    finally { setPendingAck(null); }
   };
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -368,18 +372,20 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                       <div className="grid grid-cols-3 gap-2">
                         {deptChanged ? (
                           <button onClick={() => handleApproval("Forwarded")} disabled={approvalLoading || myApprovalStatus === "Forwarded"} className="bg-blue-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-blue-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5 relative">
-                            {myApprovalStatus === "Forwarded" ? <CheckCircle size={13}/> : <Forward size={13}/>} Forward
+                            {pendingDecision === "Forwarded" ? <Spinner size={13}/> : myApprovalStatus === "Forwarded" ? <CheckCircle size={13}/> : <Forward size={13}/>} Forward
                             {myApprovalStatus === "Forwarded" && <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center"><CheckCircle size={10} className="text-blue-500"/></span>}
                           </button>
                         ) : (
                           <button onClick={() => handleApproval("Approved")} disabled={approvalLoading || myApprovalStatus === "Approved"} className="bg-emerald-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-emerald-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5 relative">
-                            <CheckCircle size={13}/> Approve
+                            {pendingDecision === "Approved" ? <Spinner size={13}/> : <CheckCircle size={13}/>} Approve
                             {myApprovalStatus === "Approved" && <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center"><CheckCircle size={10} className="text-emerald-500"/></span>}
                           </button>
                         )}
-                        <button onClick={() => setShowCheckingModal(true)} disabled={approvalLoading} className="bg-amber-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-amber-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"><Clock size={13}/> Checking</button>
+                        <button onClick={() => setShowCheckingModal(true)} disabled={approvalLoading} className="bg-amber-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-amber-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5">
+                          {pendingDecision === "Checking" ? <Spinner size={13}/> : <Clock size={13}/>} Checking
+                        </button>
                         <button onClick={() => handleApproval("Rejected")} disabled={approvalLoading || myApprovalStatus === "Rejected"} className="bg-red-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-red-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5 relative">
-                          <XCircle size={13}/> Reject
+                          {pendingDecision === "Rejected" ? <Spinner size={13}/> : <XCircle size={13}/>} Reject
                           {myApprovalStatus === "Rejected" && <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center"><XCircle size={10} className="text-red-500"/></span>}
                         </button>
                       </div>
@@ -440,7 +446,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               )}
 
               {/* Acknowledgement — shown when pending (requestor action) or already done */}
-              {(isPendingAck || (isClosed && req?.acknowledgement)) && req?.isOwnRequest && (
+              {(isPendingAck || isClosed) && isOwnRequest && (
                 <div className={`border rounded-2xl p-4 space-y-2 ${isPendingAck ? "border-amber-200 bg-amber-50/40" : "border-slate-200"}`}>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
                     <ThumbsUp size={12} /> Acknowledgement
@@ -457,17 +463,29 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleAcknowledge("Received")}
-                          disabled={ackLoading}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-[11px] transition-all active:scale-95 disabled:opacity-60"
+                          disabled={!!pendingAck}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500 text-white rounded-xl font-black text-[11px] transition-all ${
+                            pendingAck === "Received"
+                              ? "cursor-wait"
+                              : pendingAck
+                              ? "opacity-40 cursor-not-allowed"
+                              : "hover:bg-emerald-600 active:scale-95"
+                          }`}
                         >
-                          <ThumbsUp size={13}/> Received
+                          {pendingAck === "Received" ? <Spinner size={13}/> : <ThumbsUp size={13}/>} Received
                         </button>
                         <button
                           onClick={() => handleAcknowledge("Not Received")}
-                          disabled={ackLoading}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-black text-[11px] transition-all active:scale-95 disabled:opacity-60"
+                          disabled={!!pendingAck}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-red-500 text-white rounded-xl font-black text-[11px] transition-all ${
+                            pendingAck === "Not Received"
+                              ? "cursor-wait"
+                              : pendingAck
+                              ? "opacity-40 cursor-not-allowed"
+                              : "hover:bg-red-600 active:scale-95"
+                          }`}
                         >
-                          <ThumbsDown size={13}/> Not Received
+                          {pendingAck === "Not Received" ? <Spinner size={13}/> : <ThumbsDown size={13}/>} Not Received
                         </button>
                       </div>
                     </div>
@@ -476,7 +494,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               )}
 
               {/* Pending ack notice for non-requestors */}
-              {isPendingAck && !req?.isOwnRequest && (
+              {isPendingAck && !isOwnRequest && (
                 <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
                   <AlertTriangle size={14} className="text-amber-500 flex-shrink-0"/>
                   <p className="text-[11px] text-amber-700 font-bold">Waiting for requestor to confirm receipt. Ticket will close upon confirmation.</p>

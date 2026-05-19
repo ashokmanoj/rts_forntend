@@ -5,6 +5,7 @@ import {
   Film, Music, Archive, File, Calendar, AlertTriangle, Clipboard,
 } from "lucide-react";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
+import Spinner from "../ui/Spinner";
 
 const DEPARTMENTS = [
   "Academic","Accounts","Admin","Animation","Broadcasting",
@@ -539,9 +540,9 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
             <button
               onClick={handleSubmit}
               disabled={!purpose.trim() || submitting}
-              className="flex-1 bg-emerald-500 text-white py-4 rounded-2xl font-black text-base hover:bg-emerald-600 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
+              className="flex-1 bg-emerald-500 text-white py-4 rounded-2xl font-black text-base hover:bg-emerald-600 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all flex items-center justify-center gap-2"
             >
-              {submitting ? "Submitting…" : "Submit"}
+              {submitting ? <><Spinner size={16}/> Submitting…</> : "Submit"}
             </button>
           </div>
         </div>

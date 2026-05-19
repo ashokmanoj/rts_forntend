@@ -9,6 +9,16 @@ import StatusBadge from "./StatusBadge";
 
 export default function RequestTable({ requests, currentUser, onOpenDetails, onMarkUnread, onAcknowledge }) {
   const [contextMenu, setContextMenu] = useState(null);
+  // key: `${rowId}-${action}` e.g. "42-Received"
+  const [pendingAck, setPendingAck] = useState(null);
+
+  const handleAck = async (e, rowId, action) => {
+    e.stopPropagation();
+    if (pendingAck || !onAcknowledge) return;
+    setPendingAck(`${rowId}-${action}`);
+    try { await onAcknowledge(rowId, action); }
+    finally { setPendingAck(null); }
+  };
 
   useEffect(() => {
     const close = () => setContextMenu(null);
@@ -236,18 +246,48 @@ export default function RequestTable({ requests, currentUser, onOpenDetails, onM
                       <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg block">Received</span>
                     ) : isPendingAck && isOwnRow && onAcknowledge ? (
                       <div className="flex flex-col gap-1 items-center">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onAcknowledge(row.id, "Received"); }}
-                          className="flex items-center gap-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-[10px] font-black px-2 py-1 rounded-lg transition-colors w-full justify-center"
-                        >
-                          <ThumbsUp size={10} /> Received
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onAcknowledge(row.id, "Not Received"); }}
-                          className="flex items-center gap-1 bg-red-100 hover:bg-red-200 text-red-700 text-[10px] font-black px-2 py-1 rounded-lg transition-colors w-full justify-center"
-                        >
-                          <ThumbsDown size={10} /> Not Received
-                        </button>
+                        {/* Received */}
+                        {(() => {
+                          const key = `${row.id}-Received`;
+                          const isLoading = pendingAck === key;
+                          return (
+                            <button
+                              onClick={(e) => handleAck(e, row.id, "Received")}
+                              disabled={!!pendingAck}
+                              className={`flex items-center gap-1 text-emerald-700 text-[10px] font-black px-2 py-1 rounded-lg w-full justify-center transition-colors ${
+                                isLoading ? "bg-emerald-200 cursor-wait"
+                                : pendingAck ? "bg-emerald-50 opacity-40 cursor-not-allowed"
+                                : "bg-emerald-100 hover:bg-emerald-200"
+                              }`}
+                            >
+                              {isLoading
+                                ? <span className="inline-block w-2.5 h-2.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                                : <ThumbsUp size={10} />}
+                              Received
+                            </button>
+                          );
+                        })()}
+                        {/* Not Received */}
+                        {(() => {
+                          const key = `${row.id}-Not Received`;
+                          const isLoading = pendingAck === key;
+                          return (
+                            <button
+                              onClick={(e) => handleAck(e, row.id, "Not Received")}
+                              disabled={!!pendingAck}
+                              className={`flex items-center gap-1 text-red-700 text-[10px] font-black px-2 py-1 rounded-lg w-full justify-center transition-colors ${
+                                isLoading ? "bg-red-200 cursor-wait"
+                                : pendingAck ? "bg-red-50 opacity-40 cursor-not-allowed"
+                                : "bg-red-100 hover:bg-red-200"
+                              }`}
+                            >
+                              {isLoading
+                                ? <span className="inline-block w-2.5 h-2.5 border-2 border-red-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                                : <ThumbsDown size={10} />}
+                              Not Received
+                            </button>
+                          );
+                        })()}
                       </div>
                     ) : isPendingAck ? (
                       <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-lg block">⏳ Pending</span>
