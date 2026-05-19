@@ -26,7 +26,7 @@ import {
   CheckCircle2
 } from "lucide-react";
 
-const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Intern", "SuperUser"];
+const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Intern"];
 const DEPARTMENTS = [
   "Academic", "Accounts", "Admin", "Animation", "Broadcasting", 
   "Business Development", "Corporate Communications", "Documentation", 

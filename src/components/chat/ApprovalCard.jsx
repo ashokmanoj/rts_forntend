@@ -37,7 +37,9 @@ export default function ApprovalCard({ log }) {
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-1.5">
           {STATUS_ICON[log.status]}
-          <span className="font-black text-slate-800">{log.role}</span>
+          <span className="font-black text-slate-800">
+            {log.dept ? `${log.dept} - ${log.role}` : log.role}
+          </span>
           {/* <span
             className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${getRoleBadgeClass(log.role)}`}
           >
