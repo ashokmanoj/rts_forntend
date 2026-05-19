@@ -140,9 +140,7 @@ function RequestRow({ row, index, onActionComplete }) {
   const [submitting, setSubmitting] = useState(false);
 
   const isGnRow   = row.isGnRoute;
-  const isPending = isGnRow
-    ? !row.isClosed
-    : (!row.hodStatus || row.hodStatus === "--" || row.hodStatus === "Checking");
+  const isPending = !row.isClosed && (!row.hodStatus || row.hodStatus === "--" || row.hodStatus === "Checking");
 
   const handleSubmit = async (id, decision, comment) => {
     setSubmitting(true);
@@ -291,9 +289,7 @@ export default function ManagementPortal({ currentUser, onLogout }) {
   }, [load]);
 
   const pendingCount = requests.filter(r =>
-    r.isGnRoute
-      ? !r.isClosed
-      : (!r.hodStatus || r.hodStatus === "--" || r.hodStatus === "Checking")
+    !r.isClosed && (!r.hodStatus || r.hodStatus === "--" || r.hodStatus === "Checking")
   ).length;
 
   return (
