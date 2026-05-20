@@ -1,4 +1,4 @@
-import { get, post } from './api';
+import { get, post, patch, del } from './api';
 
 const BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
@@ -25,6 +25,12 @@ export const triggerFoodReminder    = ()            => post('/push/trigger-remin
 
 export const getFoodCalendar        = (month, year) => get(`/food/calendar?month=${month}&year=${year}`);
 export const getFoodReport          = (params)      => get(`/food/report?${new URLSearchParams(params)}`);
+
+// SuperUser admin CRUD
+export const adminGetFoodSubscriptions = ()             => get('/food/admin/subscriptions');
+export const adminSubscribeUser        = (empId, period = 'permanent', periodDate = null) => post(`/food/admin/subscribe/${empId}`, { period, periodDate });
+export const adminToggleFoodUser       = (empId, isActive) => patch(`/food/admin/toggle/${empId}`, { isActive });
+export const adminDeleteFoodUser       = (empId)        => del(`/food/admin/unsubscribe/${empId}`);
 
 export async function downloadFoodReport(params) {
   const token = localStorage.getItem('rts_token');

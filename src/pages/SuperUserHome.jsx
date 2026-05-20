@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LogOut, Zap, ClipboardList, ShieldCheck, Users, UtensilsCrossed, BarChart2, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { LogOut, Zap, ClipboardList, ShieldCheck, Users, UtensilsCrossed, BarChart2, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Pencil, Trash2, AlertTriangle, UserPlus } from "lucide-react";
 
 import { fetchRequests, fetchFilterOptions, createRequest, submitApproval, acknowledgeRequest, markRequestSeen, markRequestUnread, closeRequest, editRequest, deleteRequest } from "../services/requestService";
 import { fetchHodPendingRequests, submitHodApproval } from "../services/managementService";
 import { fetchChat, sendText, sendFile, sendVoice } from "../services/chatService";
+import { adminGetFoodSubscriptions, adminSubscribeUser, adminToggleFoodUser, adminDeleteFoodUser } from "../services/foodService";
 
 import FilterBar          from "../components/layout/FilterBar";
 import RequestTable       from "../components/table/RequestTable";
@@ -544,6 +545,224 @@ function ManagementTab() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Food Admin Tab — subscription CRUD + report
+// ─────────────────────────────────────────────────────────────────────────────
+function FoodAdminTab({ currentUser }) {
+  const [subs,          setSubs]          = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [addEmpId,      setAddEmpId]      = useState("");
+  const [addPeriod,     setAddPeriod]     = useState("permanent");
+  const [addPeriodDate, setAddPeriodDate] = useState("");
+  const [addLoading,    setAddLoading]    = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [toast,         setToast]         = useState(null);
+
+  const showToast = (type, msg) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setSubs(await adminGetFoodSubscriptions()); }
+    catch { showToast("error", "Failed to load subscriptions."); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAdd = async () => {
+    if (!addEmpId.trim()) return;
+    if (addPeriod !== "permanent" && !addPeriodDate) {
+      showToast("error", `Please select a ${addPeriod === "weekly" ? "date" : "month"}.`);
+      return;
+    }
+    setAddLoading(true);
+    try {
+      await adminSubscribeUser(addEmpId.trim(), addPeriod, addPeriodDate || null);
+      setAddEmpId("");
+      setAddPeriod("permanent");
+      setAddPeriodDate("");
+      await load();
+      showToast("success", `Subscribed ${addEmpId.trim()} to food (${addPeriod}).`);
+    } catch (e) { showToast("error", e.message || "Failed to subscribe."); }
+    finally { setAddLoading(false); }
+  };
+
+  const handleToggle = async (empId, current) => {
+    try {
+      await adminToggleFoodUser(empId, !current);
+      setSubs(prev => prev.map(s => s.empId === empId ? { ...s, isActive: !current } : s));
+      showToast("success", `User ${!current ? "activated" : "deactivated"}.`);
+    } catch { showToast("error", "Failed to update."); }
+  };
+
+  const handleDelete = async (empId) => {
+    try {
+      await adminDeleteFoodUser(empId);
+      setSubs(prev => prev.filter(s => s.empId !== empId));
+      setConfirmDelete(null);
+      showToast("success", "Subscription removed.");
+    } catch { showToast("error", "Failed to remove."); }
+  };
+
+  return (
+    <div className="space-y-6">
+      {toast && (
+        <div className={`px-4 py-3 rounded-xl text-[12px] font-bold border ${toast.type === "success" ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Subscriptions CRUD table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-orange-50 to-white">
+          <div className="flex items-center gap-2">
+            <UtensilsCrossed size={18} className="text-orange-500" />
+            <h3 className="font-black text-slate-800 text-[14px]">Food Subscriptions</h3>
+            <span className="text-[11px] text-slate-400 font-bold">({subs.length} total)</span>
+          </div>
+          <button onClick={() => load()} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all">
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+          </button>
+        </div>
+
+        {/* Add subscription */}
+        <div className="px-5 py-3 bg-slate-50 border-b border-slate-100 flex flex-wrap items-center gap-3">
+          <input
+            type="text"
+            value={addEmpId}
+            onChange={e => setAddEmpId(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleAdd()}
+            placeholder="Employee ID (e.g. GN-2001)"
+            className="flex-1 min-w-[160px] px-3 py-2 text-[12px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+          />
+          <select
+            value={addPeriod}
+            onChange={e => { setAddPeriod(e.target.value); setAddPeriodDate(""); }}
+            className="px-3 py-2 text-[12px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white font-bold text-slate-700"
+          >
+            <option value="permanent">Permanent</option>
+            <option value="weekly">Weekly (1 week)</option>
+            <option value="monthly">Monthly (1 month)</option>
+          </select>
+          {addPeriod === "weekly" && (
+            <input
+              type="date"
+              value={addPeriodDate}
+              onChange={e => setAddPeriodDate(e.target.value)}
+              className="px-3 py-2 text-[12px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+              title="Pick any date within the desired week"
+            />
+          )}
+          {addPeriod === "monthly" && (
+            <input
+              type="month"
+              value={addPeriodDate}
+              onChange={e => setAddPeriodDate(e.target.value)}
+              className="px-3 py-2 text-[12px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+              title="Select the month for subscription"
+            />
+          )}
+          <button
+            onClick={handleAdd}
+            disabled={addLoading || !addEmpId.trim()}
+            className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-black rounded-xl disabled:opacity-50 transition-all active:scale-95"
+          >
+            {addLoading ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <UserPlus size={14} />}
+            Subscribe
+          </button>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-[12px]">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                {["Sl.No", "Employee ID", "Name", "Department", "Status", "Start Date", "Suspended From", "Actions"].map(h => (
+                  <th key={h} className="px-4 py-3 text-left font-black text-slate-400 text-[10px] uppercase tracking-widest whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {loading ? (
+                <tr><td colSpan={8} className="px-4 py-10 text-center">
+                  <div className="w-6 h-6 border-4 border-orange-400 border-t-transparent rounded-full animate-spin mx-auto" />
+                </td></tr>
+              ) : subs.length === 0 ? (
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-400 font-medium text-[12px]">No food subscriptions found.</td></tr>
+              ) : subs.map((s, i) => (
+                <tr key={s.empId} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-4 py-3 font-bold text-slate-400">{i + 1}</td>
+                  <td className="px-4 py-3 font-mono font-bold text-orange-600">{s.empId}</td>
+                  <td className="px-4 py-3 font-black text-slate-800">{s.name}</td>
+                  <td className="px-4 py-3 text-slate-600">{s.dept}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${s.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${s.isActive ? "bg-green-500" : "bg-red-400"}`} />
+                      {s.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{s.startDate}</td>
+                  <td className="px-4 py-3 text-slate-500">{s.suspendedFrom || "—"}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggle(s.empId, s.isActive)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all active:scale-95 ${s.isActive ? "bg-amber-50 text-amber-700 hover:bg-amber-100" : "bg-green-50 text-green-700 hover:bg-green-100"}`}
+                      >
+                        {s.isActive ? "Deactivate" : "Activate"}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(s)}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-red-50 text-red-600 hover:bg-red-100 transition-all active:scale-95"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Delete confirm modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 space-y-4">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Trash2 size={22} className="text-red-600" />
+              </div>
+              <h3 className="font-black text-slate-800">Remove Subscription?</h3>
+              <p className="text-[12px] text-slate-500 mt-1">
+                Remove food subscription for <span className="font-bold">{confirmDelete.name}</span> ({confirmDelete.empId})?
+              </p>
+              <p className="text-[11px] text-red-500 font-bold mt-1">All cancellation records will also be deleted.</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmDelete(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-black text-[12px] hover:bg-slate-50 transition-all">
+                Cancel
+              </button>
+              <button onClick={() => handleDelete(confirmDelete.empId)}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-[12px] transition-all active:scale-95">
+                Yes, Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report + notification control embedded from FoodPage */}
+      <FoodPage currentUser={currentUser} />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tab bar button
 // ─────────────────────────────────────────────────────────────────────────────
 function TabBtn({ label, icon, active, onClick }) {
@@ -624,10 +843,10 @@ export default function SuperUserHome({ currentUser, onLogout, onSwitchRole }) {
           </div>
         )}
 
-        {/* Food — FoodPage embedded */}
+        {/* Food — admin CRUD + report */}
         {activeTab === "food" && (
-          <div className="flex-1 min-h-0 overflow-y-auto bg-[#f8fafc]">
-            <FoodPage currentUser={currentUser} />
+          <div className="flex-1 min-h-0 overflow-y-auto bg-[#f8fafc] p-4 sm:p-6">
+            <FoodAdminTab currentUser={currentUser} />
           </div>
         )}
 
