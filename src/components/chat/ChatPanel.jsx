@@ -121,10 +121,10 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden p-5 gap-3">
+    <div className="flex-1 flex flex-col overflow-hidden md:p-5 md:gap-3">
 
-      {/* Header */}
-      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest flex items-center gap-1 flex-shrink-0">
+      {/* Header — desktop only (mobile uses the "← Back" bar from DetailsModal) */}
+      <p className="hidden md:flex text-[10px] text-slate-400 font-black uppercase tracking-widest items-center gap-1 flex-shrink-0">
         <MessageSquare size={11} /> Activity &amp; Chat
         {logs.length > 0 && (
           <span className="bg-indigo-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black ml-1">
@@ -138,8 +138,26 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
         )}
       </p>
 
+      {/* Mobile chat header bar */}
+      <div className="md:hidden flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-white flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <MessageSquare size={14} className="text-indigo-500" />
+          <span className="text-[13px] font-black text-slate-700">Activity &amp; Chat</span>
+          {logs.length > 0 && (
+            <span className="bg-indigo-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black">
+              {logs.length}
+            </span>
+          )}
+        </div>
+        {isClosed && (
+          <span className="flex items-center gap-1 bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-[9px] font-black">
+            <Lock size={9} /> Closed
+          </span>
+        )}
+      </div>
+
       {/* Message list */}
-      <div className="flex-1 overflow-y-auto space-y-3 bg-slate-50 rounded-2xl p-3 border border-slate-100">
+      <div className="flex-1 overflow-y-auto space-y-3 bg-slate-50 md:rounded-2xl p-3 md:border md:border-slate-100">
         {logs.length === 0 && (
           <p className="text-center text-slate-400 text-sm mt-10">No activity yet.</p>
         )}
@@ -152,7 +170,7 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
       </div>
 
       {/* Input bar / closed notice */}
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 px-3 pb-3 md:px-0 md:pb-0">
         {canChat ? (
           <ChatInputBar onSend={handleSend} replyTo={replyTo} onCancelReply={() => setReplyTo(null)} />
         ) : isClosed ? (

@@ -3,7 +3,13 @@ import { get, postForm, patch, patchForm, del } from "./api";
 export async function fetchRequests(params = {}) {
   const query = new URLSearchParams();
   Object.keys(params).forEach(key => {
-    if (params[key]) query.set(key, params[key]);
+    const val = params[key];
+    if (!val) return;
+    if (val instanceof Date) {
+      query.set(key, val.toISOString().split("T")[0]); // YYYY-MM-DD
+    } else {
+      query.set(key, val);
+    }
   });
   const qs = query.toString();
   return get(`/requests${qs ? `?${qs}` : ""}`);

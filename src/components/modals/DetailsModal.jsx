@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye } from "lucide-react";
+import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye, MessageSquare } from "lucide-react";
 
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { getNowTime, getNowDate, getNowDateTime } from "../../utils/dateTime";
@@ -70,8 +70,9 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const [approvalLoading,   setApprovalLoading]   = useState(false);
   const [pendingDecision,   setPendingDecision]   = useState(null);
   const [pendingAck,        setPendingAck]        = useState(null);
+  const [showChat,          setShowChat]          = useState(false);
 
-  useEscapeKey(lightboxData ? () => setLightboxData(null) : onClose);
+  useEscapeKey(lightboxData ? () => setLightboxData(null) : showChat ? () => setShowChat(false) : onClose);
 
   const logs        = chatLogs[req?.id] || [];
   const deptChanged = selectedDept !== req?.assignedDept;
@@ -220,11 +221,11 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
           </div>
         </div>
       )}
-      <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-        <div className="bg-white rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl w-full sm:max-w-4xl border border-slate-200 flex flex-col" style={{maxHeight:"95dvh"}}>
+      <div className="fixed inset-0 z-50 flex md:bg-slate-900/70 md:backdrop-blur-sm md:items-center md:justify-center md:p-4">
+        <div className="bg-white w-full h-full flex flex-col md:h-auto md:max-h-[95dvh] md:rounded-[2rem] md:max-w-4xl md:shadow-2xl md:border md:border-slate-200">
 
           {/* Header */}
-          <div className="p-3 sm:p-4 border-b flex justify-between items-center bg-slate-50/50 flex-shrink-0 rounded-t-[2rem]">
+          <div className="p-3 md:p-4 border-b flex justify-between items-center bg-slate-50/50 flex-shrink-0 md:rounded-t-[2rem]">
             <div className="flex items-center gap-2 flex-wrap min-w-0">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isRequestorMode?"bg-indigo-100 text-indigo-600":isManagement?"bg-rose-100 text-rose-600":"bg-blue-100 text-blue-600"}`}>
                 {isRequestorMode ? <Bell size={15}/> : isManagement ? <ShieldCheck size={14}/> : <Send size={14}/>}
@@ -236,14 +237,19 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               {isOwnRequest && !isRequestorMode && <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black">Your Request</span>}
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${roleBadgeCls}`}>{currentUser?.dept}department</span>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors flex-shrink-0"><X size={20}/></button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button onClick={() => setShowChat(true)} className="md:hidden p-2 hover:bg-indigo-50 text-indigo-500 rounded-full transition-colors">
+                <MessageSquare size={18}/>
+              </button>
+              <button onClick={onClose} className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors"><X size={20}/></button>
+            </div>
           </div>
 
           {/* Body */}
           <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
 
             {/* LEFT PANEL */}
-            <div className="w-full md:w-[48%] border-b md:border-b-0 md:border-r border-slate-200 overflow-y-auto p-4 sm:p-5 space-y-3 pb-6 md:pb-8 max-h-[40dvh] md:max-h-none min-h-0">
+            <div className={`overflow-y-auto p-4 sm:p-5 space-y-3 pb-6 md:pb-8 min-h-0 md:flex md:flex-col md:w-[48%] md:flex-none md:border-r md:border-slate-200 ${showChat ? "hidden" : "flex flex-col flex-1 border-b border-slate-200"}`}>
 
               <ApprovalProgress rmStatus={req?.rmStatus} hodStatus={req?.hodStatus} deptHodStatus={req?.deptHodStatus} mgmtStatus={req?.mgmtStatus} isClosed={isClosed}/>
 
@@ -569,7 +575,14 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
             </div>
 
             {/* RIGHT PANEL — Chat */}
-            <ChatPanel reqId={req?.id} logs={logs} currentUser={currentUser} onSendMessage={onSendMessage} isClosed={isClosed} canChat={canChat}/>
+            <div className={`min-h-0 md:flex md:flex-col md:flex-1 ${showChat ? "flex flex-col flex-1" : "hidden"}`}>
+              <div className="md:hidden flex items-center px-4 py-2.5 border-b border-slate-100 bg-white flex-shrink-0">
+                <button onClick={() => setShowChat(false)} className="flex items-center gap-1.5 text-indigo-600 font-black text-[12px]">
+                  ← Back to Details
+                </button>
+              </div>
+              <ChatPanel reqId={req?.id} logs={logs} currentUser={currentUser} onSendMessage={onSendMessage} isClosed={isClosed} canChat={canChat}/>
+            </div>
           </div>
         </div>
       </div>
