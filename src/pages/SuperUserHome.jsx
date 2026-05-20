@@ -564,7 +564,10 @@ function FoodAdminTab({ currentUser }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setSubs(await adminGetFoodSubscriptions()); }
+    try {
+      const result = await adminGetFoodSubscriptions();
+      setSubs(Array.isArray(result) ? result : []);
+    }
     catch { showToast("error", "Failed to load subscriptions."); }
     finally { setLoading(false); }
   }, []);
