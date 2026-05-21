@@ -23,7 +23,13 @@ import {
   Eye,
   EyeOff,
   Copy,
-  CheckCircle2
+  CheckCircle2,
+  Upload,
+  Download,
+  FileText,
+  AlertCircle,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 
 const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Intern"];
@@ -53,6 +59,11 @@ export default function UserManagementPage({ currentUser }) {
   const [pwCopied, setPwCopied] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkRows, setBulkRows] = useState([]);
+  const [bulkFileName, setBulkFileName] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkResult, setBulkResult] = useState(null);
 
   const [formData, setFormData] = useState({
     empId: "",
@@ -212,6 +223,105 @@ export default function UserManagementPage({ currentUser }) {
     setTimeout(() => setPwCopied(false), 2000);
   };
 
+  // ── Bulk upload helpers ───────────────────────────────────────────────────────
+  const CSV_HEADERS = ["empId","name","email","phone","role","dept","designation","location","password","rmEmpId","hodEmpId"];
+
+  const downloadTemplate = () => {
+    const header  = CSV_HEADERS.join(",");
+    const example = "AI-001,John Doe,john.doe@company.com,9876543210,Requestor,HR,Software Engineer,Bangalore,Test@123,,";
+    const blob = new Blob([`${header}\n${example}\n`], { type: "text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = "bulk_user_template.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const parseCSVLine = (line) => {
+    const result = []; let cur = ""; let inQ = false;
+    for (const ch of line) {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === "," && !inQ) { result.push(cur.trim()); cur = ""; }
+      else { cur += ch; }
+    }
+    result.push(cur.trim());
+    return result;
+  };
+
+  const validateRow = (row) => {
+    const errs = [];
+    if (!row.empId?.trim())   errs.push("empId required");
+    if (!row.name?.trim())    errs.push("name required");
+    if (!row.email?.trim())   errs.push("email required");
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email.trim())) errs.push("invalid email");
+    if (!row.password?.trim()) errs.push("password required");
+    return errs;
+  };
+
+  const HEADER_NORM = {
+    "empid": "empId", "emp_id": "empId", "employeeid": "empId", "employee id": "empId", "user id": "empId", "userid": "empId",
+    "name": "name", "fullname": "name", "full name": "name",
+    "email": "email", "emailid": "email", "email id": "email",
+    "phone": "phone", "mobile": "phone", "phonenumber": "phone", "phone number": "phone",
+    "role": "role",
+    "dept": "dept", "department": "dept",
+    "designation": "designation",
+    "location": "location",
+    "password": "password", "pass": "password", "pwd": "password",
+    "rmempid": "rmEmpId", "rm_emp_id": "rmEmpId", "rmid": "rmEmpId", "rm id": "rmEmpId", "reporting manager id": "rmEmpId",
+    "hodempid": "hodEmpId", "hod_emp_id": "hodEmpId", "hodid": "hodEmpId", "hod id": "hodEmpId", "hod employee id": "hodEmpId",
+  };
+
+  const handleBulkFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBulkFileName(file.name);
+    setBulkResult(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text  = ev.target.result;
+      const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) { setBulkRows([]); return; }
+      const rawHeaders = parseCSVLine(lines[0]);
+      const headers = rawHeaders.map(h => {
+        const key = h.toLowerCase().trim().replace(/\s+/g, " ");
+        return HEADER_NORM[key] || key;
+      });
+      const rows = lines.slice(1).map((line, idx) => {
+        const vals = parseCSVLine(line);
+        const obj  = {};
+        headers.forEach((h, i) => { obj[h] = vals[i] || ""; });
+        return { _row: idx + 2, ...obj, _errors: validateRow(obj) };
+      });
+      setBulkRows(rows);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  const handleBulkUpload = async () => {
+    const valid = bulkRows.filter(r => r._errors.length === 0);
+    if (!valid.length) return;
+    setBulkLoading(true);
+    try {
+      const payload = valid.map(({ _row, _errors, ...rest }) => rest);
+      const result  = await post("/admin/bulk-create-users", { users: payload });
+      setBulkResult(result);
+      loadUsers();
+    } catch (err) {
+      setError(err.message || "Bulk upload failed.");
+      setShowBulkModal(false);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const closeBulkModal = () => {
+    setShowBulkModal(false);
+    setBulkRows([]);
+    setBulkFileName("");
+    setBulkResult(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Actions */}
@@ -238,6 +348,12 @@ export default function UserManagementPage({ currentUser }) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
           </div>
 
+          <button
+            onClick={() => { setBulkResult(null); setBulkRows([]); setBulkFileName(""); setShowBulkModal(true); }}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-black text-[12px] shadow-md transition-all active:scale-95 whitespace-nowrap"
+          >
+            <Upload size={16} /> BULK UPLOAD
+          </button>
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-[12px] shadow-md transition-all active:scale-95 whitespace-nowrap"
@@ -364,6 +480,174 @@ export default function UserManagementPage({ currentUser }) {
           </table>
         </div>
       </div>
+
+      {/* Bulk Upload Modal */}
+      {showBulkModal && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white w-full sm:max-w-3xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-zoom-in flex flex-col max-h-[92dvh]">
+
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-emerald-50/50 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-600 text-white rounded-xl"><Upload size={20}/></div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800">Bulk Upload Users</h3>
+                  <p className="text-[11px] text-slate-500 font-bold">Upload a CSV file to create multiple users at once</p>
+                </div>
+              </div>
+              <button onClick={closeBulkModal} className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors"><X size={20}/></button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+
+              {/* Results screen */}
+              {bulkResult ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
+                      <CheckCircle size={24} className="text-emerald-600 flex-shrink-0"/>
+                      <div>
+                        <p className="text-2xl font-black text-emerald-700">{bulkResult.created.length}</p>
+                        <p className="text-[11px] font-black text-emerald-600 uppercase tracking-wider">Users Created</p>
+                      </div>
+                    </div>
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3">
+                      <XCircle size={24} className="text-red-500 flex-shrink-0"/>
+                      <div>
+                        <p className="text-2xl font-black text-red-600">{bulkResult.failed.length}</p>
+                        <p className="text-[11px] font-black text-red-500 uppercase tracking-wider">Failed</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {bulkResult.failed.length > 0 && (
+                    <div className="border border-red-200 rounded-2xl overflow-hidden">
+                      <p className="text-[10px] font-black text-red-600 uppercase tracking-wider px-4 py-2 bg-red-50 border-b border-red-200">Failed Rows</p>
+                      <div className="divide-y divide-red-50 max-h-48 overflow-y-auto">
+                        {bulkResult.failed.map((f, i) => (
+                          <div key={i} className="flex items-start gap-2 px-4 py-2.5">
+                            <AlertCircle size={14} className="text-red-500 flex-shrink-0 mt-0.5"/>
+                            <div>
+                              <p className="text-[12px] font-black text-slate-700">{f.empId || "—"} · {f.name || "—"}</p>
+                              <p className="text-[11px] text-red-600 font-medium">{f.reason}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <button onClick={closeBulkModal} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black transition-all active:scale-95">
+                    DONE
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Download template */}
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <FileText size={20} className="text-emerald-600 flex-shrink-0"/>
+                      <div>
+                        <p className="text-[13px] font-black text-slate-800">Download CSV Template</p>
+                        <p className="text-[11px] text-slate-500 font-medium">Fill in the template and upload it below</p>
+                      </div>
+                    </div>
+                    <button onClick={downloadTemplate} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl font-black text-[12px] transition-all active:scale-95 whitespace-nowrap flex-shrink-0">
+                      <Download size={14}/> Template
+                    </button>
+                  </div>
+
+                  {/* File upload area */}
+                  <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-slate-300 hover:border-emerald-400 rounded-2xl p-8 cursor-pointer transition-colors bg-slate-50 hover:bg-emerald-50/30">
+                    <input type="file" accept=".csv" className="hidden" onChange={handleBulkFileChange}/>
+                    <Upload size={28} className="text-slate-400"/>
+                    {bulkFileName ? (
+                      <div className="text-center">
+                        <p className="font-black text-slate-700 text-[13px]">{bulkFileName}</p>
+                        <p className="text-[11px] text-slate-500 font-medium mt-0.5">{bulkRows.length} rows found · click to change file</p>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <p className="font-black text-slate-700 text-[13px]">Click to upload CSV</p>
+                        <p className="text-[11px] text-slate-500 font-medium mt-0.5">Only .csv files · Max 200 users</p>
+                      </div>
+                    )}
+                  </label>
+
+                  {/* Preview table */}
+                  {bulkRows.length > 0 && (
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+                        <p className="text-[11px] font-black text-slate-600 uppercase tracking-wider">Preview — {bulkRows.length} rows</p>
+                        <div className="flex items-center gap-3 text-[11px] font-bold">
+                          <span className="text-emerald-600 flex items-center gap-1"><CheckCircle size={12}/> {bulkRows.filter(r => r._errors.length === 0).length} valid</span>
+                          {bulkRows.some(r => r._errors.length > 0) && (
+                            <span className="text-red-500 flex items-center gap-1"><XCircle size={12}/> {bulkRows.filter(r => r._errors.length > 0).length} errors</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                        <table className="w-full text-left text-[11px] min-w-[700px]">
+                          <thead className="bg-slate-50 sticky top-0">
+                            <tr>
+                              <th className="px-3 py-2 font-black text-slate-400 uppercase tracking-wider">#</th>
+                              <th className="px-3 py-2 font-black text-slate-400 uppercase tracking-wider">User ID</th>
+                              <th className="px-3 py-2 font-black text-slate-400 uppercase tracking-wider">Name</th>
+                              <th className="px-3 py-2 font-black text-slate-400 uppercase tracking-wider">Email</th>
+                              <th className="px-3 py-2 font-black text-slate-400 uppercase tracking-wider">Role</th>
+                              <th className="px-3 py-2 font-black text-slate-400 uppercase tracking-wider">Dept</th>
+                              <th className="px-3 py-2 font-black text-slate-400 uppercase tracking-wider">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50">
+                            {bulkRows.map((row) => (
+                              <tr key={row._row} className={row._errors.length > 0 ? "bg-red-50" : "hover:bg-slate-50"}>
+                                <td className="px-3 py-2 text-slate-400 font-bold">{row._row}</td>
+                                <td className="px-3 py-2 font-mono font-bold text-indigo-600">{row.empId || <span className="text-red-400">—</span>}</td>
+                                <td className="px-3 py-2 font-bold text-slate-700">{row.name || <span className="text-red-400">—</span>}</td>
+                                <td className="px-3 py-2 text-slate-600">{row.email || <span className="text-red-400">—</span>}</td>
+                                <td className="px-3 py-2 text-slate-600">{row.role || "Requestor"}</td>
+                                <td className="px-3 py-2 text-slate-600">{row.dept || "HR"}</td>
+                                <td className="px-3 py-2">
+                                  {row._errors.length === 0 ? (
+                                    <span className="flex items-center gap-1 text-emerald-600 font-black"><CheckCircle size={12}/> OK</span>
+                                  ) : (
+                                    <span className="flex items-center gap-1 text-red-500 font-black" title={row._errors.join(", ")}><XCircle size={12}/> {row._errors[0]}</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            {!bulkResult && (
+              <div className="flex gap-3 p-5 border-t border-slate-100 bg-white flex-shrink-0">
+                <button onClick={closeBulkModal} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl font-black transition-all active:scale-95">
+                  CANCEL
+                </button>
+                <button
+                  onClick={handleBulkUpload}
+                  disabled={bulkLoading || bulkRows.filter(r => r._errors.length === 0).length === 0}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-black shadow-lg shadow-emerald-200 transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  {bulkLoading ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> UPLOADING...</>
+                  ) : (
+                    <><Upload size={16}/> UPLOAD {bulkRows.filter(r => r._errors.length === 0).length > 0 ? `${bulkRows.filter(r => r._errors.length === 0).length} USERS` : "USERS"}</>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Add User Modal */}
       {showAddModal && (
