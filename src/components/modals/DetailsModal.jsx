@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye, MessageSquare } from "lucide-react";
+import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye, MessageSquare, Download } from "lucide-react";
 
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { getNowTime, getNowDate, getNowDateTime } from "../../utils/dateTime";
@@ -71,8 +71,37 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const [pendingDecision,   setPendingDecision]   = useState(null);
   const [pendingAck,        setPendingAck]        = useState(null);
   const [showChat,          setShowChat]          = useState(false);
+  const [bulkDownloading,   setBulkDownloading]   = useState(false);
 
   useEscapeKey(lightboxData ? () => setLightboxData(null) : showChat ? () => setShowChat(false) : onClose);
+
+  const handleBulkDownload = async () => {
+    if (!req?.fileUrls?.length || bulkDownloading) return;
+    setBulkDownloading(true);
+    try {
+      const { default: JSZip } = await import("jszip");
+      const zip = new JSZip();
+      await Promise.all(
+        req.fileUrls.map(async (url, idx) => {
+          const resolved = resolveFileUrl(url);
+          const fileName = req.fileNames?.[idx] || `file-${idx + 1}`;
+          const res  = await fetch(resolved);
+          const blob = await res.blob();
+          zip.file(fileName, blob);
+        })
+      );
+      const content = await zip.generateAsync({ type: "blob" });
+      const link    = document.createElement("a");
+      link.href     = URL.createObjectURL(content);
+      link.download = `request-${req.id}-files.zip`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      console.error("Bulk download failed:", err);
+    } finally {
+      setBulkDownloading(false);
+    }
+  };
 
   const logs        = chatLogs[req?.id] || [];
   const deptChanged = selectedDept !== req?.assignedDept;
@@ -317,9 +346,24 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               </div>
 
               <div>
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 ml-0.5">
-                  Attached Files {req?.fileUrls?.length > 1 && <span className="text-indigo-400 normal-case">({req.fileUrls.length})</span>}
-                </p>
+                <div className="flex items-center justify-between mb-1 ml-0.5">
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                    Attached Files {req?.fileUrls?.length > 0 && <span className="text-indigo-400 normal-case">({req.fileUrls.length})</span>}
+                  </p>
+                  {req?.fileUrls?.length > 1 && (
+                    <button
+                      onClick={handleBulkDownload}
+                      disabled={bulkDownloading}
+                      className="flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg font-black text-[10px] transition-all active:scale-95 disabled:opacity-60"
+                    >
+                      {bulkDownloading ? (
+                        <><div className="w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/> Zipping...</>
+                      ) : (
+                        <><Download size={11}/> Download All</>
+                      )}
+                    </button>
+                  )}
+                </div>
                 <div className="border-2 border-dashed border-blue-100 p-3 flex justify-center items-center rounded-xl bg-blue-50/30 min-h-[90px]">
                   {req?.fileUrls?.length > 0 ? (
                     <div className="flex flex-wrap gap-3 justify-center">
