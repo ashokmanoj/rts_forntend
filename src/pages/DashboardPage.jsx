@@ -181,8 +181,8 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
     } catch (err) {}
   };
 
-  const handleApproval = async (reqId, decision, dateTime, user, comment, newDept, checkingDeadline, checkingReason) => {
-    const updated = await submitApproval(reqId, decision, comment, newDept, checkingDeadline, checkingReason);
+  const handleApproval = async (reqId, decision, dateTime, user, comment, newDept, checkingDeadline, checkingReason, extras = {}) => {
+    const updated = await submitApproval(reqId, decision, comment, newDept, checkingDeadline, checkingReason, extras);
     setRequests((prev) => prev.map((r) => (r.id === reqId ? { ...updated, seen: true } : r)));
     if (selectedReq?.id === reqId) setSelectedReq({ ...updated, seen: true });
     try {

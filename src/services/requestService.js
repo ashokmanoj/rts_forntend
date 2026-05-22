@@ -32,8 +32,8 @@ export async function createRequest({ purpose, assignedDept, assignedDepts, desc
   return postForm("/requests", fd);
 }
 
-export async function submitApproval(id, decision, comment = "", newDept = "", checkingDeadline = null, checkingReason = null) {
-  return patch(`/requests/${id}/approval`, { decision, comment, newDept, checkingDeadline, checkingReason });
+export async function submitApproval(id, decision, comment = "", newDept = "", checkingDeadline = null, checkingReason = null, extras = {}) {
+  return patch(`/requests/${id}/approval`, { decision, comment, newDept, checkingDeadline, checkingReason, ...extras });
 }
 
 export async function acknowledgeRequest(id, status) {

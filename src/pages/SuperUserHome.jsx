@@ -251,8 +251,8 @@ function RequestsTab({ currentUser, onLogout, onSwitchRole }) {
     } catch {}
   };
 
-  const handleApproval = async (reqId, decision, _dt, _u, comment, newDept, checkingDeadline, checkingReason) => {
-    const updated = await submitApproval(reqId, decision, comment, newDept, checkingDeadline, checkingReason);
+  const handleApproval = async (reqId, decision, _dt, _u, comment, newDept, checkingDeadline, checkingReason, extras = {}) => {
+    const updated = await submitApproval(reqId, decision, comment, newDept, checkingDeadline, checkingReason, extras);
     setRequests(prev => prev.map(r => r.id === reqId ? { ...updated, seen: true } : r));
     if (selectedReq?.id === reqId) setSelectedReq({ ...updated, seen: true });
     try { const res = await fetchChat(reqId); setChatLogs(prev => ({ ...prev, [reqId]: res?.data ?? res })); } catch {}

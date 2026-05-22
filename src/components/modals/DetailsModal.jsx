@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye, MessageSquare, Download } from "lucide-react";
+import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye, MessageSquare, Download, Users, ChevronRight, Search } from "lucide-react";
+import { get } from "../../services/api";
 
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { getNowTime, getNowDate, getNowDateTime } from "../../utils/dateTime";
@@ -61,17 +62,24 @@ function ApprovalProgress({ rmStatus, hodStatus, deptHodStatus, isClosed }) {
 }
 
 export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSendMessage, onApproval, onOpenCloseTicket, onAcknowledge }) {
-  const [selectedDept,      setSelectedDept]      = useState(req?.assignedDept || "");
-  const [approvalComment,   setApprovalComment]   = useState("");
-  const [lightboxData,      setLightboxData]      = useState(null); // { urls, names, index }
-  const [showCheckingModal, setShowCheckingModal] = useState(false);
-  const [checkingDate,      setCheckingDate]      = useState("");
-  const [checkingReason,    setCheckingReason]    = useState("");
-  const [approvalLoading,   setApprovalLoading]   = useState(false);
-  const [pendingDecision,   setPendingDecision]   = useState(null);
-  const [pendingAck,        setPendingAck]        = useState(null);
-  const [showChat,          setShowChat]          = useState(false);
-  const [bulkDownloading,   setBulkDownloading]   = useState(false);
+  const [selectedDept,            setSelectedDept]            = useState(req?.assignedDept || "");
+  const [approvalComment,         setApprovalComment]         = useState("");
+  const [lightboxData,            setLightboxData]            = useState(null); // { urls, names, index }
+  const [showCheckingModal,       setShowCheckingModal]       = useState(false);
+  const [checkingDate,            setCheckingDate]            = useState("");
+  const [checkingReason,          setCheckingReason]          = useState("");
+  const [approvalLoading,         setApprovalLoading]         = useState(false);
+  const [pendingDecision,         setPendingDecision]         = useState(null);
+  const [pendingAck,              setPendingAck]              = useState(null);
+  const [showChat,                setShowChat]                = useState(false);
+  const [bulkDownloading,         setBulkDownloading]         = useState(false);
+  const [showDeptHodApproveModal,  setShowDeptHodApproveModal]  = useState(false);
+  const [deptHodMode,              setDeptHodMode]              = useState(null); // "internal" | "forward"
+  const [deptHodSelectedPersons,   setDeptHodSelectedPersons]   = useState([]); // [{ empId, name }]
+  const [deptHodForwardDept,       setDeptHodForwardDept]       = useState("");
+  const [deptUsersForApproval,     setDeptUsersForApproval]     = useState([]);
+  const [loadingDeptUsers,         setLoadingDeptUsers]         = useState(false);
+  const [deptUsersSearch,          setDeptUsersSearch]          = useState("");
 
   useEscapeKey(lightboxData ? () => setLightboxData(null) : showChat ? () => setShowChat(false) : onClose);
 
@@ -122,9 +130,12 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
 
   const myApprovalStatus = isRM ? req?.rmStatus : isHOD ? req?.hodStatus : (isDeptHOD || isManagement) ? req?.deptHodStatus : "--";
   const hasAlreadyActed = myApprovalStatus && myApprovalStatus !== "--";
+  const isSpecificallyAssigned = !isOwnRequest && !!(req?.assignedPersonEmpId?.split(",").map(s => s.trim()).includes(currentUser?.empId));
   const canApprove    = (isRM || isHOD || isDeptHOD || isManagement) && !isClosed && !isPendingAck && !isOwnRequest;
   const canChangeDept = (isRM || isHOD || isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck;
-  const canClose      = ((isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck) || (isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin);
+  const canClose      = ((isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck) ||
+                        (isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin) ||
+                        (isSpecificallyAssigned && !isClosed && !isPendingAck && !isAdmin);
   const canChat       = !isAdmin && !isClosed;
   const isRequestorMode = roleLow === "requestor" || isOwnRequest;
 
@@ -136,14 +147,56 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
 
   const [spreadsheetPreview, setSpreadsheetPreview] = useState(null); // { url, fileName }
 
-  const handleApproval = async (decision, checkingDeadline = null, checkingReasonVal = null) => {
+  const handleApproval = async (decision, checkingDeadline = null, checkingReasonVal = null, extras = {}) => {
     if (approvalLoading) return;
     setPendingDecision(decision);
     setApprovalLoading(true);
     try {
       const dateTime = getNowDateTime();
-      await onApproval(req.id, decision, dateTime, currentUser, approvalComment, selectedDept, checkingDeadline, checkingReasonVal);
+      await onApproval(req.id, decision, dateTime, currentUser, approvalComment, selectedDept, checkingDeadline, checkingReasonVal, extras);
       setApprovalComment("");
+    } finally {
+      setApprovalLoading(false);
+      setPendingDecision(null);
+    }
+  };
+
+  const closeDeptHodModal = () => {
+    setShowDeptHodApproveModal(false);
+    setDeptHodMode(null);
+    setDeptHodSelectedPersons([]);
+    setDeptHodForwardDept("");
+    setDeptUsersSearch("");
+  };
+
+  const handleSelectInternalMode = async () => {
+    setDeptHodMode("internal");
+    if (!deptUsersForApproval.length && !loadingDeptUsers) {
+      setLoadingDeptUsers(true);
+      try {
+        const users = await get(`/requests/users-by-dept?depts=${encodeURIComponent(currentUser?.dept || "")}`);
+        setDeptUsersForApproval(Array.isArray(users) ? users : []);
+      } catch {}
+      setLoadingDeptUsers(false);
+    }
+  };
+
+  const handleDeptHodApproveConfirm = async () => {
+    if (approvalLoading || !deptHodMode) return;
+    if (deptHodMode === "internal" && deptHodSelectedPersons.length === 0) return;
+    if (deptHodMode === "forward" && !deptHodForwardDept) return;
+    setApprovalLoading(true);
+    try {
+      const dateTime = getNowDateTime();
+      if (deptHodMode === "internal") {
+        const empIds = deptHodSelectedPersons.map(p => p.empId).join(",");
+        const names  = deptHodSelectedPersons.map(p => p.name).join(",");
+        await onApproval(req.id, "Approved", dateTime, currentUser, approvalComment, selectedDept, null, null, { assignedPersonEmpId: empIds, assignedPersonName: names });
+      } else {
+        await onApproval(req.id, "Forwarded", dateTime, currentUser, approvalComment, deptHodForwardDept, null, null, { dualDept: true });
+      }
+      setApprovalComment("");
+      closeDeptHodModal();
     } finally {
       setApprovalLoading(false);
       setPendingDecision(null);
@@ -250,6 +303,195 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
           </div>
         </div>
       )}
+      {/* DeptHOD Approve popup — multi-step */}
+      {showDeptHodApproveModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                {deptHodMode && (
+                  <button
+                    onClick={() => { setDeptHodMode(null); setDeptHodSelectedPersons([]); setDeptHodForwardDept(""); setDeptUsersSearch(""); }}
+                    className="p-1 hover:bg-slate-100 rounded-lg transition-colors mr-0.5"
+                  >
+                    <ChevronRight size={15} className="text-slate-400 rotate-180"/>
+                  </button>
+                )}
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${deptHodMode === "internal" ? "bg-teal-100" : deptHodMode === "forward" ? "bg-blue-100" : "bg-emerald-100"}`}>
+                  {deptHodMode === "internal" ? <Users size={15} className="text-teal-600"/> : deptHodMode === "forward" ? <Forward size={15} className="text-blue-600"/> : <CheckCircle size={15} className="text-emerald-600"/>}
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-800">
+                    {deptHodMode === "internal" ? "Assign Internal" : deptHodMode === "forward" ? "Forward to Department" : "Approve Request"}
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    {deptHodMode === "internal"
+                      ? deptHodSelectedPersons.length > 0 ? `${deptHodSelectedPersons.length} person${deptHodSelectedPersons.length > 1 ? "s" : ""} selected` : "Select one or more people"
+                      : deptHodMode === "forward" ? "Select a department"
+                      : "Choose how to approve"}
+                  </p>
+                </div>
+              </div>
+              <button onClick={closeDeptHodModal} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors">
+                <X size={16}/>
+              </button>
+            </div>
+
+            {/* Step 1: Choose action */}
+            {!deptHodMode && (
+              <div className="p-4 space-y-2">
+                <button
+                  onClick={handleSelectInternalMode}
+                  className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-200 hover:border-teal-300 hover:bg-teal-50/50 transition-all text-left group"
+                >
+                  <div className="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-teal-200 transition-colors">
+                    <Users size={17} className="text-teal-600"/>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-black text-slate-800">Approve &amp; Assign Internal</p>
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">Approve and assign to people in your department</p>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300 flex-shrink-0 group-hover:text-teal-400 transition-colors"/>
+                </button>
+
+                <button
+                  onClick={() => setDeptHodMode("forward")}
+                  className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all text-left group"
+                >
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-blue-200 transition-colors">
+                    <Forward size={17} className="text-blue-600"/>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-black text-slate-800">Approve &amp; Forward Dept</p>
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">Approve and forward to another department</p>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300 flex-shrink-0 group-hover:text-blue-400 transition-colors"/>
+                </button>
+
+                <button onClick={closeDeptHodModal} className="w-full py-2.5 text-slate-400 font-black text-[12px] hover:text-slate-600 transition-colors">
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {/* Step 2a: Assign Internal — multi-select employee list */}
+            {deptHodMode === "internal" && (
+              <div className="flex flex-col" style={{ maxHeight: "400px" }}>
+                <div className="px-3 py-2.5 border-b border-slate-100">
+                  <div className="relative">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+                    <input
+                      value={deptUsersSearch}
+                      onChange={e => setDeptUsersSearch(e.target.value)}
+                      placeholder="Search employees..."
+                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] outline-none focus:ring-2 focus:ring-teal-400 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-y-auto flex-1 p-2">
+                  {loadingDeptUsers ? (
+                    <div className="flex items-center justify-center py-10">
+                      <div className="w-6 h-6 border-2 border-teal-400 border-t-transparent rounded-full animate-spin"/>
+                    </div>
+                  ) : (() => {
+                    const term = deptUsersSearch.toLowerCase();
+                    const filtered = deptUsersForApproval.filter(u =>
+                      !term || u.name.toLowerCase().includes(term) || (u.designation || "").toLowerCase().includes(term)
+                    );
+                    return filtered.length === 0 ? (
+                      <p className="text-center py-8 text-[12px] text-slate-400">No employees found</p>
+                    ) : filtered.map(u => {
+                      const selected = deptHodSelectedPersons.some(p => p.empId === u.empId);
+                      return (
+                        <button
+                          key={u.empId}
+                          onClick={() => setDeptHodSelectedPersons(prev =>
+                            selected ? prev.filter(p => p.empId !== u.empId) : [...prev, { empId: u.empId, name: u.name }]
+                          )}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 transition-all text-left ${selected ? "bg-teal-50 border border-teal-200" : "hover:bg-slate-50 border border-transparent"}`}
+                        >
+                          <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border-2 transition-all ${selected ? "bg-teal-500 border-teal-500" : "border-slate-300"}`}>
+                            {selected && <CheckCircle size={11} className="text-white"/>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] font-bold text-slate-800 truncate">{u.name}</p>
+                            <p className="text-[10px] text-slate-400 truncate">{u.designation || u.role}</p>
+                          </div>
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+
+                <div className="px-3 py-3 border-t border-slate-100 flex gap-2">
+                  <button
+                    onClick={() => { setDeptHodMode(null); setDeptHodSelectedPersons([]); setDeptUsersSearch(""); }}
+                    className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-black text-[12px] transition-all active:scale-95"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleDeptHodApproveConfirm}
+                    disabled={approvalLoading || deptHodSelectedPersons.length === 0}
+                    className="flex-1 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:opacity-50 text-white rounded-xl font-black text-[12px] transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                  >
+                    {approvalLoading
+                      ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"/>
+                      : <Send size={12}/>}
+                    {deptHodSelectedPersons.length > 0
+                      ? `Send to ${deptHodSelectedPersons.length} person${deptHodSelectedPersons.length > 1 ? "s" : ""}`
+                      : "Send"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2b: Forward Dept — single-select dept list */}
+            {deptHodMode === "forward" && (
+              <div className="flex flex-col" style={{ maxHeight: "400px" }}>
+                <div className="overflow-y-auto flex-1 p-2">
+                  {DEPARTMENTS.filter(d => d !== req?.assignedDept).map(d => (
+                    <button
+                      key={d}
+                      onClick={() => setDeptHodForwardDept(d)}
+                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 transition-all text-left border-2 ${deptHodForwardDept === d ? "bg-blue-50 border-blue-300" : "border-transparent hover:bg-slate-50 hover:border-slate-200"}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full flex-shrink-0 border-2 flex items-center justify-center transition-all ${deptHodForwardDept === d ? "border-blue-500 bg-blue-500" : "border-slate-300"}`}>
+                        {deptHodForwardDept === d && <div className="w-2 h-2 bg-white rounded-full"/>}
+                      </div>
+                      <p className="text-[12px] font-bold text-slate-700">{d} Department</p>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="px-3 py-3 border-t border-slate-100 flex gap-2">
+                  <button
+                    onClick={() => { setDeptHodMode(null); setDeptHodForwardDept(""); }}
+                    className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-black text-[12px] transition-all active:scale-95"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleDeptHodApproveConfirm}
+                    disabled={approvalLoading || !deptHodForwardDept}
+                    className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl font-black text-[12px] transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                  >
+                    {approvalLoading
+                      ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"/>
+                      : <Forward size={12}/>}
+                    {deptHodForwardDept ? `Forward to ${deptHodForwardDept}` : "Forward"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
       <div className="fixed inset-0 z-50 flex md:bg-slate-900/70 md:backdrop-blur-sm md:items-center md:justify-center md:p-4">
         <div className="bg-white w-full h-full flex flex-col md:h-auto md:max-h-[95dvh] md:rounded-[2rem] md:max-w-4xl md:shadow-2xl md:border md:border-slate-200">
 
@@ -421,9 +663,14 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                         disabled={approvalLoading}/>
                       <div className="grid grid-cols-3 gap-2">
                         {deptChanged ? (
-                          <button onClick={() => handleApproval("Forwarded")} disabled={approvalLoading || myApprovalStatus === "Forwarded"} className="bg-blue-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-blue-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5 relative">
+                          <button onClick={() => handleApproval("Forwarded")} disabled={approvalLoading || myApprovalStatus === "Forwarded" || myApprovalStatus === "Approved"} className="bg-blue-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-blue-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5 relative">
                             {pendingDecision === "Forwarded" ? <Spinner size={13}/> : myApprovalStatus === "Forwarded" ? <CheckCircle size={13}/> : <Forward size={13}/>} Forward
                             {myApprovalStatus === "Forwarded" && <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center"><CheckCircle size={10} className="text-blue-500"/></span>}
+                          </button>
+                        ) : isDeptHOD ? (
+                          <button onClick={() => setShowDeptHodApproveModal(true)} disabled={approvalLoading || myApprovalStatus === "Approved"} className="bg-emerald-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-emerald-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5 relative">
+                            <CheckCircle size={13}/> Approve
+                            {myApprovalStatus === "Approved" && <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center"><CheckCircle size={10} className="text-emerald-500"/></span>}
                           </button>
                         ) : (
                           <button onClick={() => handleApproval("Approved")} disabled={approvalLoading || myApprovalStatus === "Approved"} className="bg-emerald-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-emerald-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5 relative">
@@ -431,7 +678,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                             {myApprovalStatus === "Approved" && <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center"><CheckCircle size={10} className="text-emerald-500"/></span>}
                           </button>
                         )}
-                        <button onClick={() => setShowCheckingModal(true)} disabled={approvalLoading} className="bg-amber-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-amber-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5">
+                        <button onClick={() => setShowCheckingModal(true)} disabled={approvalLoading || myApprovalStatus === "Checking"} className="bg-amber-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-amber-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5">
                           {pendingDecision === "Checking" ? <Spinner size={13}/> : <Clock size={13}/>} Checking
                         </button>
                         <button onClick={() => handleApproval("Rejected")} disabled={approvalLoading || myApprovalStatus === "Rejected"} className="bg-red-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-red-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5 relative">
