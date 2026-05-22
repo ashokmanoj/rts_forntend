@@ -11,7 +11,7 @@ import SpreadsheetPreviewModal from "./SpreadsheetPreviewModal";
 import GalleryLightbox         from "./GalleryLightbox";
 import Spinner                 from "../ui/Spinner";
 
-const DEPARTMENTS = ["Academic","Accounts","Animation","Broadcasting","Business Development","Corporate Communications","Documentation","Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing","Operation","Purchase","RTS Help Desk","Software","Store","System admin","TA Committee","Technical Support"];
+const DEPARTMENTS = ["Academic","Accounts-A","Accounts-G","Animation","Broadcasting","Business Development","Corporate Communications","Documentation","Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing","Operation","Purchase","RTS Help Desk","Software","Store","System admin","TA Committee","Technical Support"];
 
 function ApprovalProgress({ rmStatus, hodStatus, deptHodStatus, isClosed }) {
   const steps = [
