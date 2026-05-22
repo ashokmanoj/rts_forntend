@@ -15,7 +15,7 @@ import UserManagementPage from "./UserManagementPage";
 import FoodPage           from "./FoodPage";
 import AdminReportPage    from "./AdminReportPage";
 
-const DEPARTMENTS = ["Academic","Accounts","Admin","Animation","Broadcasting","Business Development","Corporate Communications","Documentation","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing","Operation","Purchase","RTS Help Desk","Software","Store","System admin","TA Committee","Technical Support"];
+const DEPARTMENTS = ["Academic","Accounts","Animation","Broadcasting","Business Development","Corporate Communications","Documentation","Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing","Operation","Purchase","RTS Help Desk","Software","Store","System admin","TA Committee","Technical Support"];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Edit Request Modal

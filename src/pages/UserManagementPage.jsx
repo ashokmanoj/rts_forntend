@@ -34,9 +34,9 @@ import {
 
 const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Intern"];
 const DEPARTMENTS = [
-  "Academic", "Accounts", "Admin", "Animation", "Broadcasting", 
-  "Business Development", "Corporate Communications", "Documentation", 
-  "Food Committee", "Game Development", "Govt. Relations", "HR", "Interns", "Management", 
+  "Academic", "Accounts", "Animation", "Broadcasting",
+  "Business Development", "Corporate Communications", "Documentation",
+  "Facilities", "Food Committee", "Game Development", "Govt. Relations", "HR", "Interns", "Management",
   "Marketing", "Operation", "Purchase", "RTS Help Desk", "Software", 
   "Store", "System admin", "TA Committee", "Technical Support"
 ];

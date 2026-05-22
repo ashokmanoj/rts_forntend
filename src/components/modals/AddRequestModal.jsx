@@ -8,9 +8,9 @@ import { useEscapeKey } from "../../hooks/useEscapeKey";
 import Spinner from "../ui/Spinner";
 
 const DEPARTMENTS = [
-  "Academic","Accounts","Admin","Animation","Broadcasting",
+  "Academic","Accounts","Animation","Broadcasting",
   "Business Development","Corporate Communications","Documentation",
-  "Food Committee","Game Development","Govt. Relations","HR","Management","Marketing",
+  "Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing",
   "Operation","Purchase","RTS Help Desk","Software","Store",
   "System admin","TA Committee","Technical Support",
 ];
