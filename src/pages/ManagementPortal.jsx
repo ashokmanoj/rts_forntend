@@ -185,9 +185,9 @@ function RequestRow({ row, index, onActionComplete }) {
         <td className="px-3 py-3 text-center">
           <RmBadge status={row.rmStatus} />
         </td>
-        {/* HOD Status */}
+        {/* HOD Status — assigned dept HOD's action */}
         <td className="px-3 py-3 text-center">
-          <HodBadge status={row.hodStatus} />
+          <HodBadge status={row.deptHodStatus} />
         </td>
         {/* Assigned Dept */}
         <td className="px-3 py-3 text-xs text-slate-700 font-bold whitespace-nowrap">
@@ -215,11 +215,15 @@ function RequestRow({ row, index, onActionComplete }) {
             </button>
           )}
         </td>
+        {/* My Status */}
+        <td className="px-3 py-3 text-center">
+          <HodBadge status={row.hodStatus} />
+        </td>
       </tr>
 
       {actioning && (
         <tr>
-          <td colSpan={8} className="px-4 pb-3">
+          <td colSpan={9} className="px-4 pb-3">
             <ActionPanel
               row={row}
               onSubmit={handleSubmit}
@@ -546,6 +550,7 @@ export default function ManagementPortal({ currentUser, onLogout }) {
                   <th className="px-3 py-3 text-center">HOD Status</th>
                   <th className="px-3 py-3 text-left">Assigned Dept</th>
                   <th className="px-3 py-3 text-center">Action</th>
+                  <th className="px-3 py-3 text-center">My Status</th>
                 </tr>
               </thead>
               <tbody>

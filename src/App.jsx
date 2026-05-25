@@ -17,12 +17,20 @@ import DashboardPage        from "./pages/DashboardPage";
 import AdminReportPage      from "./pages/AdminReportPage";
 import ManagementPortal     from "./pages/ManagementPortal";
 import SuperUserHome        from "./pages/SuperUserHome";
+import AppLoader            from "./components/ui/AppLoader";
 
 export default function App() {
-  const [isLoggedIn,  setIsLoggedIn]  = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [checking,    setChecking]    = useState(true);
+  const [isLoggedIn,      setIsLoggedIn]      = useState(false);
+  const [currentUser,     setCurrentUser]     = useState(null);
+  const [checking,        setChecking]        = useState(true);
+  const [splashDone,      setSplashDone]      = useState(false);
   const location = useLocation();
+
+  // ── Minimum splash duration — all users see the loading screen ───────────
+  useEffect(() => {
+    const t = setTimeout(() => setSplashDone(true), 1400);
+    return () => clearTimeout(t);
+  }, []);
 
   // ── Verify session on mount ───────────────────────────────────────────────
   useEffect(() => {
@@ -85,13 +93,7 @@ export default function App() {
     }
   };
 
-  if (checking) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (checking || !splashDone) return <AppLoader />;
 
   // ── Routing ───────────────────────────────────────────────────────────────
   if (!isLoggedIn) {

@@ -12,6 +12,7 @@ import InstructionsModal from "../components/modals/InstructionsModal";
 import FoodPage          from "./FoodPage";
 import UserManagementPage from "./UserManagementPage";
 import { UtensilsCrossed, ClipboardList, LogOut, Users, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import DashboardSkeleton from "../components/ui/DashboardSkeleton";
 
 export default function DashboardPage({ currentUser: currentUserProp, onLogout, onSwitchRole }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -223,14 +224,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
     } finally { setCloseTicketReq(null); }
   };
 
-  if (loadingReqs && !isFiltering) return (
-    <div className="flex items-center justify-center min-h-screen bg-[#f8fafc]">
-      <div className="text-center">
-        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-slate-500 font-medium">Loading Dashboard...</p>
-      </div>
-    </div>
-  );
+  if (loadingReqs && !isFiltering) return <DashboardSkeleton />;
 
   return (
     <div className="h-dvh bg-[#f8fafc] font-sans text-[12px] flex flex-col overflow-hidden">
