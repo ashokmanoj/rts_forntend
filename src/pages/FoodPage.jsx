@@ -755,7 +755,7 @@ export default function FoodPage({ currentUser }) {
                 </span>
               </div>
 
-              <div className="overflow-x-auto border border-slate-200 rounded-2xl mx-3 sm:mx-5 mb-4 sm:mb-5">
+              <div className="table-scroll border border-slate-200 rounded-2xl mx-3 sm:mx-5 mb-4 sm:mb-5">
                 <table className="w-full text-[12px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">

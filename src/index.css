@@ -107,16 +107,28 @@
   display: none !important;
 }
 
-/* ── Responsive scrollbar thin ────────────────────────────────────────────── */
+/* ── Global scrollbar ─────────────────────────────────────────────────────── */
 .overflow-x-auto::-webkit-scrollbar,
 .overflow-y-auto::-webkit-scrollbar,
-.overflow-auto::-webkit-scrollbar { height: 4px; width: 4px; }
+.overflow-auto::-webkit-scrollbar         { height: 6px; width: 6px; }
 .overflow-x-auto::-webkit-scrollbar-track,
 .overflow-y-auto::-webkit-scrollbar-track,
-.overflow-auto::-webkit-scrollbar-track { background: #f1f5f9; }
+.overflow-auto::-webkit-scrollbar-track   { background: #f1f5f9; border-radius: 99px; }
 .overflow-x-auto::-webkit-scrollbar-thumb,
 .overflow-y-auto::-webkit-scrollbar-thumb,
-.overflow-auto::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.overflow-auto::-webkit-scrollbar-thumb   { background: #94a3b8; border-radius: 99px; }
+.overflow-x-auto::-webkit-scrollbar-thumb:hover,
+.overflow-y-auto::-webkit-scrollbar-thumb:hover,
+.overflow-auto::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* ── Table scroll container — prominent scrollbar with fade hints ─────────── */
+.table-scroll { overflow-x: auto; position: relative; }
+.table-scroll::-webkit-scrollbar         { height: 8px; }
+.table-scroll::-webkit-scrollbar-track   { background: #e2e8f0; border-radius: 99px; margin: 0 8px; }
+.table-scroll::-webkit-scrollbar-thumb   { background: #6366f1; border-radius: 99px; border: 2px solid #e2e8f0; }
+.table-scroll::-webkit-scrollbar-thumb:hover { background: #4f46e5; }
+/* Firefox */
+.table-scroll { scrollbar-width: thin; scrollbar-color: #6366f1 #e2e8f0; }
 
 /* ── Mobile-friendly touch targets ────────────────────────────────────────── */
 @media (max-width: 640px) {

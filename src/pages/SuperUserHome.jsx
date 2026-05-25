@@ -678,7 +678,7 @@ function FoodAdminTab({ currentUser }) {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
+        <div className="table-scroll">
           <table className="w-full text-[12px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">

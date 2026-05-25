@@ -377,7 +377,7 @@ export default function AdminReportPage() {
                                     <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                                       <Clock size={10} /> Daily Usage — {user.name}
                                     </p>
-                                    <div className="overflow-x-auto rounded-xl border border-indigo-100">
+                                    <div className="table-scroll rounded-xl border border-indigo-100">
                                       <table className="w-full text-left min-w-[420px]">
                                         <thead>
                                           <tr className="bg-indigo-100/60 text-[9px] font-black text-indigo-600 uppercase tracking-widest">

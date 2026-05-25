@@ -377,7 +377,7 @@ export default function UserManagementPage({ currentUser }) {
 
       {/* Users Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="table-scroll">
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
