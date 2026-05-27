@@ -16,6 +16,7 @@ import {
   ChevronDown, ChevronUp, ShieldCheck, AlertCircle,
   Search, X, SlidersHorizontal, LayoutDashboard,
 } from "lucide-react";
+import SearchableSelect from "../components/ui/SearchableSelect";
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 function RmBadge({ status }) {
@@ -465,41 +466,39 @@ export default function ManagementPortal({ currentUser, onLogout }) {
           </div>
 
           {/* HOD Status */}
-          <select
+          <SearchableSelect
             value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className={`px-3 py-2 text-[12px] font-bold rounded-xl border outline-none transition-all cursor-pointer ${statusFilter !== "all" ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-slate-50 border-slate-200 text-slate-600"}`}
-          >
-            <option value="all">HOD Status: All</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
+            onChange={setStatusFilter}
+            options={[
+              { value: "all", label: "HOD Status: All" },
+              { value: "pending", label: "Pending" },
+              { value: "approved", label: "Approved" },
+              { value: "rejected", label: "Rejected" },
+            ]}
+            triggerClassName={`px-3 py-2 text-[12px] font-bold rounded-xl border ${statusFilter !== "all" ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-slate-50 border-slate-200 text-slate-600"}`}
+          />
 
           {/* RM Status */}
-          <select
+          <SearchableSelect
             value={rmFilter}
-            onChange={e => setRmFilter(e.target.value)}
-            className={`px-3 py-2 text-[12px] font-bold rounded-xl border outline-none transition-all cursor-pointer ${rmFilter !== "all" ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-slate-50 border-slate-200 text-slate-600"}`}
-          >
-            <option value="all">RM Status: All</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="checking">Checking</option>
-          </select>
+            onChange={setRmFilter}
+            options={[
+              { value: "all", label: "RM Status: All" },
+              { value: "pending", label: "Pending" },
+              { value: "approved", label: "Approved" },
+              { value: "rejected", label: "Rejected" },
+              { value: "checking", label: "Checking" },
+            ]}
+            triggerClassName={`px-3 py-2 text-[12px] font-bold rounded-xl border ${rmFilter !== "all" ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-slate-50 border-slate-200 text-slate-600"}`}
+          />
 
           {/* Department */}
-          <select
+          <SearchableSelect
             value={deptFilter}
-            onChange={e => setDeptFilter(e.target.value)}
-            className={`px-3 py-2 text-[12px] font-bold rounded-xl border outline-none transition-all cursor-pointer ${deptFilter !== "all" ? "bg-purple-50 border-purple-300 text-purple-700" : "bg-slate-50 border-slate-200 text-slate-600"}`}
-          >
-            <option value="all">Department: All</option>
-            {deptOptions.map(d => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
+            onChange={setDeptFilter}
+            options={[{ value: "all", label: "Department: All" }, ...deptOptions.map(d => ({ value: d, label: d }))]}
+            triggerClassName={`px-3 py-2 text-[12px] font-bold rounded-xl border ${deptFilter !== "all" ? "bg-purple-50 border-purple-300 text-purple-700" : "bg-slate-50 border-slate-200 text-slate-600"}`}
+          />
 
           {/* Clear */}
           {activeFilterCount > 0 && (

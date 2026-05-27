@@ -31,14 +31,21 @@ import {
   CheckCircle,
   XCircle
 } from "lucide-react";
+import SearchableSelect from "../components/ui/SearchableSelect";
 
 const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Intern"];
 const DEPARTMENTS = [
-  "Academic", "Accounts-A", "Accounts-G", "Animation", "Broadcasting",
+  "Academics-Assam", "Academics-Karnataka", "Academics-Tripura", "Academics-Uttarakhand",
+  "Accounts-A", "Accounts-G", "Animation",
+  "Broadcasting-Assam", "Broadcasting-Karnataka", "Broadcasting-Tripura", "Broadcasting-Uttarakhand",
   "Business Development", "Corporate Communications", "Documentation",
   "Facilities", "Food Committee", "Game Development", "Govt. Relations", "HR", "Interns", "Management",
-  "Marketing", "Operation", "Purchase", "RTS Help Desk", "Software", 
-  "Store", "System admin", "TA Committee", "Technical Support"
+  "Marketing",
+  "Operations-Assam", "Operations-Bihar", "Operations-Karnataka", "Operations-Maharashtra", "Operations-Mizoram", "Operations-Nagaland", "Operations-Tripura", "Operations-Uttarakhand",
+  "Purchase", "RTS Help Desk", "Software",
+  "Stores-Assam", "Stores-Karnataka", "Stores-Mizoram", "Stores-Tripura",
+  "System Admin-Assam", "System Admin-Karnataka", "System Admin-Uttarakhand",
+  "TA Committee", "Technical Support"
 ];
 
 export default function UserManagementPage({ currentUser }) {
@@ -715,29 +722,21 @@ export default function UserManagementPage({ currentUser }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Role</label>
-                  <div className="relative">
-                    <select
-                      value={formData.role}
-                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                      className="w-full appearance-none p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none cursor-pointer"
-                    >
-                      {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                  </div>
+                  <SearchableSelect
+                    value={formData.role}
+                    onChange={(val) => setFormData({ ...formData, role: val })}
+                    options={ROLES}
+                    placeholder="Select role…"
+                  />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Department</label>
-                  <div className="relative">
-                    <select
-                      value={formData.dept}
-                      onChange={(e) => setFormData({ ...formData, dept: e.target.value })}
-                      className="w-full appearance-none p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none cursor-pointer"
-                    >
-                      {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                  </div>
+                  <SearchableSelect
+                    value={formData.dept}
+                    onChange={(val) => setFormData({ ...formData, dept: val })}
+                    options={DEPARTMENTS}
+                    placeholder="Select department…"
+                  />
                 </div>
               </div>
 
@@ -993,29 +992,21 @@ export default function UserManagementPage({ currentUser }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Role</label>
-                  <div className="relative">
-                    <select
-                      value={editFormData.role}
-                      onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
-                      className="w-full appearance-none p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none cursor-pointer"
-                    >
-                      {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                  </div>
+                  <SearchableSelect
+                    value={editFormData.role}
+                    onChange={(val) => setEditFormData({ ...editFormData, role: val })}
+                    options={ROLES}
+                    placeholder="Select role…"
+                  />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Department</label>
-                  <div className="relative">
-                    <select
-                      value={editFormData.dept}
-                      onChange={(e) => setEditFormData({ ...editFormData, dept: e.target.value })}
-                      className="w-full appearance-none p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none cursor-pointer"
-                    >
-                      {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                  </div>
+                  <SearchableSelect
+                    value={editFormData.dept}
+                    onChange={(val) => setEditFormData({ ...editFormData, dept: val })}
+                    options={DEPARTMENTS}
+                    placeholder="Select department…"
+                  />
                 </div>
               </div>
 

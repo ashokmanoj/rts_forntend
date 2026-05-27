@@ -9,6 +9,7 @@ import {
   ArrowLeft, Clock, Search, Calendar, X, ChevronDown,
   BarChart3, Users, ChevronRight,
 } from "lucide-react";
+import SearchableSelect from "../components/ui/SearchableSelect";
 
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -208,48 +209,36 @@ export default function AdminReportPage() {
               <>
                 <div className="flex flex-col gap-1 min-w-[130px] flex-1 sm:flex-none sm:min-w-[160px]">
                   <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Select User</label>
-                  <div className="relative">
-                    <select
-                      value={filters.empId}
-                      onChange={e => setFilters(p => ({ ...p, empId: e.target.value }))}
-                      className="w-full appearance-none bg-slate-50 border border-slate-200 py-1.5 pl-3 pr-8 rounded-xl text-[11px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer"
-                    >
-                      <option value="all">All Users</option>
-                      {dropdownOptions.users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
-                  </div>
+                  <SearchableSelect
+                    value={filters.empId}
+                    onChange={val => setFilters(p => ({ ...p, empId: val }))}
+                    options={[{ value: "all", label: "All Users" }, ...dropdownOptions.users.map(u => ({ value: u.id, label: u.name }))]}
+                    triggerClassName="py-1.5 pl-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-bold hover:border-indigo-300"
+                  />
                 </div>
 
                 <div className="flex flex-col gap-1 min-w-[110px] flex-1 sm:flex-none sm:min-w-[130px]">
                   <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Department</label>
-                  <div className="relative">
-                    <select
-                      value={filters.dept}
-                      onChange={e => setFilters(p => ({ ...p, dept: e.target.value }))}
-                      className="w-full appearance-none bg-slate-50 border border-slate-200 py-1.5 pl-3 pr-8 rounded-xl text-[11px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer"
-                    >
-                      <option value="all">All Dept</option>
-                      {dropdownOptions.depts.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
-                  </div>
+                  <SearchableSelect
+                    value={filters.dept}
+                    onChange={val => setFilters(p => ({ ...p, dept: val }))}
+                    options={[{ value: "all", label: "All Dept" }, ...dropdownOptions.depts.map(d => ({ value: d, label: d }))]}
+                    triggerClassName="py-1.5 pl-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-bold hover:border-indigo-300"
+                  />
                 </div>
 
-                <div className="flex flex-col gap-1 w-24">
+                <div className="flex flex-col gap-1 w-28">
                   <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Status</label>
-                  <div className="relative">
-                    <select
-                      value={filters.status}
-                      onChange={e => setFilters(p => ({ ...p, status: e.target.value }))}
-                      className="w-full appearance-none bg-slate-50 border border-slate-200 py-1.5 pl-3 pr-8 rounded-xl text-[11px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer"
-                    >
-                      <option value="all">All</option>
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
-                  </div>
+                  <SearchableSelect
+                    value={filters.status}
+                    onChange={val => setFilters(p => ({ ...p, status: val }))}
+                    options={[
+                      { value: "all", label: "All" },
+                      { value: "active", label: "Active" },
+                      { value: "inactive", label: "Inactive" },
+                    ]}
+                    triggerClassName="py-1.5 pl-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-bold hover:border-indigo-300"
+                  />
                 </div>
 
                 <div className="flex flex-col gap-1 min-w-[210px]">

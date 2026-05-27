@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, Plus, ChevronDown, LogOut, BookOpen, X, Calendar,
+  Search, Plus, LogOut, BookOpen, X, Calendar,
   BarChart3, User, Users, Shield, Building2, Briefcase, Settings,
   Heart, UtensilsCrossed, CheckCircle2, RefreshCw, Bell, BellOff,
   SlidersHorizontal,
 } from "lucide-react";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
+import SearchableSelect from "../ui/SearchableSelect";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -59,11 +60,12 @@ export default function FilterBar({
   const resetFilters = () => {
     setLocalSearch("");
     onSearchChange("");
-    onFilterChange({ name: "", dept: "", assignedDept: "", assignedStatus: "", type: "", priority: "", startDate: null, endDate: null, search: "" });
+    onFilterChange({ name: [], dept: [], assignedDept: [], assignedStatus: [], type: [], priority: [], unread: false, latest: false, sortMode: "default", sortOrder: "desc", startDate: null, endDate: null, search: "" });
   };
 
-  const hasActiveFilter    = Object.values(activeFilters).some(Boolean) || !!searchTerm;
-  const activeFilterCount  = Object.values(activeFilters).filter(Boolean).length + (searchTerm ? 1 : 0);
+  const IGNORED_KEYS = new Set(["sortOrder", "sortMode"]);
+  const hasActiveFilter   = Object.entries(activeFilters).some(([k, v]) => IGNORED_KEYS.has(k) ? false : Array.isArray(v) ? v.length > 0 : Boolean(v)) || !!searchTerm;
+  const activeFilterCount = Object.entries(activeFilters).filter(([k, v]) => IGNORED_KEYS.has(k) ? false : Array.isArray(v) ? v.length > 0 : Boolean(v)).length + (searchTerm ? 1 : 0);
 
   const { names = [], depts = [], assignedDepts = [], assignedStatuses = ["Open", "Checking", "Closed"] } = filterOptions;
 
@@ -81,7 +83,7 @@ export default function FilterBar({
     if (pushSupported && isSecure && !isSubscribed && permission !== "denied") pushSubscribe();
   }, [isChecked, pushSupported, isSecure, isSubscribed, permission, pushSubscribe]);
 
-  const selectStyle = "w-full appearance-none bg-white border border-slate-200 py-1.5 pl-2 pr-6 rounded-lg text-slate-700 text-[11px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer transition-all hover:border-slate-300";
+  const filterTrigger = "py-1.5 px-2 bg-white border border-slate-200 rounded-lg text-[11px] font-bold hover:border-slate-300";
 
   return (
     <div className="mb-4 sm:mb-6 space-y-3 relative z-40">
@@ -96,81 +98,91 @@ export default function FilterBar({
             {/* Requestor Name */}
             <div className="flex flex-col gap-1 flex-1 min-w-[130px] sm:flex-none sm:min-w-[150px]">
               <label className="text-[11px] font-black text-slate-600 uppercase tracking-tight ml-1">Requestor</label>
-              <div className="relative">
-                <select value={activeFilters.name || ""} onChange={e => updateFilter("name", e.target.value)} className={selectStyle}>
-                  <option value="">All (Requestor)</option>
-                  {names.map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={12} />
-              </div>
+              <SearchableSelect
+                multiSelect
+                value={activeFilters.name || []}
+                onChange={val => updateFilter("name", val)}
+                options={names.map(n => ({ value: n, label: n }))}
+                placeholder="All Requestors"
+                triggerClassName={filterTrigger}
+              />
             </div>
 
             {/* Requested Dept */}
             <div className="flex flex-col gap-1 flex-1 min-w-[120px] sm:flex-none sm:min-w-[140px]">
               <label className="text-[11px] font-black text-slate-600 uppercase tracking-tight ml-1">Requested Dept</label>
-              <div className="relative">
-                <select value={activeFilters.dept || ""} onChange={e => updateFilter("dept", e.target.value)} className={selectStyle}>
-                  <option value="">All Depts</option>
-                  {depts.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
-              </div>
+              <SearchableSelect
+                multiSelect
+                value={activeFilters.dept || []}
+                onChange={val => updateFilter("dept", val)}
+                options={depts.map(d => ({ value: d, label: d }))}
+                placeholder="All Depts"
+                triggerClassName={filterTrigger}
+              />
             </div>
 
             {/* Assigned Dept */}
             <div className="flex flex-col gap-1 flex-1 min-w-[120px] sm:flex-none sm:min-w-[140px]">
               <label className="text-[11px] font-black text-slate-600 uppercase tracking-tight ml-1">Assigned Dept</label>
-              <div className="relative">
-                <select value={activeFilters.assignedDept || ""} onChange={e => updateFilter("assignedDept", e.target.value)} className={selectStyle}>
-                  <option value="">All Depts</option>
-                  {assignedDepts.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
-              </div>
+              <SearchableSelect
+                multiSelect
+                value={activeFilters.assignedDept || []}
+                onChange={val => updateFilter("assignedDept", val)}
+                options={assignedDepts.map(d => ({ value: d, label: d }))}
+                placeholder="All Depts"
+                triggerClassName={filterTrigger}
+              />
             </div>
 
             {/* Type */}
             <div className="flex flex-col gap-1 flex-1 min-w-[90px] sm:flex-none sm:min-w-[100px]">
               <label className="text-[11px] font-black text-slate-600 uppercase tracking-tight ml-1">Type</label>
-              <div className="relative">
-                <select value={activeFilters.type || ""} onChange={e => updateFilter("type", e.target.value)} className={selectStyle}>
-                  <option value="">All</option>
-                  <option value="sent">Sent</option>
-                  <option value="received">Received</option>
-                </select>
-                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
-              </div>
+              <SearchableSelect
+                multiSelect
+                value={activeFilters.type || []}
+                onChange={val => updateFilter("type", val)}
+                options={[{ value: "sent", label: "Sent" }, { value: "received", label: "Received" }]}
+                placeholder="All"
+                triggerClassName={filterTrigger}
+              />
             </div>
 
             {/* Status */}
             <div className="flex flex-col gap-1 flex-1 min-w-[90px] sm:flex-none sm:min-w-[110px]">
               <label className="text-[11px] font-black text-slate-600 uppercase tracking-tight ml-1">Status</label>
-              <div className="relative">
-                <select value={activeFilters.assignedStatus || ""} onChange={e => updateFilter("assignedStatus", e.target.value)} className={selectStyle}>
-                  <option value="">All</option>
-                  <option value="Open">Open</option>
-                  <option value="Checking">Checking</option>
-                  <option value="Pending Acknowledgement">Pending Ack.</option>
-                  <option value="Closed">Closed</option>
-                </select>
-                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
-              </div>
+              <SearchableSelect
+                multiSelect
+                value={activeFilters.assignedStatus || []}
+                onChange={val => updateFilter("assignedStatus", val)}
+                options={[
+                  { value: "Open", label: "Open" },
+                  { value: "Checking", label: "Checking" },
+                  { value: "Pending Acknowledgement", label: "Pending Ack." },
+                  { value: "Closed", label: "Closed" },
+                ]}
+                placeholder="All"
+                triggerClassName={filterTrigger}
+              />
             </div>
 
             {/* Urgency */}
             <div className="flex flex-col gap-1 flex-1 min-w-[90px] sm:flex-none sm:min-w-[110px]">
               <label className="text-[11px] font-black text-slate-600 uppercase tracking-tight ml-1">Urgency</label>
-              <div className="relative">
-                <select value={activeFilters.priority || ""} onChange={e => updateFilter("priority", e.target.value)} className={selectStyle}>
-                  <option value="">All</option>
-                  <option value="Overdue">Overdue</option>
-                  <option value="High">High</option>
-                  <option value="Medium">Medium</option>
-                  <option value="Low">Low</option>
-                </select>
-                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
-              </div>
+              <SearchableSelect
+                multiSelect
+                value={activeFilters.priority || []}
+                onChange={val => updateFilter("priority", val)}
+                options={[
+                  { value: "Overdue", label: "Overdue" },
+                  { value: "High", label: "High" },
+                  { value: "Medium", label: "Medium" },
+                  { value: "Low", label: "Low" },
+                ]}
+                placeholder="All"
+                triggerClassName={filterTrigger}
+              />
             </div>
+
 
             {/* Date Range */}
             <div className="flex flex-col gap-1 w-full sm:w-auto sm:min-w-[210px]">

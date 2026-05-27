@@ -22,6 +22,7 @@ import {
 } from '../services/foodService';
 import FoodOptInModal  from '../components/food/FoodOptInModal';
 import FoodCalendar    from '../components/food/FoodCalendar';
+import SearchableSelect from '../components/ui/SearchableSelect';
 import FoodGuideModal  from '../components/modals/FoodGuideModal';
 import { BookOpen } from 'lucide-react';
 
@@ -704,23 +705,21 @@ export default function FoodPage({ currentUser }) {
               <>
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1">Month</label>
-                  <select
-                    value={repMonth}
-                    onChange={e => setRepMonth(Number(e.target.value))}
-                    className="bg-white border border-slate-200 py-1.5 px-3 rounded-lg text-[11px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  >
-                    {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                  </select>
+                  <SearchableSelect
+                    value={String(repMonth)}
+                    onChange={val => setRepMonth(Number(val))}
+                    options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))}
+                    triggerClassName="bg-white border border-slate-200 py-1.5 px-3 rounded-lg text-[11px] font-bold text-slate-700 hover:border-indigo-300"
+                  />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1">Year</label>
-                  <select
-                    value={repYear}
-                    onChange={e => setRepYear(Number(e.target.value))}
-                    className="bg-white border border-slate-200 py-1.5 px-3 rounded-lg text-[11px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  >
-                    {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
+                  <SearchableSelect
+                    value={String(repYear)}
+                    onChange={val => setRepYear(Number(val))}
+                    options={yearOptions.map(y => ({ value: String(y), label: String(y) }))}
+                    triggerClassName="bg-white border border-slate-200 py-1.5 px-3 rounded-lg text-[11px] font-bold text-slate-700 hover:border-indigo-300"
+                  />
                 </div>
               </>
             )}

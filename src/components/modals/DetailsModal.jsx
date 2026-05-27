@@ -10,8 +10,9 @@ import ChatPanel              from "../chat/ChatPanel";
 import SpreadsheetPreviewModal from "./SpreadsheetPreviewModal";
 import GalleryLightbox         from "./GalleryLightbox";
 import Spinner                 from "../ui/Spinner";
+import SearchableSelect        from "../ui/SearchableSelect";
 
-const DEPARTMENTS = ["Academic","Accounts-A","Accounts-G","Animation","Broadcasting","Business Development","Corporate Communications","Documentation","Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing","Operation","Purchase","RTS Help Desk","Software","Store","System admin","TA Committee","Technical Support"];
+const DEPARTMENTS = ["Academics-Assam","Academics-Karnataka","Academics-Tripura","Academics-Uttarakhand","Accounts-A","Accounts-G","Animation","Broadcasting-Assam","Broadcasting-Karnataka","Broadcasting-Tripura","Broadcasting-Uttarakhand","Business Development","Corporate Communications","Documentation","Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing","Operations-Assam","Operations-Bihar","Operations-Karnataka","Operations-Maharashtra","Operations-Mizoram","Operations-Nagaland","Operations-Tripura","Operations-Uttarakhand","Purchase","RTS Help Desk","Software","Stores-Assam","Stores-Karnataka","Stores-Mizoram","Stores-Tripura","System Admin-Assam","System Admin-Karnataka","System Admin-Uttarakhand","TA Committee","Technical Support"];
 
 function ApprovalProgress({ rmStatus, hodStatus, deptHodStatus, isClosed }) {
   const steps = [
@@ -547,13 +548,14 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                   Assigned Department
                   {deptChanged && canChangeDept && <span className="ml-1 text-blue-600 normal-case font-bold text-[9px]">(<span className="line-through text-slate-400">{req?.assignedDept}</span> → <b>{selectedDept}</b>)</span>}
                 </p>
-                <div className="relative">
-                  <select value={selectedDept} onChange={(e) => canChangeDept && setSelectedDept(e.target.value)} disabled={!canChangeDept}
-                    className={`w-full appearance-none p-3 rounded-xl text-center font-bold border-none focus:ring-2 transition-all text-sm ${deptChanged&&canChangeDept?"bg-blue-50 text-blue-700 ring-2 ring-blue-300 cursor-pointer":canChangeDept?"bg-slate-100 text-slate-700 focus:ring-indigo-500 cursor-pointer":"bg-slate-100 text-slate-500 cursor-not-allowed"}`}>
-                    {DEPARTMENTS.map((d) => <option key={d} value={d}>{d} Department</option>)}
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15}/>
-                </div>
+                <SearchableSelect
+                  value={selectedDept}
+                  onChange={(val) => canChangeDept && setSelectedDept(val)}
+                  options={DEPARTMENTS}
+                  placeholder="Select department…"
+                  disabled={!canChangeDept}
+                  triggerClassName={`p-3 rounded-xl font-bold text-sm text-center border-none ${deptChanged && canChangeDept ? "bg-blue-50 text-blue-700 ring-2 ring-blue-300" : canChangeDept ? "bg-slate-100 text-slate-700" : "bg-slate-100 text-slate-500"}`}
+                />
               </div>
 
               {req?.assignedDepts && req.assignedDepts.split(",").length > 1 && (

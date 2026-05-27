@@ -7,7 +7,7 @@ import React, { useState, useEffect } from "react";
 import { Forward, EyeOff, Bell, Send, ThumbsUp, ThumbsDown, Pencil, Trash2 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 
-export default function RequestTable({ requests, currentUser, onOpenDetails, onMarkUnread, onAcknowledge, onEdit, onDelete }) {
+export default function RequestTable({ requests, sortMode, currentUser, onOpenDetails, onMarkUnread, onAcknowledge, onEdit, onDelete }) {
   const [contextMenu, setContextMenu] = useState(null);
   // key: `${rowId}-${action}` e.g. "42-Received"
   const [pendingAck, setPendingAck] = useState(null);
@@ -36,12 +36,13 @@ export default function RequestTable({ requests, currentUser, onOpenDetails, onM
     setContextMenu(null);
   };
 
-  const sorted = [
-    ...requests.filter((r) => !r.seen && r.forwarded),
-    ...requests.filter((r) => !r.seen && !r.forwarded),
-    ...requests.filter((r) => r.seen  && r.forwarded),
-    ...requests.filter((r) => r.seen  && !r.forwarded),
-  ];
+  // Default: unread first, then read — preserving backend order within each group
+  const sorted = (!sortMode || sortMode === "default")
+    ? [
+        ...requests.filter(r => !r.seen),
+        ...requests.filter(r =>  r.seen),
+      ]
+    : requests;
 
   return (
     <>

@@ -11,7 +11,7 @@ import AddRequestModal   from "../components/modals/AddRequestModal";
 import InstructionsModal from "../components/modals/InstructionsModal";
 import FoodPage          from "./FoodPage";
 import UserManagementPage from "./UserManagementPage";
-import { UtensilsCrossed, ClipboardList, LogOut, Users, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { UtensilsCrossed, ClipboardList, LogOut, Users, CheckCircle2, XCircle, RefreshCw, ChevronDown } from "lucide-react";
 import DashboardSkeleton from "../components/ui/DashboardSkeleton";
 
 export default function DashboardPage({ currentUser: currentUserProp, onLogout, onSwitchRole }) {
@@ -22,14 +22,24 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   const [pagination,       setPagination]       = useState({ total: 0, page: 1, limit: 50, totalPages: 1, hasNext: false, hasPrev: false });
   const [chatLogs,         setChatLogs]         = useState({});
   
+  // Parse multi-value URL param (comma-separated → array)
+  const parseArr = (key) => {
+    const v = searchParams.get(key);
+    return v ? v.split(",").filter(Boolean) : [];
+  };
+
   // Consolidate filters into one state object, initialized from URL
   const [filters, setFilters] = useState({
-    name:           searchParams.get("name") || "",
-    dept:           searchParams.get("dept") || "",
-    assignedDept:   searchParams.get("assignedDept") || "",
-    assignedStatus: searchParams.get("assignedStatus") || "",
-    type:           searchParams.get("type") || "",
-    priority:       searchParams.get("priority") || "",
+    name:           parseArr("name"),
+    dept:           parseArr("dept"),
+    assignedDept:   parseArr("assignedDept"),
+    assignedStatus: parseArr("assignedStatus"),
+    type:           parseArr("type"),
+    priority:       parseArr("priority"),
+    unread:         searchParams.get("unread") === "true",
+    latest:         searchParams.get("latest") === "true",
+    sortOrder:      searchParams.get("sortOrder") || "desc",
+    sortMode:       searchParams.get("sortMode") || "default",
     startDate:      searchParams.get("startDate") ? new Date(searchParams.get("startDate")) : null,
     endDate:        searchParams.get("endDate") ? new Date(searchParams.get("endDate")) : null,
     search:         searchParams.get("search") || "",
@@ -52,6 +62,8 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   const isFetchingRef = useRef(false);
   const debounceTimerRef = useRef(null);
   const prevRoleKeyRef = useRef(null);
+  const sortDropdownRef = useRef(null);
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
 
   const currentUser = currentUserProp || getStoredUser();
 
@@ -112,7 +124,9 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
     // Update URL whenever filters or page changes
     const newParams = new URLSearchParams();
     Object.entries(filters).forEach(([key, val]) => {
-      if (val) newParams.set(key, val);
+      if (Array.isArray(val) && val.length > 0) newParams.set(key, val.join(","));
+      else if (val === true) newParams.set(key, "true");
+      else if (val && !Array.isArray(val)) newParams.set(key, val);
     });
     if (currentPage > 1) newParams.set("page", currentPage);
     setSearchParams(newParams);
@@ -126,11 +140,21 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
     loadFilterOptions();
   }, [loadFilterOptions]);
 
+  useEffect(() => {
+    const close = (e) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target)) {
+        setSortDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
   // ── Role Switch Re-fetch ──────────────────────────────────────────────────
   useEffect(() => {
     const newKey = `${currentUserProp?.role}-${currentUserProp?.dept}`;
     if (prevRoleKeyRef.current !== null && prevRoleKeyRef.current !== newKey) {
-      const cleared = { name: "", dept: "", assignedDept: "", assignedStatus: "", type: "", priority: "", startDate: null, endDate: null, search: "" };
+      const cleared = { name: [], dept: [], assignedDept: [], assignedStatus: [], type: [], priority: [], unread: false, latest: false, sortMode: "default", sortOrder: "desc", startDate: null, endDate: null, search: "" };
       setFilters(cleared);
       setCurrentPage(1);
       loadFilterOptions();
@@ -281,36 +305,102 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
           const showMgmtTab     = isSuperUser || isHRDeptHOD;
 
           return (
-            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit max-w-full overflow-x-auto shadow-sm">
-              {!isInternRole && (
-                <button
-                  onClick={() => setActiveTab("requests")}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-black text-[11px] transition-all ${
-                    activeTab === "requests" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
-                  }`}
-                >
-                  <ClipboardList size={14} /> Requests
-                </button>
-              )}
-              {showFoodTab && (
-                <button
-                  onClick={() => setActiveTab("food")}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-black text-[11px] transition-all ${
-                    activeTab === "food" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
-                  }`}
-                >
-                  <UtensilsCrossed size={14} /> {isFoodReportHOD ? "Food Report" : "Food Request"}
-                </button>
-              )}
-              {showMgmtTab && (
-                <button
-                  onClick={() => setActiveTab("management")}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-black text-[11px] transition-all ${
-                    activeTab === "management" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
-                  }`}
-                >
-                  <Users size={14} /> User Management
-                </button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit max-w-full overflow-x-auto shadow-sm">
+                {!isInternRole && (
+                  <button
+                    onClick={() => setActiveTab("requests")}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-black text-[11px] transition-all ${
+                      activeTab === "requests" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    <ClipboardList size={14} /> Requests
+                  </button>
+                )}
+                {showFoodTab && (
+                  <button
+                    onClick={() => setActiveTab("food")}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-black text-[11px] transition-all ${
+                      activeTab === "food" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    <UtensilsCrossed size={14} /> {isFoodReportHOD ? "Food Report" : "Food Request"}
+                  </button>
+                )}
+                {showMgmtTab && (
+                  <button
+                    onClick={() => setActiveTab("management")}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-black text-[11px] transition-all ${
+                      activeTab === "management" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    <Users size={14} /> User Management
+                  </button>
+                )}
+              </div>
+
+            </div>
+          );
+        })()}
+
+        {/* Sort by dropdown */}
+        {activeTab === "requests" && (() => {
+          const sortOptions = [
+            { key: "default", label: "Default" },
+            { key: "desc",    label: "Descending Date" },
+            { key: "asc",     label: "Ascending Date" },
+            { key: "unread",  label: "Unread" },
+            { key: "latest",  label: "Latest" },
+          ];
+
+          const applySort = (mode) => {
+            let nf;
+            if      (mode === "asc")    nf = { ...filters, sortMode: "asc",     sortOrder: "asc",  unread: false, latest: false };
+            else if (mode === "desc")   nf = { ...filters, sortMode: "desc",    sortOrder: "desc", unread: false, latest: false };
+            else if (mode === "unread") nf = { ...filters, sortMode: "unread",  sortOrder: "desc", unread: true,  latest: false };
+            else if (mode === "latest") nf = { ...filters, sortMode: "latest",  sortOrder: "desc", unread: false, latest: true  };
+            else                        nf = { ...filters, sortMode: "default", sortOrder: "desc", unread: false, latest: false };
+            setFilters(nf);
+            isFetchingRef.current = false;
+            loadRequests(currentPage, nf);
+            setSortDropdownOpen(false);
+          };
+
+          const currentMode  = filters.sortMode || "default";
+          const currentLabel = sortOptions.find(o => o.key === currentMode)?.label || "Default";
+          const isActive     = currentMode !== "default";
+
+          return (
+            <div className="relative flex-shrink-0" ref={sortDropdownRef}>
+              <button
+                onClick={() => setSortDropdownOpen(prev => !prev)}
+                className={`flex items-center gap-1.5 h-8 px-3 rounded-xl border text-[11px] font-black transition-all shadow-sm ${
+                  isActive
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <span className="text-[10px] font-bold opacity-70">Sort by</span>
+                <span>{currentLabel}</span>
+                <ChevronDown size={12} className={`transition-transform ${sortDropdownOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {sortDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden min-w-[170px]">
+                  {sortOptions.map(opt => (
+                    <button
+                      key={opt.key}
+                      onClick={() => applySort(opt.key)}
+                      className={`flex items-center w-full px-4 py-2.5 text-left text-[11px] font-bold transition-colors ${
+                        currentMode === opt.key
+                          ? "bg-indigo-50 text-indigo-700"
+                          : "text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           );
@@ -321,7 +411,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
           onClick={() => loadRequests(currentPage, filters, true)}
           disabled={isFiltering || loadingReqs}
           title="Refresh"
-          className="flex items-center gap-1.5 h-9 px-3 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 shadow-sm disabled:opacity-50 flex-shrink-0"
+          className="flex items-center gap-1.5 h-9 px-3 bg-sky-50 border border-sky-200 rounded-xl text-[11px] font-black text-sky-600 hover:bg-sky-100 hover:border-sky-300 transition-all active:scale-95 shadow-sm disabled:opacity-50 flex-shrink-0"
         >
           <RefreshCw size={13} className={isFiltering || loadingReqs ? "animate-spin" : ""} />
           <span className="hidden sm:inline">Refresh</span>
@@ -353,6 +443,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
             <div className={`flex-1 min-h-0 transition-opacity duration-200 ${isFiltering ? "opacity-50 pointer-events-none" : "opacity-100"}`}>
               <RequestTable
                 requests={requests}
+                sortMode={filters.sortMode || "default"}
                 currentUser={currentUser}
                 onOpenDetails={handleOpenDetails}
                 onMarkUnread={(id) => markRequestUnread(id).then(() => loadRequests(currentPage, filters, true))}

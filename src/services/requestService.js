@@ -4,10 +4,14 @@ export async function fetchRequests(params = {}) {
   const query = new URLSearchParams();
   Object.keys(params).forEach(key => {
     const val = params[key];
-    if (!val) return;
-    if (val instanceof Date) {
-      query.set(key, val.toISOString().split("T")[0]); // YYYY-MM-DD
-    } else {
+    if (val === null || val === undefined) return;
+    if (Array.isArray(val)) {
+      if (val.length > 0) query.set(key, val.join(","));
+    } else if (val instanceof Date) {
+      query.set(key, val.toISOString().split("T")[0]);
+    } else if (val === true) {
+      query.set(key, "true");
+    } else if (val !== "" && val !== false) {
       query.set(key, val);
     }
   });

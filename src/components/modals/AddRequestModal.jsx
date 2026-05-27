@@ -6,13 +6,18 @@ import {
 } from "lucide-react";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import Spinner from "../ui/Spinner";
+import SearchableSelect from "../ui/SearchableSelect";
 
 const DEPARTMENTS = [
-  "Academic","Accounts-A","Accounts-G","Animation","Broadcasting",
+  "Academics-Assam","Academics-Karnataka","Academics-Tripura","Academics-Uttarakhand",
+  "Accounts-A","Accounts-G","Animation",
+  "Broadcasting-Assam","Broadcasting-Karnataka","Broadcasting-Tripura","Broadcasting-Uttarakhand",
   "Business Development","Corporate Communications","Documentation",
   "Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing",
-  "Operation","Purchase","RTS Help Desk","Software","Store",
-  "System admin","TA Committee","Technical Support",
+  "Operations-Assam","Operations-Bihar","Operations-Karnataka","Operations-Maharashtra","Operations-Mizoram","Operations-Nagaland","Operations-Tripura","Operations-Uttarakhand",
+  "Purchase","RTS Help Desk","Software","Stores-Assam","Stores-Karnataka","Stores-Mizoram","Stores-Tripura",
+  "System Admin-Assam","System Admin-Karnataka","System Admin-Uttarakhand",
+  "TA Committee","Technical Support",
 ];
 
 const ALLOWED_EXTENSIONS = [".jpg",".jpeg",".png",".gif",".webp",".bmp",".svg",".mp4",".mov",".avi",".mkv",".mp3",".wav",".ogg",".pdf",".doc",".docx",".csv",".xlsx",".xls",".zip",".rar",".7z",".tar",".gz"];
@@ -395,16 +400,13 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
           )}
 
           {/* Single dept selector */}
-          <div className="relative">
-            <select
-              value={selectedDept}
-              onChange={(e) => setSelectedDept(e.target.value)}
-              className="w-full appearance-none bg-slate-100 px-5 py-4 rounded-2xl font-medium text-[13px] outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer"
-            >
-              <option value="">Select Department to Assign</option>
-              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </div>
+          <SearchableSelect
+            value={selectedDept}
+            onChange={setSelectedDept}
+            options={DEPARTMENTS}
+            placeholder="Select Department to Assign"
+            triggerClassName="px-5 py-4 bg-slate-100 rounded-2xl font-medium text-[13px] hover:bg-slate-200"
+          />
 
           {/* Due date */}
           <div className="space-y-1.5">

@@ -6,6 +6,7 @@ import { fetchHodPendingRequests, submitHodApproval } from "../services/manageme
 import { fetchChat, sendText, sendFile, sendVoice } from "../services/chatService";
 import { adminGetFoodSubscriptions, adminSubscribeUser, adminToggleFoodUser, adminDeleteFoodUser } from "../services/foodService";
 
+import SearchableSelect   from "../components/ui/SearchableSelect";
 import FilterBar          from "../components/layout/FilterBar";
 import RequestTable       from "../components/table/RequestTable";
 import DetailsModal       from "../components/modals/DetailsModal";
@@ -15,7 +16,7 @@ import UserManagementPage from "./UserManagementPage";
 import FoodPage           from "./FoodPage";
 import AdminReportPage    from "./AdminReportPage";
 
-const DEPARTMENTS = ["Academic","Accounts-A","Accounts-G","Animation","Broadcasting","Business Development","Corporate Communications","Documentation","Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing","Operation","Purchase","RTS Help Desk","Software","Store","System admin","TA Committee","Technical Support"];
+const DEPARTMENTS = ["Academics-Assam","Academics-Karnataka","Academics-Tripura","Academics-Uttarakhand","Accounts-A","Accounts-G","Animation","Broadcasting-Assam","Broadcasting-Karnataka","Broadcasting-Tripura","Broadcasting-Uttarakhand","Business Development","Corporate Communications","Documentation","Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing","Operations-Assam","Operations-Bihar","Operations-Karnataka","Operations-Maharashtra","Operations-Mizoram","Operations-Nagaland","Operations-Tripura","Operations-Uttarakhand","Purchase","RTS Help Desk","Software","Stores-Assam","Stores-Karnataka","Stores-Mizoram","Stores-Tripura","System Admin-Assam","System Admin-Karnataka","System Admin-Uttarakhand","TA Committee","Technical Support"];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Edit Request Modal
@@ -80,10 +81,14 @@ function EditRequestModal({ req, onClose, onSave }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] font-black text-slate-500 uppercase">Assigned Dept</label>
-              <select value={form.assignedDept} onChange={e => set("assignedDept", e.target.value)}
-                className="w-full mt-1 px-3 py-2 text-[12px] border border-slate-200 rounded-xl outline-none focus:border-indigo-400 bg-white">
-                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
+              <SearchableSelect
+                value={form.assignedDept}
+                onChange={(val) => set("assignedDept", val)}
+                options={DEPARTMENTS}
+                placeholder="Select dept…"
+                className="mt-1"
+                triggerClassName="px-3 py-2 text-[12px] bg-white border border-slate-200 rounded-xl font-bold hover:border-indigo-300"
+              />
             </div>
             <div>
               <label className="text-[10px] font-black text-slate-500 uppercase">Due Date</label>
@@ -640,15 +645,16 @@ function FoodAdminTab({ currentUser }) {
             placeholder="Employee ID (e.g. GN-2001)"
             className="flex-1 min-w-[160px] px-3 py-2 text-[12px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
           />
-          <select
+          <SearchableSelect
             value={addPeriod}
-            onChange={e => { setAddPeriod(e.target.value); setAddPeriodDate(""); }}
-            className="px-3 py-2 text-[12px] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white font-bold text-slate-700"
-          >
-            <option value="permanent">Permanent</option>
-            <option value="weekly">Weekly (1 week)</option>
-            <option value="monthly">Monthly (1 month)</option>
-          </select>
+            onChange={val => { setAddPeriod(val); setAddPeriodDate(""); }}
+            options={[
+              { value: "permanent", label: "Permanent" },
+              { value: "weekly",    label: "Weekly (1 week)" },
+              { value: "monthly",   label: "Monthly (1 month)" },
+            ]}
+            triggerClassName="px-3 py-2 text-[12px] border border-slate-200 rounded-xl bg-white font-bold text-slate-700 hover:border-orange-300"
+          />
           {addPeriod === "weekly" && (
             <input
               type="date"
