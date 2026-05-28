@@ -4,7 +4,7 @@ import {
   Search, Plus, LogOut, BookOpen, X, Calendar,
   BarChart3, User, Users, Shield, Building2, Briefcase, Settings,
   Heart, UtensilsCrossed, CheckCircle2, RefreshCw, Bell, BellOff,
-  SlidersHorizontal,
+  SlidersHorizontal, ChevronRight, ChevronLeft, MapPin,
 } from "lucide-react";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
 import SearchableSelect from "../ui/SearchableSelect";
@@ -35,10 +35,11 @@ export default function FilterBar({
   onLogout,
   onSwitchRole,
 }) {
-  const [showProfile,  setShowProfile]  = useState(false);
-  const [showFilters,  setShowFilters]  = useState(false);
-  const [localSearch,  setLocalSearch]  = useState(searchTerm);
-  const [switchingTo,  setSwitchingTo]  = useState(null);
+  const [showProfile,    setShowProfile]    = useState(false);
+  const [showFilters,    setShowFilters]    = useState(false);
+  const [localSearch,    setLocalSearch]    = useState(searchTerm);
+  const [switchingTo,    setSwitchingTo]    = useState(null);
+  const [switchCategory, setSwitchCategory] = useState(null);
   const navigate = useNavigate();
 
   const handleRoleSwitch = async (role, dept) => {
@@ -306,7 +307,7 @@ export default function FilterBar({
 
             {showProfile && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowProfile(false)} />
+                <div className="fixed inset-0 z-10" onClick={() => { setShowProfile(false); setSwitchCategory(null); }} />
                 <div className="absolute right-0 top-13 w-[calc(100vw-2rem)] max-w-[288px] bg-white rounded-2xl shadow-2xl border border-slate-100 z-20 overflow-hidden">
 
                   {/* User card header */}
@@ -335,51 +336,121 @@ export default function FilterBar({
                     </div>
                   </div>
 
-                  {/* Switch Role */}
+                  {/* Switch Role — 2-step: category → department */}
                   {onSwitchRole && currentUser?.availableRoles?.length > 1 && (
                     <div className="p-3 border-b border-slate-100">
+
+                      {/* Header */}
                       <div className="flex items-center gap-1.5 mb-2 px-1">
-                        <RefreshCw size={10} className={`text-slate-400 ${switchingTo ? "animate-spin" : ""}`} />
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Switch Role</p>
+                        {switchCategory ? (
+                          <button
+                            onClick={() => setSwitchCategory(null)}
+                            className="flex items-center gap-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                          >
+                            <ChevronLeft size={11} />
+                            <span className="text-[9px] font-black uppercase tracking-widest">Back</span>
+                          </button>
+                        ) : (
+                          <>
+                            <RefreshCw size={10} className={`text-slate-400 ${switchingTo ? "animate-spin" : ""}`} />
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Switch Role</p>
+                          </>
+                        )}
                         {switchingTo && <span className="text-[9px] text-indigo-500 font-bold ml-auto">Switching...</span>}
+                        {switchCategory && !switchingTo && (
+                          <span className={`ml-auto text-[9px] font-black uppercase ${ROLE_META[switchCategory]?.color || "text-indigo-600"}`}>
+                            {ROLE_META[switchCategory]?.label || switchCategory}
+                          </span>
+                        )}
                       </div>
+
                       <div className="space-y-1.5">
-                        {currentUser.availableRoles.map(({ role, dept }) => {
-                          const isActive    = role === currentUser.role && dept === currentUser.dept;
-                          const isSwitching = switchingTo?.role === role && switchingTo?.dept === dept;
-                          const meta        = ROLE_META[role] || {};
-                          const Icon        = meta.icon || User;
-                          return (
-                            <button
-                              key={`${role}-${dept}`}
-                              onClick={() => { if (!isActive && !switchingTo) handleRoleSwitch(role, dept); }}
-                              disabled={isActive || !!switchingTo}
-                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left ${
-                                isActive
-                                  ? `${meta.bg || "bg-indigo-50"} ${meta.border || "border-indigo-200"} cursor-default`
-                                  : isSwitching
-                                  ? `${meta.bg || "bg-indigo-50"} ${meta.border || "border-indigo-200"} opacity-80`
-                                  : switchingTo
-                                  ? "bg-slate-50 border-slate-100 opacity-40 cursor-not-allowed"
-                                  : "bg-slate-50 border-slate-100 hover:bg-white hover:border-slate-300 hover:shadow-sm active:scale-[0.98]"
-                              }`}
-                            >
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive || isSwitching ? (meta.bg || "bg-indigo-100") : "bg-white border border-slate-200"}`}>
-                                {isSwitching
-                                  ? <RefreshCw size={14} className={`animate-spin ${meta.color || "text-indigo-600"}`} />
-                                  : <Icon size={14} className={isActive ? (meta.color || "text-indigo-600") : "text-slate-400"} />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-[11px] font-black leading-tight ${isActive || isSwitching ? (meta.color || "text-indigo-700") : "text-slate-700"}`}>
-                                  {meta.label || role}
-                                </p>
-                                <p className="text-[9px] text-slate-400 font-medium truncate mt-0.5">{dept}</p>
-                              </div>
-                              {isActive    && !isSwitching && <CheckCircle2 size={14} className={meta.color || "text-indigo-500"} />}
-                              {isSwitching && <span className="text-[9px] font-black text-indigo-500">•••</span>}
-                            </button>
-                          );
-                        })}
+
+                        {/* Step 1: category list */}
+                        {!switchCategory && (() => {
+                          const uniqueRoles = [...new Set(currentUser.availableRoles.map(r => r.role))];
+                          return uniqueRoles.map(role => {
+                            const depts    = currentUser.availableRoles.filter(r => r.role === role);
+                            const isActive = role === currentUser.role;
+                            const multi    = depts.length > 1;
+                            const meta     = ROLE_META[role] || {};
+                            const Icon     = meta.icon || User;
+                            return (
+                              <button
+                                key={role}
+                                onClick={() => {
+                                  if (switchingTo) return;
+                                  if (multi) {
+                                    setSwitchCategory(role);
+                                  } else {
+                                    if (!isActive) handleRoleSwitch(role, depts[0].dept);
+                                  }
+                                }}
+                                disabled={!!switchingTo || (!multi && isActive)}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all text-left ${
+                                  isActive && !multi
+                                    ? `${meta.bg || "bg-indigo-50"} ${meta.border || "border-indigo-200"} cursor-default`
+                                    : switchingTo
+                                    ? "bg-slate-50 border-slate-100 opacity-40 cursor-not-allowed"
+                                    : "bg-slate-50 border-slate-100 hover:bg-white hover:border-slate-300 hover:shadow-sm active:scale-[0.98]"
+                                }`}
+                              >
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive ? (meta.bg || "bg-indigo-100") : "bg-white border border-slate-200"}`}>
+                                  <Icon size={13} className={isActive ? (meta.color || "text-indigo-600") : "text-slate-400"} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-[11px] font-black leading-tight ${isActive ? (meta.color || "text-indigo-700") : "text-slate-700"}`}>
+                                    {meta.label || role}
+                                  </p>
+                                  <p className="text-[9px] text-slate-400 font-medium mt-0.5">
+                                    {multi ? `${depts.length} departments` : depts[0].dept}
+                                  </p>
+                                </div>
+                                {isActive && !multi && <CheckCircle2 size={13} className={meta.color || "text-indigo-500"} />}
+                                {multi && <ChevronRight size={13} className="text-slate-300 flex-shrink-0" />}
+                              </button>
+                            );
+                          });
+                        })()}
+
+                        {/* Step 2: department list within a category */}
+                        {switchCategory && currentUser.availableRoles
+                          .filter(r => r.role === switchCategory)
+                          .map(({ dept }) => {
+                            const isActive    = dept === currentUser.dept && switchCategory === currentUser.role;
+                            const isSwitching = switchingTo?.role === switchCategory && switchingTo?.dept === dept;
+                            const meta        = ROLE_META[switchCategory] || {};
+                            return (
+                              <button
+                                key={dept}
+                                onClick={() => { if (!isActive && !switchingTo) handleRoleSwitch(switchCategory, dept); }}
+                                disabled={isActive || !!switchingTo}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all text-left ${
+                                  isActive
+                                    ? `${meta.bg || "bg-indigo-50"} ${meta.border || "border-indigo-200"} cursor-default`
+                                    : isSwitching
+                                    ? `${meta.bg || "bg-indigo-50"} ${meta.border || "border-indigo-200"} opacity-80`
+                                    : switchingTo
+                                    ? "bg-slate-50 border-slate-100 opacity-40 cursor-not-allowed"
+                                    : "bg-slate-50 border-slate-100 hover:bg-white hover:border-slate-300 hover:shadow-sm active:scale-[0.98]"
+                                }`}
+                              >
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive || isSwitching ? (meta.bg || "bg-indigo-100") : "bg-white border border-slate-200"}`}>
+                                  {isSwitching
+                                    ? <RefreshCw size={13} className={`animate-spin ${meta.color || "text-indigo-600"}`} />
+                                    : <MapPin size={13} className={isActive ? (meta.color || "text-indigo-600") : "text-slate-400"} />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-[11px] font-black leading-tight ${isActive || isSwitching ? (meta.color || "text-indigo-700") : "text-slate-700"}`}>
+                                    {dept}
+                                  </p>
+                                </div>
+                                {isActive    && !isSwitching && <CheckCircle2 size={13} className={meta.color || "text-indigo-500"} />}
+                                {isSwitching && <span className="text-[9px] font-black text-indigo-500">•••</span>}
+                              </button>
+                            );
+                          })}
+
                       </div>
                     </div>
                   )}

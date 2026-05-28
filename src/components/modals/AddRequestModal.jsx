@@ -263,7 +263,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
     const combined = [...uploadedFiles, ...allowed];
 
     if (combined.length > MAX_FILES) {
-      setFileError(`You can upload a maximum of ${MAX_FILES} files at once.`);
+      setFileError(`Maximum ${MAX_FILES} files allowed. If you have more, compress them into a ZIP file and upload that instead.`);
       return;
     }
 
