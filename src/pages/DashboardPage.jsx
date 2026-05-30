@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { fetchRequests, fetchFilterOptions, createRequest, submitApproval, acknowledgeRequest, markRequestSeen, markRequestUnread, closeRequest } from "../services/requestService";
+import { fetchRequests, fetchFilterOptions, createRequest, submitApproval, acknowledgeRequest, markRequestSeen, markRequestUnread, closeRequest, fetchRequestById } from "../services/requestService";
 import { fetchChat, sendText, sendFile, sendVoice } from "../services/chatService";
 import { getStoredUser } from "../services/authService";
 import FilterBar         from "../components/layout/FilterBar";
@@ -148,6 +148,30 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  // ── Deep-link: ?openRequest=<id> (from push notification tap) ───────────
+  useEffect(() => {
+    const openId = searchParams.get("openRequest");
+    if (!openId) return;
+    // Remove param from URL immediately so refresh doesn't re-open
+    setSearchParams(prev => { const p = new URLSearchParams(prev); p.delete("openRequest"); return p; }, { replace: true });
+    fetchRequestById(Number(openId))
+      .then(req => {
+        if (!req) return;
+        setActiveTab("requests");
+        setSelectedReq(req);
+        setActiveModal("details");
+        if (!req.seen) {
+          markRequestSeen(req.id).catch(() => {});
+        }
+        fetchChat(req.id)
+          .then(result => setChatLogs(prev => ({ ...prev, [req.id]: result?.data ?? result })))
+          .catch(() => {});
+      })
+      .catch(() => {});
+  // Run once on mount — searchParams intentionally excluded from deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Role Switch Re-fetch ──────────────────────────────────────────────────

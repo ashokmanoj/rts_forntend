@@ -23,6 +23,10 @@ export async function fetchFilterOptions() {
   return get("/requests/filters");
 }
 
+export async function fetchRequestById(id) {
+  return get(`/requests/${id}`);
+}
+
 export async function createRequest({ purpose, assignedDept, assignedDepts, description, files, dueDate, assignedPersonEmpId, assignedPersonName }) {
   const fd = new FormData();
   fd.append("purpose", purpose);

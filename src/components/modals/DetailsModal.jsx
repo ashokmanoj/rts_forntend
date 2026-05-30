@@ -93,6 +93,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
       await Promise.all(
         req.fileUrls.map(async (url, idx) => {
           const resolved = resolveFileUrl(url);
+          if (!resolved) return;
           const fileName = req.fileNames?.[idx] || `file-${idx + 1}`;
           const res  = await fetch(resolved);
           const blob = await res.blob();
@@ -132,16 +133,27 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const myApprovalStatus = isRM ? req?.rmStatus : isHOD ? req?.hodStatus : (isDeptHOD || isManagement) ? req?.deptHodStatus : "--";
   const hasAlreadyActed = myApprovalStatus && myApprovalStatus !== "--";
   const isSpecificallyAssigned = !isOwnRequest && !!(req?.assignedPersonEmpId?.split(",").map(s => s.trim()).includes(currentUser?.empId));
-  const canApprove    = (isRM || isHOD || isDeptHOD || isManagement) && !isClosed && !isPendingAck && !isOwnRequest;
-  const canChangeDept = (isRM || isHOD || isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck;
-  const canClose      = ((isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck) ||
-                        (isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin) ||
+
+  // Request was forwarded away from the current user's dept to a different dept.
+  // Original dept users lose all action buttons — only the receiving dept acts.
+  // Management can always act regardless of forwarding.
+  const isForwardedAway = !!(
+    req?.forwarded &&
+    req?.assignedDept !== currentUser?.dept &&
+    !isManagement &&
+    !isOwnRequest
+  );
+
+  const canApprove    = (isRM || isHOD || isDeptHOD || isManagement) && !isClosed && !isPendingAck && !isOwnRequest && !isForwardedAway;
+  const canChangeDept = (isRM || isHOD || isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck && !isForwardedAway;
+  const canClose      = ((isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck && !isForwardedAway) ||
+                        (isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !isForwardedAway) ||
                         (isSpecificallyAssigned && !isClosed && !isPendingAck && !isAdmin);
   const canChat       = !isAdmin && !isClosed;
   const isRequestorMode = roleLow === "requestor" || isOwnRequest;
 
   // Team members can click "Checking" on incoming requests from other departments
-  const canUserCheck = isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !canApprove;
+  const canUserCheck = isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !canApprove && !isForwardedAway;
 
   const isImageUrl       = (url) => url && /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
   const isSpreadsheetUrl = (url) => url && /\.(csv|xlsx|xls)(\?.*)?$/i.test(url);

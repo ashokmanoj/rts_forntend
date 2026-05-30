@@ -29,7 +29,9 @@ export default function SpreadsheetPreviewModal({ url, fileName, onClose }) {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(resolveFileUrl(url));
+        const resolved = resolveFileUrl(url);
+        if (!resolved) throw new Error("Invalid file URL");
+        const res = await fetch(resolved);
         if (!res.ok) throw new Error("Network error");
         const buf = await res.arrayBuffer();
         const wb  = XLSX.read(buf, { type: "array" });

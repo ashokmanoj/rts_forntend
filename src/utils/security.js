@@ -35,14 +35,17 @@ export function sanitizeUrl(url) {
  * /api/files route on the same domain, and in development Vite proxies /api.
  */
 export function resolveFileUrl(url) {
-  if (!url) return "";
+  if (!url) return null;
   const cleaned = sanitizeUrl(url);
-  if (!cleaned || typeof window === "undefined") return cleaned;
+  if (!cleaned || typeof window === "undefined") return null;
   try {
     const parsed = new URL(cleaned);
+    // Guard: pathname must be /api/files/<something> — not just /api/files/
     if (parsed.pathname.startsWith("/api/files/")) {
+      const withoutPrefix = parsed.pathname.replace("/api/files/", "");
+      if (!withoutPrefix) return null; // empty filename — do not fetch
       return `${window.location.origin}${parsed.pathname}`;
     }
   } catch {}
-  return cleaned;
+  return cleaned || null;
 }
