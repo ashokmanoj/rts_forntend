@@ -61,7 +61,7 @@ export default function FilterBar({
   const resetFilters = () => {
     setLocalSearch("");
     onSearchChange("");
-    onFilterChange({ name: [], dept: [], assignedDept: [], assignedStatus: [], type: [], priority: [], unread: false, latest: false, sortMode: "default", sortOrder: "desc", startDate: null, endDate: null, search: "" });
+    onFilterChange({ name: [], dept: [], assignedDept: [], rmStatus: [], deptHodStatus: [], type: [], priority: [], unread: false, latest: false, sortMode: "default", sortOrder: "desc", startDate: null, endDate: null, search: "" });
   };
 
   const IGNORED_KEYS = new Set(["sortOrder", "sortMode"]);
@@ -148,18 +148,37 @@ export default function FilterBar({
               />
             </div>
 
-            {/* Status */}
-            <div className="flex flex-col gap-1 flex-1 min-w-[90px] sm:flex-none sm:min-w-[110px]">
-              <label className="text-[11px] font-black text-slate-600 uppercase tracking-tight ml-1">Status</label>
+            {/* Requestor Dept Status */}
+            <div className="flex flex-col gap-1 flex-1 min-w-[100px] sm:flex-none sm:min-w-[120px]">
+              <label className="text-[11px] font-black text-slate-600 uppercase tracking-tight ml-1">Req. Dept Status</label>
               <SearchableSelect
                 multiSelect
-                value={activeFilters.assignedStatus || []}
-                onChange={val => updateFilter("assignedStatus", val)}
+                value={activeFilters.rmStatus || []}
+                onChange={val => updateFilter("rmStatus", val)}
                 options={[
-                  { value: "Open", label: "Open" },
+                  { value: "--",       label: "Pending" },
+                  { value: "Approved", label: "Approved" },
+                  { value: "Rejected", label: "Rejected" },
                   { value: "Checking", label: "Checking" },
-                  { value: "Pending Acknowledgement", label: "Pending Ack." },
-                  { value: "Closed", label: "Closed" },
+                  { value: "Forwarded",label: "Forwarded" },
+                ]}
+                placeholder="All"
+                triggerClassName={filterTrigger}
+              />
+            </div>
+
+            {/* Assigned Dept Status */}
+            <div className="flex flex-col gap-1 flex-1 min-w-[100px] sm:flex-none sm:min-w-[120px]">
+              <label className="text-[11px] font-black text-slate-600 uppercase tracking-tight ml-1">Assign Dept Status</label>
+              <SearchableSelect
+                multiSelect
+                value={activeFilters.deptHodStatus || []}
+                onChange={val => updateFilter("deptHodStatus", val)}
+                options={[
+                  { value: "--",       label: "Pending" },
+                  { value: "Approved", label: "Approved" },
+                  { value: "Rejected", label: "Rejected" },
+                  { value: "Checking", label: "Checking" },
                 ]}
                 placeholder="All"
                 triggerClassName={filterTrigger}

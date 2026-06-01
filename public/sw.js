@@ -1,5 +1,5 @@
 // Service Worker — RTS push notifications
-// v3 — differentiates new-request vs food-reminder notifications
+// v4 — removed Yes/No action buttons from food reminder notifications
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
@@ -34,14 +34,6 @@ self.addEventListener("push", (event) => {
     },
   };
 
-  // Food reminders get Yes/No action buttons; request notifications do not
-  if (!isRequestNotif) {
-    options.actions = [
-      { action: "yes", title: "Yes, I'm done ✓" },
-      { action: "no",  title: "No, take me there →" },
-    ];
-  }
-
   event.waitUntil(
     self.registration.showNotification(data.title || "RTS", options)
   );
@@ -49,9 +41,6 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-
-  // Food notification "Yes" action — user confirmed, just dismiss
-  if (event.action === "yes") return;
 
   const targetUrl = event.notification.data?.url || "/";
 

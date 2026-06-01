@@ -9,9 +9,10 @@ import DetailsModal      from "../components/modals/DetailsModal";
 import CloseTicketModal  from "../components/modals/CloseTicketModal";
 import AddRequestModal   from "../components/modals/AddRequestModal";
 import InstructionsModal from "../components/modals/InstructionsModal";
+import BroadcastModal    from "../components/modals/BroadcastModal";
 import FoodPage          from "./FoodPage";
 import UserManagementPage from "./UserManagementPage";
-import { UtensilsCrossed, ClipboardList, LogOut, Users, CheckCircle2, XCircle, RefreshCw, ChevronDown } from "lucide-react";
+import { UtensilsCrossed, ClipboardList, LogOut, Users, CheckCircle2, XCircle, RefreshCw, ChevronDown, Megaphone } from "lucide-react";
 import DashboardSkeleton from "../components/ui/DashboardSkeleton";
 
 export default function DashboardPage({ currentUser: currentUserProp, onLogout, onSwitchRole }) {
@@ -33,7 +34,8 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
     name:           parseArr("name"),
     dept:           parseArr("dept"),
     assignedDept:   parseArr("assignedDept"),
-    assignedStatus: parseArr("assignedStatus"),
+    rmStatus:       parseArr("rmStatus"),
+    deptHodStatus:  parseArr("deptHodStatus"),
     type:           parseArr("type"),
     priority:       parseArr("priority"),
     unread:         searchParams.get("unread") === "true",
@@ -49,6 +51,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   const [activeModal,      setActiveModal]      = useState(null);
   const [closeTicketReq,   setCloseTicketReq]   = useState(null);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [showBroadcast,    setShowBroadcast]    = useState(false);
   const [loadingReqs,      setLoadingReqs]      = useState(true);
   const [isFiltering,      setIsFiltering]      = useState(false); // For subtle loading state
   const [fetchError,       setFetchError]       = useState("");
@@ -178,7 +181,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   useEffect(() => {
     const newKey = `${currentUserProp?.role}-${currentUserProp?.dept}`;
     if (prevRoleKeyRef.current !== null && prevRoleKeyRef.current !== newKey) {
-      const cleared = { name: [], dept: [], assignedDept: [], assignedStatus: [], type: [], priority: [], unread: false, latest: false, sortMode: "default", sortOrder: "desc", startDate: null, endDate: null, search: "" };
+      const cleared = { name: [], dept: [], assignedDept: [], rmStatus: [], deptHodStatus: [], type: [], priority: [], unread: false, latest: false, sortMode: "default", sortOrder: "desc", startDate: null, endDate: null, search: "" };
       setFilters(cleared);
       setCurrentPage(1);
       loadFilterOptions();
@@ -430,6 +433,18 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
           );
         })()}
 
+        {/* Broadcast button — HR / Food Committee / RTS Help Desk DeptHOD only */}
+        {currentUser?.role === "DeptHOD" && ["HR", "Food Committee", "RTS Help Desk"].includes(currentUser?.dept) && (
+          <button
+            onClick={() => setShowBroadcast(true)}
+            title="Send Broadcast Notification"
+            className="flex items-center gap-1.5 h-9 px-3 bg-violet-50 border border-violet-200 rounded-xl text-[11px] font-black text-violet-600 hover:bg-violet-100 hover:border-violet-300 transition-all active:scale-95 shadow-sm flex-shrink-0"
+          >
+            <Megaphone size={13} />
+            <span className="hidden sm:inline">Broadcast</span>
+          </button>
+        )}
+
         {/* Refresh button */}
         <button
           onClick={() => loadRequests(currentPage, filters, true)}
@@ -515,6 +530,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
               <AddRequestModal onClose={() => setActiveModal(null)} onSubmit={handleAddRequest} currentUser={currentUser} />
             )}
             {showInstructions && <InstructionsModal onClose={() => setShowInstructions(false)} />}
+            {showBroadcast && <BroadcastModal onClose={() => setShowBroadcast(false)} />}
 
           </div>
         )}
