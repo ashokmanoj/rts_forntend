@@ -208,7 +208,7 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                     {row.forwarded ? (
                       <span className="flex items-center justify-center gap-1 text-blue-600 font-bold whitespace-nowrap">
                         <Forward size={13} className="text-blue-500 flex-shrink-0" />
-                        <span className="text-slate-400 line-through text-[10px]">{row.dept}</span>
+                        <span className="text-slate-400 line-through text-[10px]">{row.forwardedFromDept || row.dept}</span>
                         <span>→</span>
                         <span>{row.assignedDept}</span>
                       </span>

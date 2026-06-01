@@ -155,6 +155,9 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   // Team members can click "Checking" on incoming requests from other departments
   const canUserCheck = isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !canApprove && !isForwardedAway;
 
+  // Facilities dept team members can forward incoming requests to another department
+  const canUserForward = currentUser?.dept === "Facilities" && isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !canApprove && !isForwardedAway;
+
   const isImageUrl       = (url) => url && /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
   const isSpreadsheetUrl = (url) => url && /\.(csv|xlsx|xls)(\?.*)?$/i.test(url);
 
@@ -558,15 +561,15 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               <div>
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 ml-0.5">
                   Assigned Department
-                  {deptChanged && canChangeDept && <span className="ml-1 text-blue-600 normal-case font-bold text-[9px]">(<span className="line-through text-slate-400">{req?.assignedDept}</span> → <b>{selectedDept}</b>)</span>}
+                  {deptChanged && (canChangeDept || canUserForward) && <span className="ml-1 text-blue-600 normal-case font-bold text-[9px]">(<span className="line-through text-slate-400">{req?.assignedDept}</span> → <b>{selectedDept}</b>)</span>}
                 </p>
                 <SearchableSelect
                   value={selectedDept}
-                  onChange={(val) => canChangeDept && setSelectedDept(val)}
+                  onChange={(val) => (canChangeDept || canUserForward) && setSelectedDept(val)}
                   options={DEPARTMENTS}
                   placeholder="Select department…"
-                  disabled={!canChangeDept}
-                  triggerClassName={`p-3 rounded-xl font-bold text-sm text-center border-none ${deptChanged && canChangeDept ? "bg-blue-50 text-blue-700 ring-2 ring-blue-300" : canChangeDept ? "bg-slate-100 text-slate-700" : "bg-slate-100 text-slate-500"}`}
+                  disabled={!canChangeDept && !canUserForward}
+                  triggerClassName={`p-3 rounded-xl font-bold text-sm text-center border-none ${deptChanged && (canChangeDept || canUserForward) ? "bg-blue-50 text-blue-700 ring-2 ring-blue-300" : (canChangeDept || canUserForward) ? "bg-slate-100 text-slate-700" : "bg-slate-100 text-slate-500"}`}
                 />
               </div>
 
@@ -657,10 +660,10 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               </div>
 
               {/* Approval action — hidden when isClosed */}
-              {(canApprove || canUserCheck) && (
+              {(canApprove || canUserCheck || canUserForward) && (
                 <div className="border-t border-slate-100 pt-3 space-y-2">
-                  <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{canApprove ? actionLabel : "Team Action"}</p>
-                  
+                  <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{canApprove ? actionLabel : canUserForward ? "Forward Request" : "Team Action"}</p>
+
                   {canApprove ? (
                     <>
                       <div className="grid grid-cols-3 gap-1.5">
@@ -719,6 +722,20 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                         );
                       })()}
                     </>
+                  ) : canUserForward ? (
+                    /* Facilities dept — forward incoming request to another dept */
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => handleApproval("Forwarded")}
+                        disabled={approvalLoading || !deptChanged}
+                        className="bg-blue-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-blue-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                      >
+                        {pendingDecision === "Forwarded" ? <Spinner size={13}/> : <Forward size={13}/>} Forward
+                      </button>
+                      <button onClick={() => setShowCheckingModal(true)} disabled={approvalLoading} className="bg-amber-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-amber-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5">
+                        {pendingDecision === "Checking" ? <Spinner size={13}/> : <Clock size={13}/>} Checking
+                      </button>
+                    </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                        <button onClick={() => setShowCheckingModal(true)} className="bg-amber-500 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-amber-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"><Clock size={13}/> Checking</button>
