@@ -329,7 +329,7 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
       )}
 
       {/* ── Main input row ── */}
-      <div className={`flex items-center gap-2 border-2 rounded-2xl overflow-hidden transition-all bg-white ${canSend ? "border-indigo-300 focus-within:border-indigo-500" : "border-slate-200 focus-within:border-indigo-400"}`}>
+      <div className={`flex items-end gap-2 border-2 rounded-2xl overflow-hidden transition-all bg-white ${canSend ? "border-indigo-300 focus-within:border-indigo-500" : "border-slate-200 focus-within:border-indigo-400"}`}>
         {/* Paperclip */}
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -340,9 +340,11 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
         </button>
         <input type="file" accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.csv,.xlsx,.xls,.zip,.rar,.7z,.tar,.gz" multiple ref={fileInputRef} className="hidden" onChange={handleFileChange} />
 
-        {/* Text input */}
-        <input
-          className="flex-1 py-3 outline-none text-[12px] bg-transparent placeholder:text-slate-400"
+        {/* Text input — textarea so Shift+Enter inserts newline */}
+        <textarea
+          rows={1}
+          className="flex-1 py-3 outline-none text-[12px] bg-transparent placeholder:text-slate-400 resize-none overflow-hidden leading-5"
+          style={{ maxHeight: "120px", overflowY: "auto" }}
           placeholder={
             hasFiles       ? `Caption for ${pendingFiles.length} file${pendingFiles.length !== 1 ? "s" : ""} (optional)…`
             : pendingVoice ? "Add a caption (optional)…"
@@ -351,8 +353,17 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
           }
           disabled={isRecording}
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !isRecording && handleSend()}
+          onChange={(e) => {
+            setMessage(e.target.value);
+            e.target.style.height = "auto";
+            e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !isRecording) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
         />
 
         {/* Mic */}
