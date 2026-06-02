@@ -14,47 +14,67 @@ import SearchableSelect        from "../ui/SearchableSelect";
 
 const DEPARTMENTS = ["Academics-Assam","Academics-Karnataka","Academics-Tripura","Academics-Uttarakhand","Accounts-A","Accounts-G","Animation","Broadcasting-Assam","Broadcasting-Karnataka","Broadcasting-Tripura","Broadcasting-Uttarakhand","Business Development","Corporate Communications","Documentation","Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing","Operations-Assam","Operations-Bihar","Operations-Karnataka","Operations-Maharashtra","Operations-Mizoram","Operations-Nagaland","Operations-Tripura","Operations-Uttarakhand","Purchase","RTS Help Desk","Software","Stores-Assam","Stores-Karnataka","Stores-Mizoram","Stores-Tripura","System Admin-Assam","System Admin-Karnataka","System Admin-Uttarakhand","TA Committee","Technical Support"];
 
-function ApprovalProgress({ rmStatus, hodStatus, deptHodStatus, isClosed }) {
-  const steps = [
-    { label: "RM",         status: rmStatus      },
-    { label: "HOD",        status: hodStatus      },
-    { label: "Dept HOD",   status: deptHodStatus  },
-  ];
-  const dotCls = (s) =>
-    s === "Approved"  ? "bg-emerald-500 border-emerald-500 text-white" :
-    s === "Rejected"  ? "bg-red-500 border-red-500 text-white"         :
-    s === "Checking"  ? "bg-amber-400 border-amber-400 text-white"     :
-    s === "Forwarded" ? "bg-blue-500 border-blue-500 text-white"       :
+function StatusDot({ status, label, index }) {
+  const cls =
+    status === "Approved"  ? "bg-emerald-500 border-emerald-500 text-white" :
+    status === "Rejected"  ? "bg-red-500 border-red-500 text-white"         :
+    status === "Checking"  ? "bg-amber-400 border-amber-400 text-white"     :
+    status === "Forwarded" ? "bg-blue-500 border-blue-500 text-white"       :
     "bg-slate-100 border-slate-200 text-slate-400";
-  const lineCls = (s) =>
-    !s || s === "--"  ? "bg-slate-200"    :
-    s === "Approved"  ? "bg-emerald-400"  :
-    s === "Rejected"  ? "bg-red-400"      : "bg-amber-300";
+  const textCls =
+    status === "Approved" ? "text-emerald-600" : status === "Rejected" ? "text-red-500" :
+    status === "Checking" ? "text-amber-600"   : "text-blue-500";
   return (
-    <div className="space-y-1">
+    <div className="flex flex-col items-center flex-1 min-w-0">
+      <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[9px] font-black ${cls}`}>
+        {status === "Approved" ? <CheckCircle size={12}/> : status === "Rejected" ? <XCircle size={12}/> :
+         status === "Checking" ? <Clock size={12}/> : status === "Forwarded" ? <Forward size={11}/> : <span>{index+1}</span>}
+      </div>
+      <span className="text-[7px] text-slate-500 font-bold mt-0.5 text-center px-0.5 truncate w-full">{label}</span>
+      {status && status !== "--" && <span className={`text-[7px] font-black ${textCls}`}>{status}</span>}
+    </div>
+  );
+}
+
+function ApprovalProgress({ rmStatus, hodStatus, assignedRmStatus, assignedHodStatus, deptHodStatus, isClosed, dept, assignedDept }) {
+  const lineCls = (s) => !s || s === "--" ? "bg-slate-200" : s === "Approved" ? "bg-emerald-400" : s === "Rejected" ? "bg-red-400" : "bg-amber-300";
+  const isCrossDept = dept && assignedDept && dept !== assignedDept;
+
+  return (
+    <div className="space-y-2">
       <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Approval Progress</p>
-      <div className="flex items-center">
-        {steps.map((step, i) => (
-          <div key={step.label} className="flex items-center flex-1">
-            <div className="flex flex-col items-center flex-1 min-w-0">
-              <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[9px] font-black ${dotCls(step.status)}`}>
-                {step.status==="Approved" ? <CheckCircle size={12}/> : step.status==="Rejected" ? <XCircle size={12}/> : step.status==="Checking" ? <Clock size={12}/> : step.status==="Forwarded" ? <Forward size={11}/> : <span>{i+1}</span>}
-              </div>
-              <span className="text-[7px] text-slate-500 font-bold mt-0.5 text-center px-0.5 truncate w-full">{step.label}</span>
-              {step.status && step.status!=="--" && (
-                <span className={`text-[7px] font-black ${step.status==="Approved"?"text-emerald-600":step.status==="Rejected"?"text-red-500":step.status==="Checking"?"text-amber-600":"text-blue-500"}`}>{step.status}</span>
-              )}
-            </div>
-            {i < steps.length-1 && <div className={`h-0.5 w-3 flex-shrink-0 mx-0.5 ${lineCls(step.status)}`}/>}
+      <div className="flex gap-3">
+        {/* Requestor dept side */}
+        <div className="flex-1 min-w-0">
+          <p className="text-[8px] text-blue-400 font-black uppercase tracking-widest mb-1 text-center truncate">{dept || "Requestor"}</p>
+          <div className="flex items-center">
+            <StatusDot status={rmStatus}  label="RM"  index={0} />
+            <div className={`h-0.5 w-2 flex-shrink-0 ${lineCls(rmStatus)}`}/>
+            <StatusDot status={hodStatus} label="HOD" index={1} />
           </div>
-        ))}
-        <div className="flex items-center flex-shrink-0">
-          <div className={`h-0.5 w-3 ${isClosed?"bg-emerald-400":"bg-slate-200"}`}/>
-          <div className="flex flex-col items-center">
-            <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[9px] font-black ${isClosed?"bg-emerald-500 border-emerald-500 text-white":"bg-slate-100 border-slate-200 text-slate-300"}`}>
-              {isClosed ? "✓" : "🔒"}
+        </div>
+
+        {/* Divider */}
+        <div className="flex items-center"><div className="w-px h-10 bg-slate-200"/></div>
+
+        {/* Assigned dept side */}
+        <div className="flex-1 min-w-0">
+          <p className="text-[8px] text-orange-400 font-black uppercase tracking-widest mb-1 text-center truncate">{assignedDept || "Assigned"}</p>
+          <div className="flex items-center">
+            {isCrossDept && <>
+              <StatusDot status={assignedRmStatus}  label="RM"  index={0} />
+              <div className={`h-0.5 w-2 flex-shrink-0 ${lineCls(assignedRmStatus)}`}/>
+              <StatusDot status={assignedHodStatus} label="HOD" index={1} />
+              <div className={`h-0.5 w-2 flex-shrink-0 ${lineCls(assignedHodStatus)}`}/>
+            </>}
+            <StatusDot status={deptHodStatus} label="Dept HOD" index={isCrossDept ? 2 : 0} />
+            <div className={`h-0.5 w-2 flex-shrink-0 ${isClosed?"bg-emerald-400":"bg-slate-200"}`}/>
+            <div className="flex flex-col items-center">
+              <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[9px] font-black ${isClosed?"bg-emerald-500 border-emerald-500 text-white":"bg-slate-100 border-slate-200 text-slate-300"}`}>
+                {isClosed ? "✓" : "🔒"}
+              </div>
+              <span className="text-[7px] text-slate-500 font-bold mt-0.5">Closed</span>
             </div>
-            <span className="text-[7px] text-slate-500 font-bold mt-0.5">Closed</span>
           </div>
         </div>
       </div>
@@ -130,7 +150,14 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const isAssignedToMyDept = req?.assignedDept === currentUser?.dept;
   const isTeamMemberIncoming = isFromOtherDept && isAssignedToMyDept;
 
-  const myApprovalStatus = isRM ? req?.rmStatus : isHOD ? req?.hodStatus : (isDeptHOD || isManagement) ? req?.deptHodStatus : "--";
+  // If this RM/HOD is from the assigned dept (not requestor's dept) → use assigned fields
+  const isAssignedDeptUser = (isRM || isHOD) && isAssignedToMyDept && isFromOtherDept;
+  const myApprovalStatus = isRM
+    ? (isAssignedDeptUser ? req?.assignedRmStatus : req?.rmStatus)
+    : isHOD
+    ? (isAssignedDeptUser ? req?.assignedHodStatus : req?.hodStatus)
+    : (isDeptHOD || isManagement) ? req?.deptHodStatus
+    : "--";
   const hasAlreadyActed = myApprovalStatus && myApprovalStatus !== "--";
   const isSpecificallyAssigned = !isOwnRequest && !!(req?.assignedPersonEmpId?.split(",").map(s => s.trim()).includes(currentUser?.empId));
 
@@ -538,7 +565,12 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
             {/* LEFT PANEL */}
             <div className={`overflow-y-auto p-4 sm:p-5 space-y-3 pb-6 md:pb-8 min-h-0 md:flex md:flex-col md:w-[48%] md:flex-none md:border-r md:border-slate-200 ${showChat ? "hidden" : "flex flex-col flex-1 border-b border-slate-200"}`}>
 
-              <ApprovalProgress rmStatus={req?.rmStatus} hodStatus={req?.hodStatus} deptHodStatus={req?.deptHodStatus} mgmtStatus={req?.mgmtStatus} isClosed={isClosed}/>
+              <ApprovalProgress
+                rmStatus={req?.rmStatus}           hodStatus={req?.hodStatus}
+                assignedRmStatus={req?.assignedRmStatus} assignedHodStatus={req?.assignedHodStatus}
+                deptHodStatus={req?.deptHodStatus}  isClosed={isClosed}
+                dept={req?.dept}                   assignedDept={req?.assignedDept}
+              />
 
               <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest flex items-center gap-1 pt-1"><User size={11}/> User Information</p>
 
@@ -666,8 +698,16 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
 
                   {canApprove ? (
                     <>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {[{label:"RM",status:req?.rmStatus,date:req?.rmDate},{label:"HOD",status:req?.hodStatus,date:req?.hodDate},{label:"DeptHOD",status:req?.deptHodStatus,date:req?.deptHodDate}].map((s) => (
+                      <div className={`grid gap-1.5 ${req?.dept !== req?.assignedDept ? "grid-cols-5" : "grid-cols-3"}`}>
+                        {[
+                          {label:"RM",status:req?.rmStatus,date:req?.rmDate},
+                          {label:"HOD",status:req?.hodStatus,date:req?.hodDate},
+                          ...(req?.dept !== req?.assignedDept ? [
+                            {label:"Assign RM",status:req?.assignedRmStatus,date:req?.assignedRmDate},
+                            {label:"Assign HOD",status:req?.assignedHodStatus,date:req?.assignedHodDate},
+                          ] : []),
+                          {label:"DeptHOD",status:req?.deptHodStatus,date:req?.deptHodDate},
+                        ].map((s) => (
                           <div key={s.label} className="bg-slate-50 rounded-xl p-2 border border-slate-100 text-center">
                             <p className="text-[8px] text-slate-600 font-bold uppercase mb-1">{s.label}</p>
                             <StatusBadge status={s.status} date={s.date}/>
@@ -798,9 +838,9 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                     <ThumbsUp size={12} /> Acknowledgement
                   </p>
                   {req.acknowledgement ? (
-                    <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-black ${req.acknowledgement === "Received" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                      {req.acknowledgement === "Received" ? <ThumbsUp size={14}/> : <ThumbsDown size={14}/>}
-                      {req.acknowledgement}
+                    <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-black ${(req.acknowledgement === "Resolved" || req.acknowledgement === "Received") ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                      {(req.acknowledgement === "Resolved" || req.acknowledgement === "Received") ? <ThumbsUp size={14}/> : <ThumbsDown size={14}/>}
+                      {req.acknowledgement === "Received" ? "Resolved" : req.acknowledgement}
                       {req.acknowledgedAt && <span className="ml-auto text-[10px] font-medium opacity-70">{req.acknowledgedAt}</span>}
                     </div>
                   ) : (
@@ -808,30 +848,30 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                       <p className="text-[11px] text-amber-700 font-bold">The team has resolved your request. Did you receive what was requested?</p>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => handleAcknowledge("Received")}
+                          onClick={() => handleAcknowledge("Resolved")}
                           disabled={!!pendingAck}
                           className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500 text-white rounded-xl font-black text-[11px] transition-all ${
-                            pendingAck === "Received"
+                            pendingAck === "Resolved"
                               ? "cursor-wait"
                               : pendingAck
                               ? "opacity-40 cursor-not-allowed"
                               : "hover:bg-emerald-600 active:scale-95"
                           }`}
                         >
-                          {pendingAck === "Received" ? <Spinner size={13}/> : <ThumbsUp size={13}/>} Received
+                          {pendingAck === "Resolved" ? <Spinner size={13}/> : <ThumbsUp size={13}/>} Resolved
                         </button>
                         <button
-                          onClick={() => handleAcknowledge("Not Received")}
+                          onClick={() => handleAcknowledge("Not Resolved")}
                           disabled={!!pendingAck}
                           className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-red-500 text-white rounded-xl font-black text-[11px] transition-all ${
-                            pendingAck === "Not Received"
+                            pendingAck === "Not Resolved"
                               ? "cursor-wait"
                               : pendingAck
                               ? "opacity-40 cursor-not-allowed"
                               : "hover:bg-red-600 active:scale-95"
                           }`}
                         >
-                          {pendingAck === "Not Received" ? <Spinner size={13}/> : <ThumbsDown size={13}/>} Not Received
+                          {pendingAck === "Not Resolved" ? <Spinner size={13}/> : <ThumbsDown size={13}/>} Not Resolved
                         </button>
                       </div>
                     </div>
