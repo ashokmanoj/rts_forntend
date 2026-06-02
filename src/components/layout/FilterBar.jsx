@@ -156,11 +156,12 @@ export default function FilterBar({
                 value={activeFilters.rmStatus || []}
                 onChange={val => updateFilter("rmStatus", val)}
                 options={[
-                  { value: "--",       label: "Open" },
-                  { value: "Approved", label: "Approved" },
-                  { value: "Rejected", label: "Rejected" },
-                  { value: "Checking", label: "Checking" },
-                  { value: "Forwarded",label: "Forwarded" },
+                  { value: "--",          label: "Open" },
+                  { value: "Approved",    label: "Approved" },
+                  { value: "Rejected",    label: "Rejected" },
+                  { value: "Checking",    label: "Checking" },
+                  { value: "Forwarded",   label: "Forwarded" },
+                  { value: "ack_pending", label: "Ack. Pending" },
                 ]}
                 placeholder="All"
                 triggerClassName={filterTrigger}
