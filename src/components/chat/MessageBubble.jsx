@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Paperclip, FileText, FileSpreadsheet, FileImage,
-  Film, Music, Archive, File, ZoomIn, Eye, Reply,
+  Film, Music, Archive, File, ZoomIn, Eye, Reply, Download,
 } from "lucide-react";
 import VoiceMessageBubble      from "./VoiceMessageBubble";
 import SpreadsheetPreviewModal from "../modals/SpreadsheetPreviewModal";
@@ -112,11 +112,20 @@ export default function MessageBubble({ log, onReply }) {
                   alt={log.fileName}
                   className="max-w-[220px] max-h-[170px] rounded-xl object-cover border border-slate-100 group-hover:brightness-90 transition-all"
                 />
-                {/* Hover zoom overlay */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
-                  <div className="bg-black/50 rounded-full p-2">
-                    <ZoomIn size={18} className="text-white" />
+                {/* Hover overlay — zoom + download */}
+                <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl bg-black/20">
+                  <div className="bg-black/60 rounded-full p-2">
+                    <ZoomIn size={16} className="text-white" />
                   </div>
+                  <a
+                    href={resolveFileUrl(log.fileUrl)}
+                    download={log.fileName || "image"}
+                    onClick={e => e.stopPropagation()}
+                    className="bg-black/60 hover:bg-emerald-600 rounded-full p-2 transition-colors"
+                    title="Download"
+                  >
+                    <Download size={16} className="text-white" />
+                  </a>
                 </div>
               </div>
             )}

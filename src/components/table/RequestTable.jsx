@@ -78,33 +78,33 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
       )}
 
       <div className="bg-white rounded-xl shadow-xl border overflow-auto h-full" style={{minHeight:"200px"}}>
-        <table className="w-full border-collapse border-r border-black min-w-[860px]">
+        <table className="w-full border-separate border-r border-black min-w-[860px]" style={{borderSpacing:0}}>
           <thead>
             <tr className="text-slate-800 uppercase font-black text-[13px]">
               <th colSpan="11" className="sticky top-0 bg-blue-300 border border-black p-3 text-center z-20">
                 Requestor Department
               </th>
               <th className="sticky top-0 bg-[#f1f5f9] w-8 z-20" />
-              <th colSpan="6" className="sticky top-0 bg-orange-300 border border-black p-3 text-center z-20">
+              <th colSpan="6" className="sticky top-0 bg-orange-300 border-t border-b border-r border-black p-3 text-center z-20">
                 Assigned Department
               </th>
-              <th className="sticky top-0 bg-[#9acafa] border-b w-8 border border-black p-3 text-center z-20" >
-              Requestor
+              <th className="sticky top-0 bg-[#9acafa] border-t border-b border-r border-black p-3 text-center z-20">
+                Requestor
               </th>
             </tr>
             <tr className="bg-slate-100 border-l border-black text-slate-700 font-bold">
-              {["Sl.No.", "Date", "User ID", "Name", "Dept", "Designation", "Location", "RM Status", "HOD Status", "Urgency Level", "Due / Days Left"].map((h) => (
-                <th key={h} className="sticky top-[45px] bg-slate-100 border-b border-r border-black p-2 z-10 text-center whitespace-nowrap text-[11px]">
+              {["Sl.No.", "Date", "User ID", "Name", "Dept", "Designation", "Location", "RM Status", "HOD Status", "Urgency Level", "Due / Days Left"].map((h, i) => (
+                <th key={h} className={`sticky top-[45px] bg-slate-100 border-t border-b border-r border-black ${i === 0 ? "border-l" : ""} p-2 z-10 text-center whitespace-nowrap text-[11px]`}>
                   {h}
                 </th>
               ))}
               <th className="sticky top-[45px] bg-[#f1f5f9] w-8 z-10" />
-              {["Details", "Department", "Assign RM", "Assign HOD", "Dept HOD Status", "Request Status"].map((h) => (
-                <th key={h} className="sticky top-[45px] bg-slate-100 border border-black p-1 z-10 text-center whitespace-nowrap text-[11px]">
+              {["Details", "Department", "Assign RM", "Assign HOD", "Dept HOD Status", "Request Status"].map((h, i) => (
+                <th key={h} className={`sticky top-[45px] bg-slate-100 border-t border-b border-r border-black ${i === 0 ? "border-l" : ""} p-1 z-10 text-center whitespace-nowrap text-[11px]`}>
                   {h}
                 </th>
               ))}
-              <th className="sticky top-[45px] bg-[#f1f5f9] border border-black p-2 z-10 text-center whitespace-nowrap text-[11px]">
+              <th className="sticky top-[45px] bg-[#f1f5f9] border-t border-b border-r border-black p-2 z-10 text-center whitespace-nowrap text-[11px]">
                 Acknowledgement
               </th>
               
@@ -138,23 +138,23 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
               return (
                 <tr
                   key={row.id}
-                  className={`hover:bg-blue-50/50 transition-colors border-b border-l border-black ${rowBg}`}
+                  className={`hover:bg-blue-50/50 transition-colors ${rowBg}`}
                   onContextMenu={(e) => handleRightClick(e, row.id, row)}
                 >
                   {[idx + 1, row.date, row.empId, row.name, row.dept, row.designation, row.location].map((val, i) => (
-                    <td key={i} className={`border-r border-black p-2 text-center text-[11px] ${bold} whitespace-nowrap`}>
+                    <td key={i} className={`border-b border-r border-black ${i === 0 ? "border-l" : ""} p-2 text-center text-[11px] ${bold} whitespace-nowrap`}>
                       {val}
                     </td>
                   ))}
-                  <td className="border-r border-black p-2 text-center">
+                  <td className="border-b border-r border-black p-2 text-center">
                     <StatusBadge status={row.rmStatus} date={row.rmDate} />
                   </td>
-                  <td className="border-r border-black p-2 text-center">
+                  <td className="border-b border-r border-black p-2 text-center">
                     <StatusBadge status={row.hodStatus} date={row.hodDate} />
                   </td>
 
                   {/* Priority */}
-                  <td className="border-r border-black p-1 text-center whitespace-nowrap">
+                  <td className="border-b border-r border-black p-1 text-center whitespace-nowrap">
                     {row.priority ? (
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
                         row.priority === "Overdue" ? "bg-red-100 text-red-700" :
@@ -166,7 +166,7 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                   </td>
 
                   {/* Due / Days Left */}
-                  <td className="border-r border-black p-1 text-center whitespace-nowrap">
+                  <td className="border-b border-r border-black p-1 text-center whitespace-nowrap">
                     {row.dueDate ? (
                       <div className="flex flex-col items-center gap-0.5">
                         <span className="text-[10px] text-slate-600 font-bold">{row.dueDate}</span>
@@ -180,7 +180,7 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                   </td>
 
                   {/* Separator */}
-                  <td className="bg-[#f1f5f9] border-t border-b w-8 text-center">
+                  <td className="bg-[#f1f5f9] border-b w-8 text-center">
                     <div className="flex items-center justify-center h-full">
                       {isOwnRow ? (
                         <Send size={17} className="text-green-500 flex-shrink-0" title="Your request" />
@@ -194,7 +194,7 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                   </td>
 
                   {/* Details / purpose */}
-                  <td className="border border-black px-3 py-2 cursor-pointer text-center" onClick={() => onOpenDetails(row)}>
+                  <td className="border-l border-b border-r border-black px-3 py-2 cursor-pointer text-center" onClick={() => onOpenDetails(row)}>
                     <span className="flex items-center justify-center gap-1.5">
                       {isUnread && <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 inline-block" />}
                       <span className={`text-blue-600 underline text-[11px] ${isUnread ? "font-black" : "font-bold"}`} title={row.purpose}>
@@ -204,7 +204,7 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                   </td>
 
                   {/* Assigned dept */}
-                  <td className="border border-black p-2 text-center text-[11px]">
+                  <td className="border-b border-r border-black p-2 text-center text-[11px]">
                     {row.forwarded ? (
                       <span className="flex items-center justify-center gap-1 text-blue-600 font-bold whitespace-nowrap">
                         <Forward size={13} className="text-blue-500 flex-shrink-0" />
@@ -224,23 +224,23 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                   </td>
 
                   {/* Assigned dept RM status */}
-                  <td className="border border-black p-2 text-center">
+                  <td className="border-b border-r border-black p-2 text-center">
                     <StatusBadge status={row.assignedRmStatus} date={row.assignedRmDate} />
                   </td>
 
                   {/* Assigned dept HOD status */}
-                  <td className="border border-black p-2 text-center">
+                  <td className="border-b border-r border-black p-2 text-center">
                     <StatusBadge status={row.assignedHodStatus} date={row.assignedHodDate} />
                   </td>
 
 
                   {/* Dept HOD status */}
-                  <td className="border border-black p-2 text-center">
+                  <td className="border-b border-r border-black p-2 text-center">
                     <StatusBadge status={row.deptHodStatus} date={row.deptHodDate} />
                   </td>
 
                   {/* Request status */}
-                  <td className="border border-black p-1 text-center">
+                  <td className="border-b border-r border-black p-1 text-center">
                     {isClosed ? (
                       <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1 rounded-lg block whitespace-nowrap">
                         {row.assignedStatus}
@@ -257,7 +257,7 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                   </td>
 
                   {/* Acknowledgement status */}
-                  <td className="border border-black p-1 text-center whitespace-nowrap">
+                  <td className="border-b border-r border-black p-1 text-center whitespace-nowrap">
                     {(row.acknowledgement === "Resolved" || row.acknowledgement === "Received") ? (
                       <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg block">Resolved</span>
                     ) : isPendingAck && isOwnRow && onAcknowledge ? (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { X, ZoomIn, ZoomOut, RotateCw, Maximize2, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ZoomIn, ZoomOut, RotateCw, Maximize2, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { resolveFileUrl } from "../../utils/security";
 
 /**
@@ -212,6 +212,15 @@ export default function GalleryLightbox({ urls, fileNames, startIndex = 0, onClo
               <Maximize2 size={15} />
             </button>
           )}
+          <a
+            href={resolveFileUrl(src)}
+            download={fileName || "image"}
+            onClick={e => e.stopPropagation()}
+            className="p-2 bg-white/10 hover:bg-emerald-500 rounded-full text-white transition-colors"
+            title="Download image"
+          >
+            <Download size={15} />
+          </a>
           <button onClick={onClose} className="p-2 bg-white/10 hover:bg-red-500 rounded-full text-white transition-colors ml-1">
             <X size={15} />
           </button>

@@ -666,7 +666,10 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                             setLightboxData({ urls: imageUrls, names: imageNames, index: imageUrls.indexOf(url) });
                           }}>
                             <img src={resolveFileUrl(url)} alt={req.fileNames?.[idx] || "attachment"} className="h-24 w-24 object-cover rounded-xl shadow-md border-2 border-white group-hover:brightness-90 transition-all"/>
-                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"><div className="bg-black/50 rounded-full p-1"><ZoomIn size={16} className="text-white"/></div></div>
+                            <div className="absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl bg-black/20">
+                              <div className="bg-black/60 rounded-full p-1"><ZoomIn size={14} className="text-white"/></div>
+                              <a href={resolveFileUrl(url)} download={req.fileNames?.[idx] || "image"} onClick={e => e.stopPropagation()} className="bg-black/60 hover:bg-emerald-600 rounded-full p-1 transition-colors" title="Download"><Download size={14} className="text-white"/></a>
+                            </div>
                           </div>
                         ) : isSpreadsheetUrl(url) ? (
                           <button
@@ -898,7 +901,13 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                    {req.closeData.fileUrl && (
                       <div className="pt-2">
                          {isImageUrl(req.closeData.fileUrl) ? (
-                            <img src={resolveFileUrl(req.closeData.fileUrl)} onClick={() => setLightboxData({ urls: [req.closeData.fileUrl], names: [req.closeData.fileName || "closure-attachment"], index: 0 })} className="h-20 w-auto rounded-lg border-2 border-white shadow-sm cursor-pointer hover:brightness-95 transition-all"/>
+                            <div className="relative group w-fit">
+                              <img src={resolveFileUrl(req.closeData.fileUrl)} onClick={() => setLightboxData({ urls: [req.closeData.fileUrl], names: [req.closeData.fileName || "closure-attachment"], index: 0 })} className="h-20 w-auto rounded-lg border-2 border-white shadow-sm cursor-pointer hover:brightness-90 transition-all"/>
+                              <div className="absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg bg-black/20">
+                                <div className="bg-black/60 rounded-full p-1"><ZoomIn size={13} className="text-white"/></div>
+                                <a href={resolveFileUrl(req.closeData.fileUrl)} download={req.closeData.fileName || "closure-image"} onClick={e => e.stopPropagation()} className="bg-black/60 hover:bg-emerald-600 rounded-full p-1 transition-colors" title="Download"><Download size={13} className="text-white"/></a>
+                              </div>
+                            </div>
                          ) : isSpreadsheetUrl(req.closeData.fileUrl) ? (
                             <button
                               onClick={() => setSpreadsheetPreview({ url: req.closeData.fileUrl, fileName: req.closeData.fileName || "closure-attachment" })}
