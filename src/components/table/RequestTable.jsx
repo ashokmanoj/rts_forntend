@@ -85,7 +85,7 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                 Requestor Department
               </th>
               <th className="sticky top-0 bg-[#f1f5f9] w-8 z-20" />
-              <th colSpan="6" className="sticky top-0 bg-orange-300 border-t border-b border-r border-black p-3 text-center z-20">
+              <th colSpan="6" className="sticky top-0 bg-orange-300 border border-black p-3 text-center z-20">
                 Assigned Department
               </th>
               <th className="sticky top-0 bg-[#9acafa] border-t border-b border-r border-black p-3 text-center z-20">
