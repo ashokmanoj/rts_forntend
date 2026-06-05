@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LogOut, Zap, ClipboardList, ShieldCheck, Users, UtensilsCrossed, BarChart2, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Pencil, Trash2, AlertTriangle, UserPlus } from "lucide-react";
+import { LogOut, Zap, ClipboardList, ShieldCheck, Users, UtensilsCrossed, BarChart2, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Pencil, Trash2, AlertTriangle, UserPlus, KeyRound, Search, X, Plus } from "lucide-react";
 
 import { fetchRequests, fetchFilterOptions, createRequest, submitApproval, acknowledgeRequest, markRequestSeen, markRequestUnread, closeRequest, editRequest, deleteRequest } from "../services/requestService";
+import { fetchUserRoles, addUserRole, updateUserRole, deleteUserRole } from "../services/userRoleService";
 import { fetchHodPendingRequests, submitHodApproval } from "../services/managementService";
 import { fetchChat, sendText, sendFile, sendVoice } from "../services/chatService";
 import { adminGetFoodSubscriptions, adminSubscribeUser, adminToggleFoodUser, adminDeleteFoodUser } from "../services/foodService";
@@ -772,6 +773,269 @@ function FoodAdminTab({ currentUser }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// User Roles Tab
+// ─────────────────────────────────────────────────────────────────────────────
+const ALL_ROLES = ["Requestor","RM","HOD","DeptHOD","Management","Admin","HR","FoodCommittee","Intern","SuperUser"];
+
+function RoleModal({ title, initial, onSave, onClose, excludeEmpId }) {
+  const [empId, setEmpId] = useState(initial?.empId || "");
+  const [role,  setRole]  = useState(initial?.role  || "Requestor");
+  const [dept,  setDept]  = useState(initial?.dept  || "");
+  const [err,   setErr]   = useState("");
+  const [saving,setSaving]= useState(false);
+  const isEdit = !!initial?.id;
+
+  const handleSave = async () => {
+    if (!isEdit && !empId.trim()) { setErr("Emp ID is required."); return; }
+    if (!dept.trim()) { setErr("Department is required."); return; }
+    setSaving(true); setErr("");
+    try {
+      await onSave(isEdit ? initial.id : empId.trim(), role, dept);
+      onClose();
+    } catch (e) { setErr(e.message || "Failed."); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-black text-slate-800 text-[15px]">{title}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><X size={15}/></button>
+        </div>
+        {err && <p className="text-red-600 text-[11px] font-bold bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
+        {!isEdit && (
+          <div className="space-y-1">
+            <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Emp ID</label>
+            <input value={empId} onChange={e => setEmpId(e.target.value)} placeholder="e.g. AC-1053"
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:border-indigo-400"/>
+          </div>
+        )}
+        {isEdit && (
+          <div className="bg-slate-50 rounded-xl px-3 py-2 text-[12px] text-slate-600 font-bold">
+            {initial.empId} — {initial.name}
+          </div>
+        )}
+        <div className="space-y-1">
+          <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Role</label>
+          <select value={role} onChange={e => setRole(e.target.value)}
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:border-indigo-400 bg-white">
+            {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Department</label>
+          <select value={dept} onChange={e => setDept(e.target.value)}
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:border-indigo-400 bg-white">
+            <option value="">-- Select Department --</option>
+            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </div>
+        <div className="flex gap-3 pt-1">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-black text-[12px] hover:bg-slate-50 transition-all">Cancel</button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-[12px] transition-all active:scale-95">
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UserRolesTab() {
+  const [rows,         setRows]         = useState([]);
+  const [loading,      setLoading]      = useState(false);
+  const [search,       setSearch]       = useState("");
+  const [filterRole,   setFilterRole]   = useState("");
+  const [filterDept,   setFilterDept]   = useState("");
+  const [addModal,     setAddModal]     = useState(false);
+  const [editEntry,    setEditEntry]    = useState(null);
+  const [deleteEntry,  setDeleteEntry]  = useState(null);
+  const [deleting,     setDeleting]     = useState(false);
+  const [toast,        setToast]        = useState(null);
+
+  const showToast = (type, msg) => { setToast({ type, msg }); setTimeout(() => setToast(null), 3000); };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchUserRoles({ search, role: filterRole, dept: filterDept });
+      setRows(data);
+    } catch (e) { showToast("error", e.message || "Failed to load."); }
+    finally { setLoading(false); }
+  }, [search, filterRole, filterDept]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAdd = async (empId, role, dept) => {
+    await addUserRole(empId, role, dept);
+    showToast("success", `Role added for ${empId}.`);
+    load();
+  };
+
+  const handleEdit = async (id, role, dept) => {
+    await updateUserRole(id, role, dept);
+    showToast("success", "Role updated.");
+    load();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteEntry) return;
+    setDeleting(true);
+    try {
+      await deleteUserRole(deleteEntry.id);
+      showToast("success", `Role deleted.`);
+      setDeleteEntry(null);
+      load();
+    } catch (e) { showToast("error", e.message || "Failed."); }
+    finally { setDeleting(false); }
+  };
+
+  const ROLE_COLORS = {
+    SuperUser: "bg-yellow-100 text-yellow-800", Admin: "bg-orange-100 text-orange-700",
+    Management: "bg-rose-100 text-rose-700", DeptHOD: "bg-teal-100 text-teal-700",
+    HOD: "bg-purple-100 text-purple-700", RM: "bg-blue-100 text-blue-700",
+    Requestor: "bg-slate-100 text-slate-600", HR: "bg-pink-100 text-pink-700",
+    FoodCommittee: "bg-green-100 text-green-700", Intern: "bg-indigo-100 text-indigo-600",
+  };
+
+  return (
+    <div className="space-y-4">
+      {toast && (
+        <div className={`px-4 py-3 rounded-xl text-[12px] font-bold border ${toast.type === "success" ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Header + filters */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white">
+          <div className="flex items-center gap-2">
+            <KeyRound size={18} className="text-indigo-500"/>
+            <h3 className="font-black text-slate-800 text-[14px]">User Roles</h3>
+            <span className="text-[11px] text-slate-400 font-bold">({rows.length} entries)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={load} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all">
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""}/>
+            </button>
+            <button onClick={() => setAddModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-[12px] transition-all active:scale-95 shadow-sm">
+              <Plus size={13}/> Add Role
+            </button>
+          </div>
+        </div>
+
+        {/* Filter bar */}
+        <div className="px-5 py-3 bg-slate-50 border-b border-slate-100 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by Emp ID or Name…"
+              className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-[12px] bg-white focus:outline-none focus:border-indigo-400"/>
+          </div>
+          <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
+            className="border border-slate-200 rounded-xl px-3 py-2 text-[12px] bg-white focus:outline-none focus:border-indigo-400">
+            <option value="">All Roles</option>
+            {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <select value={filterDept} onChange={e => setFilterDept(e.target.value)}
+            className="border border-slate-200 rounded-xl px-3 py-2 text-[12px] bg-white focus:outline-none focus:border-indigo-400 max-w-[200px]">
+            <option value="">All Departments</option>
+            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+          {(search || filterRole || filterDept) && (
+            <button onClick={() => { setSearch(""); setFilterRole(""); setFilterDept(""); }}
+              className="flex items-center gap-1 px-2.5 py-2 border border-slate-200 rounded-xl text-[11px] font-bold text-slate-500 hover:bg-slate-100 bg-white transition-all">
+              <X size={11}/> Clear
+            </button>
+          )}
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-[12px]">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-4 py-3 text-left font-black text-slate-500 uppercase tracking-wider text-[10px]">#</th>
+                <th className="px-4 py-3 text-left font-black text-slate-500 uppercase tracking-wider text-[10px]">Emp ID</th>
+                <th className="px-4 py-3 text-left font-black text-slate-500 uppercase tracking-wider text-[10px]">Name</th>
+                <th className="px-4 py-3 text-left font-black text-slate-500 uppercase tracking-wider text-[10px]">Role</th>
+                <th className="px-4 py-3 text-left font-black text-slate-500 uppercase tracking-wider text-[10px]">Department</th>
+                <th className="px-4 py-3 text-center font-black text-slate-500 uppercase tracking-wider text-[10px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                <tr><td colSpan={6} className="text-center py-12 text-slate-400 font-bold">Loading…</td></tr>
+              ) : rows.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-12 text-slate-400 font-bold">No roles found.</td></tr>
+              ) : rows.map((r, i) => (
+                <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-3 text-slate-400 font-bold">{i + 1}</td>
+                  <td className="px-4 py-3 font-black text-slate-700">{r.empId}</td>
+                  <td className="px-4 py-3 text-slate-600 font-medium">{r.name}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${ROLE_COLORS[r.role] || "bg-slate-100 text-slate-600"}`}>{r.role}</span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600 font-medium">{r.dept}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-center gap-2">
+                      <button onClick={() => setEditEntry(r)}
+                        className="p-1.5 rounded-lg text-indigo-500 hover:bg-indigo-50 transition-all" title="Edit">
+                        <Pencil size={13}/>
+                      </button>
+                      <button onClick={() => setDeleteEntry(r)}
+                        className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-all" title="Delete">
+                        <Trash2 size={13}/>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Add Modal */}
+      {addModal && (
+        <RoleModal title="Add Role" initial={null} onSave={handleAdd} onClose={() => setAddModal(false)}/>
+      )}
+
+      {/* Edit Modal */}
+      {editEntry && (
+        <RoleModal title="Edit Role" initial={editEntry} onSave={handleEdit} onClose={() => setEditEntry(null)}/>
+      )}
+
+      {/* Delete Confirm */}
+      {deleteEntry && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 space-y-4">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Trash2 size={22} className="text-red-600"/>
+              </div>
+              <h3 className="font-black text-slate-800">Delete Role Entry?</h3>
+              <p className="text-[12px] text-slate-500 mt-1">
+                Remove <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${ROLE_COLORS[deleteEntry.role] || "bg-slate-100 text-slate-600"}`}>{deleteEntry.role}</span> in <span className="font-bold">{deleteEntry.dept}</span> for <span className="font-bold">{deleteEntry.empId}</span>?
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteEntry(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-black text-[12px] hover:bg-slate-50 transition-all">Cancel</button>
+              <button onClick={handleDelete} disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-black text-[12px] transition-all active:scale-95">
+                {deleting ? "Deleting…" : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tab bar button
 // ─────────────────────────────────────────────────────────────────────────────
 function TabBtn({ label, icon, active, onClick }) {
@@ -792,6 +1056,7 @@ const TABS = [
   { key: "requests",   label: "Requests",        icon: <ClipboardList size={14} /> },
   { key: "management", label: "GN Requests",      icon: <ShieldCheck size={14} /> },
   { key: "users",      label: "Users",             icon: <Users size={14} /> },
+  { key: "roles",      label: "Roles",             icon: <KeyRound size={14} /> },
   { key: "food",       label: "Food",              icon: <UtensilsCrossed size={14} /> },
   { key: "report",     label: "Admin Report",      icon: <BarChart2 size={14} /> },
 ];
@@ -849,6 +1114,13 @@ export default function SuperUserHome({ currentUser, onLogout, onSwitchRole }) {
         {activeTab === "users" && (
           <div className="flex-1 min-h-0 overflow-y-auto bg-[#f8fafc]">
             <UserManagementPage currentUser={currentUser} />
+          </div>
+        )}
+
+        {/* Roles — User Roles CRUD */}
+        {activeTab === "roles" && (
+          <div className="flex-1 min-h-0 overflow-y-auto bg-[#f8fafc] p-4 sm:p-6">
+            <UserRolesTab />
           </div>
         )}
 
