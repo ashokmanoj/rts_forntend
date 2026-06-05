@@ -770,7 +770,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                     </>
                   ) : canUserForward ? (
                     /* Facilities dept — forward incoming request to another dept */
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <button
                         onClick={() => handleApproval("Forwarded")}
                         disabled={approvalLoading || !deptChanged}
@@ -780,6 +780,9 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                       </button>
                       <button onClick={() => setShowCheckingModal(true)} disabled={approvalLoading} className="bg-amber-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-amber-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5">
                         {pendingDecision === "Checking" ? <Spinner size={13}/> : <Clock size={13}/>} Checking
+                      </button>
+                      <button onClick={() => onOpenCloseTicket(req)} className="bg-red-500 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-red-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5">
+                        🔒 Close
                       </button>
                     </div>
                   ) : (
