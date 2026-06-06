@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { X, Megaphone, Send, Users } from "lucide-react";
-import { post } from "../../services/api";
+import { useState, useEffect } from "react";
+import { X, Megaphone, Send, Users, MapPin } from "lucide-react";
+import { post, get } from "../../services/api";
 import SearchableSelect from "../ui/SearchableSelect";
 
 const DEPARTMENTS = [
@@ -18,13 +18,21 @@ const DEPARTMENTS = [
 ];
 
 export default function BroadcastModal({ onClose }) {
-  const [title,       setTitle]       = useState("");
-  const [message,     setMessage]     = useState("");
-  const [targetDepts, setTargetDepts] = useState([]); // [] = All Users
-  const [loading,     setLoading]     = useState(false);
-  const [result,      setResult]      = useState(null);
+  const [title,           setTitle]           = useState("");
+  const [message,         setMessage]         = useState("");
+  const [targetDepts,     setTargetDepts]     = useState([]);
+  const [targetLocations, setTargetLocations] = useState([]);
+  const [locations,       setLocations]       = useState([]);
+  const [loading,         setLoading]         = useState(false);
+  const [result,          setResult]          = useState(null);
 
-  const isAll = targetDepts.length === 0;
+  const isAll = targetDepts.length === 0 && targetLocations.length === 0;
+
+  useEffect(() => {
+    get("/requests/locations")
+      .then(data => setLocations(data.locations || []))
+      .catch(() => {});
+  }, []);
 
   const handleSend = async () => {
     if (!title.trim() || !message.trim()) return;
@@ -32,16 +40,25 @@ export default function BroadcastModal({ onClose }) {
     setResult(null);
     try {
       const resp = await post("/push/broadcast", {
-        title:       title.trim(),
-        message:     message.trim(),
-        targetDepts: targetDepts, // [] = all users
+        title:           title.trim(),
+        message:         message.trim(),
+        targetDepts:     targetDepts,
+        targetLocations: targetLocations,
       });
-      setResult({ success: true, sentTo: resp.sentTo, targetDepts: resp.targetDepts });
+      setResult({ success: true, sentTo: resp.sentTo, targetDepts: resp.targetDepts, targetLocations: resp.targetLocations });
     } catch (err) {
       setResult({ error: err?.response?.data?.error || "Failed to send broadcast." });
     } finally {
       setLoading(false);
     }
+  };
+
+  const resultLabel = () => {
+    if (!result?.success) return `❌ ${result.error}`;
+    const parts = [];
+    if (result.targetDepts !== "all")     parts.push(`depts: ${Array.isArray(result.targetDepts) ? result.targetDepts.join(", ") : result.targetDepts}`);
+    if (result.targetLocations !== "all") parts.push(`locations: ${Array.isArray(result.targetLocations) ? result.targetLocations.join(", ") : result.targetLocations}`);
+    return `✅ Sent to ${result.sentTo} user${result.sentTo !== 1 ? "s" : ""} ${parts.length ? `(${parts.join(" · ")})` : "(all users)"}`;
   };
 
   return (
@@ -61,24 +78,22 @@ export default function BroadcastModal({ onClose }) {
 
         <div className="p-5 space-y-4">
 
-          {/* Target Departments multi-select */}
+          {/* All Users toggle */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                Send To
-              </label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Send To</label>
               <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
                 isAll ? "bg-violet-100 text-violet-700" : "bg-indigo-100 text-indigo-700"
               }`}>
-                {isAll
-                  ? "All Users"
-                  : `${targetDepts.length} dept${targetDepts.length > 1 ? "s" : ""} selected`}
+                {isAll ? "All Users" : [
+                  targetDepts.length     > 0 && `${targetDepts.length} dept${targetDepts.length > 1 ? "s" : ""}`,
+                  targetLocations.length > 0 && `${targetLocations.length} location${targetLocations.length > 1 ? "s" : ""}`,
+                ].filter(Boolean).join(" · ")}
               </span>
             </div>
 
-            {/* All Users toggle */}
             <button
-              onClick={() => setTargetDepts([])}
+              onClick={() => { setTargetDepts([]); setTargetLocations([]); }}
               className={`w-full flex items-center gap-2 px-4 py-2.5 rounded-xl border text-[12px] font-black transition-all ${
                 isAll
                   ? "bg-violet-50 border-violet-300 text-violet-700"
@@ -89,14 +104,34 @@ export default function BroadcastModal({ onClose }) {
               All Users (Universal Broadcast)
               {isAll && <span className="ml-auto text-violet-500 text-[10px]">✓ Selected</span>}
             </button>
+          </div>
 
-            {/* Dept multi-select */}
+          {/* Department multi-select */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+              Departments
+            </label>
             <SearchableSelect
               multiSelect
               value={targetDepts}
               onChange={setTargetDepts}
               options={DEPARTMENTS.map(d => ({ value: d, label: d }))}
-              placeholder="Or select specific departments..."
+              placeholder="Select specific departments..."
+              triggerClassName="py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-bold hover:border-violet-300"
+            />
+          </div>
+
+          {/* Location / State multi-select */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+              <MapPin size={11} /> State / Location
+            </label>
+            <SearchableSelect
+              multiSelect
+              value={targetLocations}
+              onChange={setTargetLocations}
+              options={locations.map(l => ({ value: l, label: l }))}
+              placeholder="Select specific states..."
               triggerClassName="py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-bold hover:border-violet-300"
             />
           </div>
@@ -139,13 +174,7 @@ export default function BroadcastModal({ onClose }) {
                 ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                 : "bg-red-50 text-red-700 border border-red-200"
             }`}>
-              {result.success
-                ? `✅ Sent to ${result.sentTo} user${result.sentTo !== 1 ? "s" : ""} ${
-                    result.targetDepts === "all"
-                      ? "(all departments)"
-                      : `in ${Array.isArray(result.targetDepts) ? result.targetDepts.join(", ") : result.targetDepts}`
-                  }`
-                : `❌ ${result.error}`}
+              {resultLabel()}
             </div>
           )}
 
