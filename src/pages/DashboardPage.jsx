@@ -327,8 +327,9 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
           const isRequestorRole = currentUser?.role === 'Requestor';
           const isFoodReportHOD = currentUser?.role === 'DeptHOD' &&
                                    ['HR', 'Food Committee'].includes(currentUser?.dept);
-          const showFoodTab     = isSuperUser || ((isRequestorRole || isInternRole) && isBengaluru) || isFoodReportHOD;
-          const isHRDeptHOD     = currentUser?.role === 'DeptHOD' && currentUser?.dept === 'HR';
+          const isDeptHOD       = currentUser?.role === 'DeptHOD';
+          const showFoodTab     = isSuperUser || (isBengaluru && !isDeptHOD) || isFoodReportHOD;
+          const isHRDeptHOD     = isDeptHOD && currentUser?.dept === 'HR';
           const showMgmtTab     = isSuperUser || isHRDeptHOD;
 
           return (
