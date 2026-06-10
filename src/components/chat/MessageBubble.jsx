@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Paperclip, FileText, FileSpreadsheet, FileImage,
-  Film, Music, Archive, File, ZoomIn, Eye, Reply, Download,
+  Film, Music, Archive, File, ZoomIn, Eye, Reply, Download, Images,
 } from "lucide-react";
 import VoiceMessageBubble      from "./VoiceMessageBubble";
 import SpreadsheetPreviewModal from "../modals/SpreadsheetPreviewModal";
@@ -28,20 +28,87 @@ function getFileIcon(fileName = "") {
   return   { Icon: File,           color: "text-slate-500",  bg: "bg-slate-50"  };
 }
 
+// ── ImageGrid (WhatsApp-style) ────────────────────────────────────
+function ImageGrid({ images, onOpenLightbox }) {
+  const MAX_VISIBLE = 4;
+  const visible  = images.slice(0, MAX_VISIBLE);
+  const overflow = images.length - MAX_VISIBLE;
+  const cols     = visible.length === 1 ? 1 : 2;
+
+  const handleDownloadAll = (e) => {
+    e.stopPropagation();
+    images.forEach((img) => {
+      const a = document.createElement("a");
+      a.href     = resolveFileUrl(img.fileUrl);
+      a.download = img.fileName || "image";
+      a.target   = "_blank";
+      a.rel      = "noopener noreferrer";
+      a.click();
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div
+        className={`grid gap-1 rounded-xl overflow-hidden`}
+        style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, width: cols === 1 ? 220 : 220 }}
+      >
+        {visible.map((img, idx) => {
+          const isLast    = idx === MAX_VISIBLE - 1;
+          const showMore  = isLast && overflow > 0;
+          return (
+            <div
+              key={img.id}
+              className="relative cursor-pointer group"
+              onClick={() => onOpenLightbox(idx)}
+              style={{ aspectRatio: "1 / 1" }}
+            >
+              <img
+                src={resolveFileUrl(img.fileUrl)}
+                alt={img.fileName}
+                className="w-full h-full object-cover group-hover:brightness-90 transition-all"
+              />
+              {showMore && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <span className="text-white font-black text-[18px]">+{overflow}</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Download all bar */}
+      <button
+        onClick={handleDownloadAll}
+        className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 hover:text-indigo-600 transition-colors self-start px-1"
+      >
+        <Download size={11} />
+        Download all ({images.length})
+      </button>
+    </div>
+  );
+}
+
 // ── MessageBubble ─────────────────────────────────────────────────
 const isSpreadsheetFile = (name = "") => /\.(csv|xlsx|xls)$/i.test(name);
 
 export default function MessageBubble({ log, onReply }) {
-  const [lightbox,        setLightbox]        = useState(false);
+  const [lightboxIdx,     setLightboxIdx]     = useState(-1);
   const [spreadsheetOpen, setSpreadsheetOpen] = useState(false);
   const [hovered,         setHovered]         = useState(false);
 
+  const isGroup  = Array.isArray(log.images) && log.images.length > 1;
   const hasFile  = log.type === "file"  || log.type === "mixed";
   const hasVoice = log.type === "voice" || log.type === "mixed";
   const hasText  = !!log.text;
 
   const { Icon, color, bg } = hasFile ? getFileIcon(log.fileName || "") : {};
   const isSpreadsheet = hasFile && !log.isImage && isSpreadsheetFile(log.fileName);
+
+  // Lightbox sources: group = all images; single = just this one
+  const lightboxUrls  = isGroup ? log.images.map(i => resolveFileUrl(i.fileUrl))   : [resolveFileUrl(log.fileUrl)];
+  const lightboxNames = isGroup ? log.images.map(i => i.fileName || "image")       : [log.fileName || "image"];
 
   // Build a short label for the replied-to message
   const replyPreviewText = log.replyTo?.text
@@ -54,8 +121,8 @@ export default function MessageBubble({ log, onReply }) {
 
   return (
     <>
-      {lightbox && (
-        <GalleryLightbox urls={[log.fileUrl]} fileNames={[log.fileName || "Image"]} startIndex={0} onClose={() => setLightbox(false)} />
+      {lightboxIdx >= 0 && (
+        <GalleryLightbox urls={lightboxUrls} fileNames={lightboxNames} startIndex={lightboxIdx} onClose={() => setLightboxIdx(-1)} />
       )}
       {spreadsheetOpen && (
         <SpreadsheetPreviewModal url={log.fileUrl} fileName={log.fileName} onClose={() => setSpreadsheetOpen(false)} />
@@ -101,18 +168,22 @@ export default function MessageBubble({ log, onReply }) {
           {/* Bubble content */}
           <div className="flex flex-col gap-1.5 bg-white border border-slate-100 rounded-2xl px-3 py-2.5 shadow-sm w-fit max-w-full">
 
-            {/* ── Image file — clickable thumbnail ── */}
-            {hasFile && log.isImage && (
+            {/* ── Image group (WhatsApp-style grid) ── */}
+            {isGroup && (
+              <ImageGrid images={log.images} onOpenLightbox={(idx) => setLightboxIdx(idx)} />
+            )}
+
+            {/* ── Single image thumbnail ── */}
+            {!isGroup && hasFile && log.isImage && (
               <div
                 className="relative group cursor-pointer"
-                onClick={() => setLightbox(true)}
+                onClick={() => setLightboxIdx(0)}
               >
                 <img
                   src={resolveFileUrl(log.fileUrl)}
                   alt={log.fileName}
                   className="max-w-[220px] max-h-[170px] rounded-xl object-cover border border-slate-100 group-hover:brightness-90 transition-all"
                 />
-                {/* Hover overlay — zoom + download */}
                 <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl bg-black/20">
                   <div className="bg-black/60 rounded-full p-2">
                     <ZoomIn size={16} className="text-white" />

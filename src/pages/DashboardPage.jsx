@@ -14,6 +14,7 @@ import FoodPage          from "./FoodPage";
 import UserManagementPage from "./UserManagementPage";
 import { UtensilsCrossed, ClipboardList, LogOut, Users, CheckCircle2, XCircle, RefreshCw, ChevronDown, Megaphone } from "lucide-react";
 import DashboardSkeleton from "../components/ui/DashboardSkeleton";
+import TableSkeleton     from "../components/ui/TableSkeleton";
 
 export default function DashboardPage({ currentUser: currentUserProp, onLogout, onSwitchRole }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -479,16 +480,19 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
         {activeTab === "requests" && (
           <div className="h-full flex flex-col gap-2">
 
-            {/* Table — flex-1 so it fills remaining space above pagination */}
-            <div className={`flex-1 min-h-0 transition-opacity duration-200 ${isFiltering ? "opacity-50 pointer-events-none" : "opacity-100"}`}>
-              <RequestTable
-                requests={requests}
-                sortMode={filters.sortMode || "default"}
-                currentUser={currentUser}
-                onOpenDetails={handleOpenDetails}
-                onMarkUnread={(id) => markRequestUnread(id).then(() => loadRequests(currentPage, filters, true))}
-                onAcknowledge={handleAcknowledge}
-              />
+            {/* Table — skeleton while loading, real table when ready */}
+            <div className="flex-1 min-h-0">
+              {isFiltering
+                ? <TableSkeleton />
+                : <RequestTable
+                    requests={requests}
+                    sortMode={filters.sortMode || "default"}
+                    currentUser={currentUser}
+                    onOpenDetails={handleOpenDetails}
+                    onMarkUnread={(id) => markRequestUnread(id).then(() => loadRequests(currentPage, filters, true))}
+                    onAcknowledge={handleAcknowledge}
+                  />
+              }
             </div>
 
             {/* Pagination — always visible above taskbar */}

@@ -21,6 +21,28 @@ import SystemMessage     from "./SystemMessage";
 import ChatInputBar      from "./ChatInputBar";
 import { getNowTime, getNowDate } from "../../utils/dateTime";
 
+/** Group consecutive image messages from the same author+time into one entry */
+function groupLogs(logs) {
+  const out = [];
+  for (let i = 0; i < logs.length; i++) {
+    const log = logs[i];
+    const isImg = (log.type === "file" || log.type === "mixed") && log.isImage;
+    if (!isImg) { out.push(log); continue; }
+
+    const group = [log];
+    while (i + 1 < logs.length) {
+      const nx = logs[i + 1];
+      const nxImg = (nx.type === "file" || nx.type === "mixed") && nx.isImage;
+      if (nxImg && nx.author === log.author && nx.date === log.date && nx.time === log.time) {
+        group.push(nx);
+        i++;
+      } else break;
+    }
+    out.push(group.length > 1 ? { ...log, images: group } : log);
+  }
+  return out;
+}
+
 export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isClosed, canChat }) {
   const chatEndRef = useRef(null);
   const [replyTo, setReplyTo] = useState(null);
@@ -161,7 +183,7 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
         {logs.length === 0 && (
           <p className="text-center text-slate-400 text-sm mt-10">No activity yet.</p>
         )}
-        {logs.map((log) =>
+        {groupLogs(logs).map((log) =>
           log.type === "approval" ? <ApprovalCard  key={log.id} log={log} /> :
           log.type === "system"   ? <SystemMessage key={log.id} log={log} /> :
                                     <MessageBubble key={log.id} log={log} onReply={canChat ? handleReply : null} />
