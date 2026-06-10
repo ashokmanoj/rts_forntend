@@ -14,9 +14,13 @@ import { post } from "../services/api";
 import {
   LogOut, RefreshCw, CheckCircle2, XCircle, Clock,
   ChevronDown, ChevronUp, ShieldCheck, AlertCircle,
-  Search, X, SlidersHorizontal, LayoutDashboard,
+  Search, X, SlidersHorizontal, LayoutDashboard, MessageSquare,
 } from "lucide-react";
-import SearchableSelect from "../components/ui/SearchableSelect";
+import SearchableSelect  from "../components/ui/SearchableSelect";
+import { fetchChat, sendText, sendFile, sendVoice } from "../services/chatService";
+import { submitApproval, closeRequest }             from "../services/requestService";
+import DetailsModal      from "../components/modals/DetailsModal";
+import CloseTicketModal  from "../components/modals/CloseTicketModal";
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 function RmBadge({ status }) {
@@ -119,133 +123,91 @@ function HodBadge({ status }) {
 }
 
 // ── Request row ───────────────────────────────────────────────────────────────
-function RequestRow({ row, index, onActionComplete }) {
-  const [expanded,   setExpanded]   = useState(false);
-  const [actioning,  setActioning]  = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+function RequestRow({ row, index, onViewDetails }) {
+  const isGnRow = row.isGnRoute;
 
-  const isGnRow   = row.isGnRoute;
-  const isPending = !row.isClosed && (!row.hodStatus || row.hodStatus === "--" || row.hodStatus === "Checking");
-
-  const handleSubmit = async (id, decision, comment) => {
-    setSubmitting(true);
-    try {
-      await submitHodApproval(id, decision, comment);
-      setActioning(false);
-      onActionComplete();
-    } catch {
-      setSubmitting(false);
-    }
-  };
-
-  const rowBg = row.hodStatus === "Approved"
+  const rowBg = row.isClosed
     ? "bg-emerald-50/40"
     : row.hodStatus === "Rejected"
     ? "bg-red-50/40"
     : "";
 
   return (
-    <>
-      <tr className={`border-b border-slate-100 hover:bg-amber-50/30 transition-colors ${rowBg}`}>
-        {/* Sl */}
-        <td className="px-3 py-3 text-center text-xs text-slate-500 font-bold">{index + 1}</td>
-        {/* Date */}
-        <td className="px-3 py-3 text-xs text-slate-600 whitespace-nowrap">{row.date}</td>
-        {/* Requestor */}
-        <td className="px-3 py-3">
-          <p className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-            {row.name}
-            {isGnRow && (
-              <span className="text-[9px] font-black bg-purple-600 text-white px-1.5 py-0.5 rounded-full leading-none">GN</span>
-            )}
-          </p>
-          <p className="text-[10px] text-slate-500">{row.empId} · {row.dept}</p>
-          <p className="text-[10px] text-slate-400">{row.designation}</p>
-        </td>
-        {/* Purpose */}
-        <td className="px-3 py-3">
+    <tr
+      className={`border-b border-slate-100 hover:bg-amber-50/30 transition-colors cursor-pointer ${rowBg}`}
+      onClick={() => onViewDetails(row)}
+    >
+      {/* Sl */}
+      <td className="px-3 py-3 text-center text-xs text-slate-500 font-bold">{index + 1}</td>
+      {/* Date */}
+      <td className="px-3 py-3 text-xs text-slate-600 whitespace-nowrap">{row.date}</td>
+      {/* Requestor */}
+      <td className="px-3 py-3">
+        <p className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+          {row.name}
+          {isGnRow && (
+            <span className="text-[9px] font-black bg-purple-600 text-white px-1.5 py-0.5 rounded-full leading-none">GN</span>
+          )}
+        </p>
+        <p className="text-[10px] text-slate-500">{row.empId} · {row.dept}</p>
+        <p className="text-[10px] text-slate-400">{row.designation}</p>
+      </td>
+      {/* Purpose */}
+      <td className="px-3 py-3">
+        <p className="text-xs font-bold text-blue-600">{row.purpose}</p>
+        {row.description && (
+          <p className="text-[10px] text-slate-400 truncate max-w-[200px]">{row.description}</p>
+        )}
+      </td>
+      {/* RM Status */}
+      <td className="px-3 py-3 text-center">
+        <RmBadge status={row.rmStatus} />
+      </td>
+      {/* HOD Status — assigned dept HOD's action */}
+      <td className="px-3 py-3 text-center">
+        <HodBadge status={row.deptHodStatus} />
+      </td>
+      {/* Assigned Dept */}
+      <td className="px-3 py-3 text-xs text-slate-700 font-bold whitespace-nowrap">
+        {row.assignedDept || <span className="text-slate-300">—</span>}
+      </td>
+      {/* Actions */}
+      <td className="px-3 py-3 text-center" onClick={e => e.stopPropagation()}>
+        {row.isClosed ? (
           <button
-            onClick={() => setExpanded(p => !p)}
-            className="text-left group"
+            onClick={() => onViewDetails(row)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[11px] font-black rounded-lg transition-all active:scale-95 mx-auto whitespace-nowrap"
           >
-            <p className="text-xs font-bold text-blue-600 underline group-hover:text-blue-800 flex items-center gap-1">
-              {row.purpose}
-              {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            </p>
-            {row.description && !expanded && (
-              <p className="text-[10px] text-slate-400 truncate max-w-[200px]">{row.description}</p>
-            )}
+            <MessageSquare size={13} /> View Details
           </button>
-          {expanded && row.description && (
-            <p className="text-[11px] text-slate-600 mt-1 bg-slate-50 rounded-lg p-2 border border-slate-100 max-w-xs">
-              {row.description}
-            </p>
-          )}
-        </td>
-        {/* RM Status */}
-        <td className="px-3 py-3 text-center">
-          <RmBadge status={row.rmStatus} />
-        </td>
-        {/* HOD Status — assigned dept HOD's action */}
-        <td className="px-3 py-3 text-center">
-          <HodBadge status={row.deptHodStatus} />
-        </td>
-        {/* Assigned Dept */}
-        <td className="px-3 py-3 text-xs text-slate-700 font-bold whitespace-nowrap">
-          {row.assignedDept || <span className="text-slate-300">—</span>}
-        </td>
-        {/* Actions */}
-        <td className="px-3 py-3 text-center">
-          {row.isClosed ? (
-            <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg whitespace-nowrap">
-              Ticket Closed
-            </span>
-          ) : actioning ? (
-            <button
-              onClick={() => setActioning(false)}
-              className="text-[10px] text-slate-500 hover:text-slate-700 font-bold underline"
-            >
-              Cancel
-            </button>
-          ) : (
-            <button
-              onClick={() => setActioning(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-[11px] font-black rounded-lg transition-all active:scale-95 mx-auto whitespace-nowrap"
-            >
-              <ShieldCheck size={13} /> Take Action
-            </button>
-          )}
-        </td>
-        {/* My Status */}
-        <td className="px-3 py-3 text-center">
-          <HodBadge status={row.hodStatus} />
-        </td>
-      </tr>
-
-      {actioning && (
-        <tr>
-          <td colSpan={9} className="px-4 pb-3">
-            <ActionPanel
-              row={row}
-              onSubmit={handleSubmit}
-              onCancel={() => setActioning(false)}
-              loading={submitting}
-            />
-          </td>
-        </tr>
-      )}
-    </>
+        ) : (
+          <button
+            onClick={() => onViewDetails(row)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-[11px] font-black rounded-lg transition-all active:scale-95 mx-auto whitespace-nowrap"
+          >
+            <ShieldCheck size={13} /> Take Action
+          </button>
+        )}
+      </td>
+      {/* My Status */}
+      <td className="px-3 py-3 text-center">
+        <HodBadge status={row.hodStatus} />
+      </td>
+    </tr>
   );
 }
 
 // ── Main Portal ───────────────────────────────────────────────────────────────
 export default function ManagementPortal({ currentUser, onLogout }) {
   const navigate = useNavigate();
-  const [requests,   setRequests]   = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState("");
-  const [lastRefresh, setLastRefresh] = useState(null);
-  const [refreshing, setRefreshing]  = useState(false);
+  const [requests,      setRequests]      = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState("");
+  const [lastRefresh,   setLastRefresh]   = useState(null);
+  const [refreshing,    setRefreshing]    = useState(false);
+  const [selectedReq,   setSelectedReq]   = useState(null);
+  const [chatLogs,      setChatLogs]      = useState({});
+  const [closeTicketReq, setCloseTicketReq] = useState(null);
 
   // ── Filters ──
   const [search,        setSearch]        = useState("");
@@ -287,6 +249,48 @@ export default function ManagementPortal({ currentUser, onLogout }) {
   const handleActionComplete = useCallback(() => {
     load(true);
   }, [load]);
+
+  const handleViewDetails = useCallback(async (row) => {
+    setSelectedReq(row);
+    try {
+      const result = await fetchChat(row.id);
+      setChatLogs(prev => ({ ...prev, [row.id]: result?.data ?? result }));
+    } catch {}
+  }, []);
+
+  const handleSendMessage = async (reqId, message) => {
+    setChatLogs(prev => ({ ...prev, [reqId]: [...(prev[reqId] || []), message] }));
+    try {
+      let saved;
+      if      (message.type === "message")                           saved = await sendText(reqId, message.text, message.replyTo);
+      else if (message.type === "voice")                             saved = await sendVoice(reqId, message.voiceBlob, message.duration, message.replyTo);
+      else if (message.type === "file" || message.type === "mixed")  saved = await sendFile(reqId, message.fileBlob, message.text, message.replyTo);
+      if (saved) setChatLogs(prev => ({ ...prev, [reqId]: (prev[reqId] || []).map(m => m === message ? saved : m) }));
+    } catch {}
+  };
+
+  const handleApproval = async (reqId, decision, dateTime, user, comment, newDept, checkingDeadline, checkingReason, extras = {}) => {
+    const updated = await submitApproval(reqId, decision, comment, newDept, checkingDeadline, checkingReason, extras);
+    setRequests(prev => prev.map(r => r.id === reqId ? { ...updated, seen: true } : r));
+    if (selectedReq?.id === reqId) setSelectedReq({ ...updated, seen: true });
+    try {
+      const result = await fetchChat(reqId);
+      setChatLogs(prev => ({ ...prev, [reqId]: result?.data ?? result }));
+    } catch {}
+    load(true);
+  };
+
+  const handleConfirmCloseTicket = async (reqId, note, file) => {
+    try {
+      const updated = await closeRequest(reqId, note, file);
+      setRequests(prev => prev.map(r => r.id === reqId ? { ...updated, seen: true } : r));
+      if (selectedReq?.id === reqId) setSelectedReq({ ...updated, seen: true });
+      const result = await fetchChat(reqId);
+      setChatLogs(prev => ({ ...prev, [reqId]: result?.data ?? result }));
+    } finally {
+      setCloseTicketReq(null);
+    }
+  };
 
   const pendingCount = requests.filter(r =>
     !r.isClosed && (!r.hodStatus || r.hodStatus === "--" || r.hodStatus === "Checking")
@@ -555,7 +559,7 @@ export default function ManagementPortal({ currentUser, onLogout }) {
               <tbody>
                 {filteredRequests.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-16 text-center">
+                    <td colSpan={9} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <Search size={28} className="text-slate-300" />
                         <p className="text-sm font-black text-slate-500">No results match your filters.</p>
@@ -571,7 +575,7 @@ export default function ManagementPortal({ currentUser, onLogout }) {
                       key={row.id}
                       row={row}
                       index={idx}
-                      onActionComplete={handleActionComplete}
+                      onViewDetails={handleViewDetails}
                     />
                   ))
                 )}
@@ -580,6 +584,26 @@ export default function ManagementPortal({ currentUser, onLogout }) {
           </div>
         )}
       </main>
+
+      {selectedReq && (
+        <DetailsModal
+          req={selectedReq}
+          chatLogs={chatLogs}
+          currentUser={currentUser}
+          onClose={() => setSelectedReq(null)}
+          onSendMessage={handleSendMessage}
+          onApproval={handleApproval}
+          onOpenCloseTicket={(req) => { setCloseTicketReq(req); setSelectedReq(null); }}
+          onAcknowledge={() => {}}
+        />
+      )}
+      {closeTicketReq && (
+        <CloseTicketModal
+          req={closeTicketReq}
+          onClose={() => setCloseTicketReq(null)}
+          onConfirmClose={handleConfirmCloseTicket}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LogOut, Zap, ClipboardList, ShieldCheck, Users, UtensilsCrossed, BarChart2, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Pencil, Trash2, AlertTriangle, UserPlus, KeyRound, Search, X, Plus } from "lucide-react";
+import { LogOut, Zap, ClipboardList, ShieldCheck, Users, UtensilsCrossed, BarChart2, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Pencil, Trash2, AlertTriangle, UserPlus, KeyRound, Search, X, Plus, MessageSquare } from "lucide-react";
 
 import { fetchRequests, fetchFilterOptions, createRequest, submitApproval, acknowledgeRequest, markRequestSeen, markRequestUnread, closeRequest, editRequest, deleteRequest } from "../services/requestService";
 import { fetchUserRoles, addUserRole, updateUserRole, deleteUserRole } from "../services/userRoleService";
@@ -438,72 +438,57 @@ function MgmtActionPanel({ row, onSubmit, onCancel, loading }) {
   );
 }
 
-function MgmtRow({ row, index, onRefresh }) {
-  const [expanded,   setExpanded]   = useState(false);
-  const [actioning,  setActioning]  = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async (id, decision, comment) => {
-    setSubmitting(true);
-    try { await submitHodApproval(id, decision, comment); setActioning(false); onRefresh(); }
-    catch { setSubmitting(false); }
-  };
-
+function MgmtRow({ row, index, onViewDetails }) {
   const rowBg = row.isClosed ? "bg-emerald-50/40" : row.hodStatus === "Rejected" ? "bg-red-50/40" : "";
 
   return (
-    <>
-      <tr className={`border-b border-slate-100 hover:bg-amber-50/30 transition-colors ${rowBg}`}>
-        <td className="px-3 py-3 text-center text-xs text-slate-500 font-bold">{index + 1}</td>
-        <td className="px-3 py-3 text-xs text-slate-600 whitespace-nowrap">{row.date}</td>
-        <td className="px-3 py-3">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-black text-slate-800">{row.name}</span>
-            {row.isGnRoute && <span className="text-[9px] font-black bg-purple-600 text-white px-1.5 py-0.5 rounded-full">GN</span>}
-          </div>
-          <p className="text-[10px] text-slate-500">{row.empId} · {row.dept}</p>
-        </td>
-        <td className="px-3 py-3">
-          <button onClick={() => setExpanded(p => !p)} className="text-left group">
-            <p className="text-xs font-bold text-blue-600 underline flex items-center gap-1">
-              {row.purpose} {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            </p>
-            {!expanded && row.description && <p className="text-[10px] text-slate-400 truncate max-w-[200px]">{row.description}</p>}
+    <tr
+      className={`border-b border-slate-100 hover:bg-amber-50/30 transition-colors cursor-pointer ${rowBg}`}
+      onClick={() => onViewDetails(row)}
+    >
+      <td className="px-3 py-3 text-center text-xs text-slate-500 font-bold">{index + 1}</td>
+      <td className="px-3 py-3 text-xs text-slate-600 whitespace-nowrap">{row.date}</td>
+      <td className="px-3 py-3">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-black text-slate-800">{row.name}</span>
+          {row.isGnRoute && <span className="text-[9px] font-black bg-purple-600 text-white px-1.5 py-0.5 rounded-full">GN</span>}
+        </div>
+        <p className="text-[10px] text-slate-500">{row.empId} · {row.dept}</p>
+      </td>
+      <td className="px-3 py-3">
+        <p className="text-xs font-bold text-blue-600">{row.purpose}</p>
+        {row.description && <p className="text-[10px] text-slate-400 truncate max-w-[200px]">{row.description}</p>}
+      </td>
+      <td className="px-3 py-3 text-xs text-slate-600 whitespace-nowrap">{row.assignedDept || "—"}</td>
+      <td className="px-3 py-3 text-center"><MgmtBadge status={row.rmStatus} /></td>
+      <td className="px-3 py-3 text-center"><MgmtBadge status={row.hodStatus} /></td>
+      <td className="px-3 py-3 text-center" onClick={e => e.stopPropagation()}>
+        {row.isClosed ? (
+          <button
+            onClick={() => onViewDetails(row)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[11px] font-black rounded-lg transition-all active:scale-95 mx-auto whitespace-nowrap"
+          >
+            <MessageSquare size={13} /> View Details
           </button>
-          {expanded && row.description && (
-            <p className="text-[11px] text-slate-600 mt-1 bg-slate-50 rounded-lg p-2 border border-slate-100 max-w-xs">{row.description}</p>
-          )}
-        </td>
-        <td className="px-3 py-3 text-xs text-slate-600 whitespace-nowrap">{row.assignedDept || "—"}</td>
-        <td className="px-3 py-3 text-center"><MgmtBadge status={row.rmStatus} /></td>
-        <td className="px-3 py-3 text-center"><MgmtBadge status={row.hodStatus} /></td>
-        <td className="px-3 py-3 text-center">
-          {row.isClosed ? (
-            <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg whitespace-nowrap">Ticket Closed</span>
-          ) : actioning ? (
-            <button onClick={() => setActioning(false)} className="text-[10px] text-slate-500 hover:text-slate-700 font-bold underline">Cancel</button>
-          ) : (
-            <button onClick={() => setActioning(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-[11px] font-black rounded-lg transition-all active:scale-95 mx-auto whitespace-nowrap">
-              <ShieldCheck size={13} /> Take Action
-            </button>
-          )}
-        </td>
-      </tr>
-      {actioning && (
-        <tr>
-          <td colSpan={8} className="px-4 pb-3">
-            <MgmtActionPanel row={row} onSubmit={handleSubmit} onCancel={() => setActioning(false)} loading={submitting} />
-          </td>
-        </tr>
-      )}
-    </>
+        ) : (
+          <button
+            onClick={() => onViewDetails(row)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-[11px] font-black rounded-lg transition-all active:scale-95 mx-auto whitespace-nowrap"
+          >
+            <ShieldCheck size={13} /> Take Action
+          </button>
+        )}
+      </td>
+    </tr>
   );
 }
 
-function ManagementTab() {
-  const [rows, setRows]       = useState([]);
-  const [loading, setLoading] = useState(true);
+function ManagementTab({ currentUser }) {
+  const [rows,          setRows]          = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [selectedReq,   setSelectedReq]   = useState(null);
+  const [chatLogs,      setChatLogs]      = useState({});
+  const [closeTicketReq, setCloseTicketReq] = useState(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -513,40 +498,104 @@ function ManagementTab() {
 
   useEffect(() => { load(); }, [load]);
 
+  const handleViewDetails = useCallback(async (row) => {
+    setSelectedReq(row);
+    try {
+      const result = await fetchChat(row.id);
+      setChatLogs(prev => ({ ...prev, [row.id]: result?.data ?? result }));
+    } catch {}
+  }, []);
+
+  const handleSendMessage = async (reqId, message) => {
+    setChatLogs(prev => ({ ...prev, [reqId]: [...(prev[reqId] || []), message] }));
+    try {
+      let saved;
+      if      (message.type === "message")                           saved = await sendText(reqId, message.text, message.replyTo);
+      else if (message.type === "voice")                             saved = await sendVoice(reqId, message.voiceBlob, message.duration, message.replyTo);
+      else if (message.type === "file" || message.type === "mixed")  saved = await sendFile(reqId, message.fileBlob, message.text, message.replyTo);
+      if (saved) setChatLogs(prev => ({ ...prev, [reqId]: (prev[reqId] || []).map(m => m === message ? saved : m) }));
+    } catch {}
+  };
+
+  const handleApproval = async (reqId, decision, dateTime, user, comment, newDept, checkingDeadline, checkingReason, extras = {}) => {
+    const updated = await submitApproval(reqId, decision, comment, newDept, checkingDeadline, checkingReason, extras);
+    setRows(prev => prev.map(r => r.id === reqId ? { ...updated, seen: true } : r));
+    if (selectedReq?.id === reqId) setSelectedReq({ ...updated, seen: true });
+    try {
+      const result = await fetchChat(reqId);
+      setChatLogs(prev => ({ ...prev, [reqId]: result?.data ?? result }));
+    } catch {}
+    load(true);
+  };
+
+  const handleConfirmClose = async (reqId, note, file) => {
+    try {
+      const updated = await closeRequest(reqId, note, file);
+      setRows(prev => prev.map(r => r.id === reqId ? { ...updated, seen: true } : r));
+      if (selectedReq?.id === reqId) setSelectedReq({ ...updated, seen: true });
+      const result = await fetchChat(reqId);
+      setChatLogs(prev => ({ ...prev, [reqId]: result?.data ?? result }));
+    } finally {
+      setCloseTicketReq(null);
+    }
+  };
+
   return (
-    <div className="flex-1 min-h-0 flex flex-col gap-3">
-      <div className="flex items-center justify-between flex-shrink-0">
-        <span className="text-[11px] text-slate-500 font-bold">{rows.length} GN route requests</span>
-        <button onClick={() => load(true)} disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 text-slate-600 text-[11px] font-black rounded-xl hover:bg-slate-50 disabled:opacity-50 transition-all shadow-sm">
-          <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Refresh
-        </button>
-      </div>
-      <div className="flex-1 min-h-0 bg-white rounded-xl border border-slate-200 overflow-auto shadow-sm">
-        {loading ? (
-          <div className="flex items-center justify-center h-40">
-            <div className="w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : (
-          <table className="w-full border-collapse">
-            <thead className="sticky top-0 z-10 bg-amber-600 text-white text-[11px] font-black uppercase tracking-wide">
-              <tr>
-                {["Sl.","Date","Employee","Purpose / Desc","Assigned Dept","RM Status","HOD Status","Action"].map(h => (
-                  <th key={h} className="px-3 py-3 text-left whitespace-nowrap">{h}</th>
+    <>
+      <div className="flex-1 min-h-0 flex flex-col gap-3">
+        <div className="flex items-center justify-between flex-shrink-0">
+          <span className="text-[11px] text-slate-500 font-bold">{rows.length} GN route requests</span>
+          <button onClick={() => load(true)} disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 text-slate-600 text-[11px] font-black rounded-xl hover:bg-slate-50 disabled:opacity-50 transition-all shadow-sm">
+            <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Refresh
+          </button>
+        </div>
+        <div className="flex-1 min-h-0 bg-white rounded-xl border border-slate-200 overflow-auto shadow-sm">
+          {loading ? (
+            <div className="flex items-center justify-center h-40">
+              <div className="w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <table className="w-full border-collapse">
+              <thead className="sticky top-0 z-10 bg-amber-600 text-white text-[11px] font-black uppercase tracking-wide">
+                <tr>
+                  {["Sl.","Date","Employee","Purpose / Desc","Assigned Dept","RM Status","HOD Status","Action"].map(h => (
+                    <th key={h} className="px-3 py-3 text-left whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr><td colSpan={8} className="text-center py-10 text-slate-400 font-medium">No GN route requests found.</td></tr>
+                ) : rows.map((r, i) => (
+                  <MgmtRow key={r.id} row={r} index={i} onViewDetails={handleViewDetails} />
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-10 text-slate-400 font-medium">No GN route requests found.</td></tr>
-              ) : rows.map((r, i) => (
-                <MgmtRow key={r.id} row={r} index={i} onRefresh={() => load(true)} />
-              ))}
-            </tbody>
-          </table>
-        )}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
-    </div>
+
+      {selectedReq && (
+        <DetailsModal
+          req={selectedReq}
+          chatLogs={chatLogs}
+          currentUser={currentUser}
+          onClose={() => setSelectedReq(null)}
+          onSendMessage={handleSendMessage}
+          onApproval={handleApproval}
+          onOpenCloseTicket={(req) => { setCloseTicketReq(req); setSelectedReq(null); }}
+          onAcknowledge={() => {}}
+        />
+      )}
+      {closeTicketReq && (
+        <CloseTicketModal
+          req={closeTicketReq}
+          onClose={() => setCloseTicketReq(null)}
+          onConfirmClose={handleConfirmClose}
+        />
+      )}
+    </>
   );
 }
 
@@ -1106,7 +1155,7 @@ export default function SuperUserHome({ currentUser, onLogout, onSwitchRole }) {
         {/* GN Requests */}
         {activeTab === "management" && (
           <div className="flex-1 min-h-0 flex flex-col px-3 sm:px-6 py-4 pb-6 overflow-hidden">
-            <ManagementTab />
+            <ManagementTab currentUser={currentUser} />
           </div>
         )}
 
