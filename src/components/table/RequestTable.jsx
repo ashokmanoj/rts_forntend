@@ -3,14 +3,42 @@
  * Added: Management Status column in the Assigned Department section
  */
 
-import React, { useState, useEffect } from "react";
-import { Forward, EyeOff, Bell, Send, ThumbsUp, ThumbsDown, Pencil, Trash2 } from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Forward, EyeOff, Bell, Send, ThumbsUp, ThumbsDown, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 
 export default function RequestTable({ requests, sortMode, currentUser, onOpenDetails, onMarkUnread, onAcknowledge, onEdit, onDelete }) {
   const [contextMenu, setContextMenu] = useState(null);
   // key: `${rowId}-${action}` e.g. "42-Resolved"
   const [pendingAck, setPendingAck] = useState(null);
+
+  const scrollRef   = useRef(null);
+  const [canLeft,  setCanLeft]  = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  const updateArrows = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 0);
+    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateArrows();
+    el.addEventListener("scroll", updateArrows);
+    const ro = new ResizeObserver(updateArrows);
+    ro.observe(el);
+    return () => { el.removeEventListener("scroll", updateArrows); ro.disconnect(); };
+  }, [updateArrows]);
+
+  // Re-check arrows whenever requests change (new data may change scroll width)
+  useEffect(() => { updateArrows(); }, [requests, updateArrows]);
+
+  const scroll = (dir) => {
+    scrollRef.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
+  };
 
   const handleAck = async (e, rowId, action) => {
     e.stopPropagation();
@@ -86,7 +114,28 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-xl border overflow-auto h-full" style={{minHeight:"200px"}}>
+      <div className="relative h-full flex flex-col">
+        {/* Scroll arrow buttons */}
+        {canLeft && (
+          <button
+            onClick={() => scroll(-1)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-30 w-8 h-12 bg-white/90 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-r-xl shadow-md flex items-center justify-center text-slate-500 hover:text-indigo-600 transition-all active:scale-95"
+            title="Scroll left"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        )}
+        {canRight && (
+          <button
+            onClick={() => scroll(1)}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-30 w-8 h-12 bg-white/90 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-l-xl shadow-md flex items-center justify-center text-slate-500 hover:text-indigo-600 transition-all active:scale-95"
+            title="Scroll right"
+          >
+            <ChevronRight size={18} />
+          </button>
+        )}
+
+      <div ref={scrollRef} className="bg-white rounded-xl shadow-xl border overflow-auto h-full" style={{minHeight:"200px"}}>
         <table className="w-full border-separate border-r border-black min-w-[860px]" style={{borderSpacing:0}}>
           <thead>
             <tr className="text-slate-800 uppercase font-black text-[13px]">
@@ -348,6 +397,7 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
             })}
           </tbody>
         </table>
+      </div>
       </div>
     </>
   );
