@@ -233,7 +233,7 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
             <p className="text-[9px] font-black text-indigo-600 truncate">{replyTo.author}</p>
             <p className="text-[10px] text-slate-500 truncate leading-snug">
               {replyTo.text
-                ? replyTo.text.slice(0, 70) + (replyTo.text.length > 70 ? "…" : "")
+                ? replyTo.text.replace(/\n+/g, " ").slice(0, 70) + (replyTo.text.length > 70 ? "…" : "")
                 : replyTo.fileName ? `📎 ${replyTo.fileName}`
                 : replyTo.isVoice  ? "🎤 Voice message"
                 : ""}

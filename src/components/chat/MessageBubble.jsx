@@ -112,7 +112,7 @@ export default function MessageBubble({ log, onReply }) {
 
   // Build a short label for the replied-to message
   const replyPreviewText = log.replyTo?.text
-    ? log.replyTo.text.slice(0, 60) + (log.replyTo.text.length > 60 ? "…" : "")
+    ? log.replyTo.text.replace(/\n+/g, " ").slice(0, 60) + (log.replyTo.text.length > 60 ? "…" : "")
     : log.replyTo?.fileName
     ? `📎 ${log.replyTo.fileName}`
     : log.replyTo?.isVoice
@@ -233,7 +233,7 @@ export default function MessageBubble({ log, onReply }) {
 
             {/* ── Text / caption ── */}
             {hasText && (
-              <p className="text-slate-600 text-[11px] leading-relaxed break-words">{log.text}</p>
+              <p className="text-slate-600 text-[11px] leading-relaxed break-words whitespace-pre-wrap">{log.text}</p>
             )}
           </div>
         </div>
