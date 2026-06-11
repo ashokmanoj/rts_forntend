@@ -44,6 +44,15 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
       ]
     : requests;
 
+  // First 5 columns are frozen (sticky-left). Widths must be fixed so left offsets stay accurate.
+  const FROZEN = [
+    { left: 0,   width: 62  },  // Ticket #
+    { left: 62,  width: 90  },  // Date
+    { left: 152, width: 100 },  // User ID
+    { left: 252, width: 130 },  // Name
+    { left: 382, width: 108 },  // Dept  ← last frozen — right border used as freeze indicator
+  ];
+
   return (
     <>
       {contextMenu && (
@@ -93,11 +102,18 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
               </th>
             </tr>
             <tr className="bg-slate-100 border-l border-black text-slate-700 font-bold">
-              {["Sl.No.", "Date", "User ID", "Name", "Dept", "Designation", "Location", "RM Status", "HOD Status", "Urgency Level", "Due / Days Left"].map((h, i) => (
-                <th key={h} className={`sticky top-[45px] bg-slate-100 border-t border-b border-r border-black ${i === 0 ? "border-l" : ""} p-2 z-10 text-center whitespace-nowrap text-[11px]`}>
-                  {h}
-                </th>
-              ))}
+              {["Ticket #", "Date", "User ID", "Name", "Dept", "Designation", "Location", "RM Status", "HOD Status", "Urgency Level", "Due / Days Left"].map((h, i) => {
+                const fc = i < 5 ? FROZEN[i] : null;
+                return (
+                  <th
+                    key={h}
+                    className={`sticky top-[45px] bg-slate-100 border-t border-b border-r border-black ${i === 0 ? "border-l" : ""} ${i === 4 ? "!border-r-2 !border-r-indigo-400" : ""} p-2 ${fc ? "z-20" : "z-10"} text-center whitespace-nowrap text-[11px]`}
+                    style={fc ? { left: fc.left, minWidth: fc.width } : undefined}
+                  >
+                    {h}
+                  </th>
+                );
+              })}
               <th className="sticky top-[45px] bg-[#f1f5f9] w-8 z-10" />
               {["Details", "Department", "Assign RM", "Assign HOD", "Dept HOD Status", "Request Status"].map((h, i) => (
                 <th key={h} className={`sticky top-[45px] bg-slate-100 border-t border-b border-r border-black ${i === 0 ? "border-l" : ""} p-1 z-10 text-center whitespace-nowrap text-[11px]`}>
@@ -141,11 +157,25 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                   className={`hover:bg-blue-50/50 transition-colors ${rowBg}`}
                   onContextMenu={(e) => handleRightClick(e, row.id, row)}
                 >
-                  {[idx + 1, row.date, row.empId, row.name, row.dept, row.designation, row.location].map((val, i) => (
-                    <td key={i} className={`border-b border-r border-black ${i === 0 ? "border-l" : ""} p-2 text-center text-[11px] ${bold} whitespace-nowrap`}>
-                      {val}
-                    </td>
-                  ))}
+                  {[row.id, row.date, row.empId, row.name, row.dept, row.designation, row.location].map((val, i) => {
+                    const fc = i < 5 ? FROZEN[i] : null;
+                    const frozenBg = isClosed ? "#f0fdf4" : isPendingAck ? "#fffbeb" : isUnread ? "#eff6ff" : row.forwarded ? "#f5f8ff" : "#ffffff";
+                    return (
+                      <td
+                        key={i}
+                        className={`border-b border-r border-black ${i === 0 ? "border-l" : ""} ${i === 4 ? "!border-r-2 !border-r-indigo-400" : ""} p-2 text-center text-[11px] ${bold} whitespace-nowrap`}
+                        style={fc ? {
+                          position: "sticky",
+                          left: fc.left,
+                          minWidth: fc.width,
+                          backgroundColor: frozenBg,
+                          zIndex: 5,
+                        } : undefined}
+                      >
+                        {val}
+                      </td>
+                    );
+                  })}
                   <td className="border-b border-r border-black p-2 text-center">
                     <StatusBadge status={row.rmStatus} date={row.rmDate} />
                   </td>
