@@ -10,9 +10,10 @@ import CloseTicketModal  from "../components/modals/CloseTicketModal";
 import AddRequestModal   from "../components/modals/AddRequestModal";
 import InstructionsModal from "../components/modals/InstructionsModal";
 import BroadcastModal    from "../components/modals/BroadcastModal";
-import FoodPage          from "./FoodPage";
-import UserManagementPage from "./UserManagementPage";
-import { UtensilsCrossed, ClipboardList, LogOut, Users, CheckCircle2, XCircle, RefreshCw, ChevronDown, Megaphone } from "lucide-react";
+import FoodPage            from "./FoodPage";
+import UserManagementPage  from "./UserManagementPage";
+import RoleManagementPage  from "./RoleManagementPage";
+import { UtensilsCrossed, ClipboardList, LogOut, Users, CheckCircle2, XCircle, RefreshCw, ChevronDown, Megaphone, ShieldCheck, Headphones } from "lucide-react";
 import DashboardSkeleton from "../components/ui/DashboardSkeleton";
 import TableSkeleton     from "../components/ui/TableSkeleton";
 
@@ -53,6 +54,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   const [closeTicketReq,   setCloseTicketReq]   = useState(null);
   const [showInstructions, setShowInstructions] = useState(false);
   const [showBroadcast,    setShowBroadcast]    = useState(false);
+  const [showHelpModal,    setShowHelpModal]    = useState(false);
   const [loadingReqs,      setLoadingReqs]      = useState(true);
   const [isFiltering,      setIsFiltering]      = useState(false); // For subtle loading state
   const [fetchError,       setFetchError]       = useState("");
@@ -332,6 +334,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
           const showFoodTab     = isSuperUser || (isBengaluru && !isDeptHOD) || isFoodReportHOD;
           const isHRDeptHOD     = isDeptHOD && currentUser?.dept === 'HR';
           const showMgmtTab     = isSuperUser || isHRDeptHOD;
+          const showRolesTab    = isSuperUser || isHRDeptHOD;
 
           return (
             <div className="flex items-center gap-2">
@@ -364,6 +367,16 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
                     }`}
                   >
                     <Users size={14} /> User Management
+                  </button>
+                )}
+                {showRolesTab && (
+                  <button
+                    onClick={() => setActiveTab("roles")}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-black text-[11px] transition-all ${
+                      activeTab === "roles" ? "bg-violet-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    <ShieldCheck size={14} /> Roles
                   </button>
                 )}
               </div>
@@ -469,6 +482,13 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
           </div>
         )}
 
+        {/* Roles Tab */}
+        {activeTab === "roles" && (
+          <div className="h-full overflow-y-auto">
+            <RoleManagementPage currentUser={currentUser} />
+          </div>
+        )}
+
         {/* Food Tab */}
         {activeTab === "food" && (
           <div className="h-full overflow-y-auto">
@@ -534,6 +554,14 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
             {activeModal === "add" && (
               <AddRequestModal onClose={() => setActiveModal(null)} onSubmit={handleAddRequest} currentUser={currentUser} />
             )}
+            {showHelpModal && (
+              <AddRequestModal
+                onClose={() => setShowHelpModal(false)}
+                onSubmit={async (data) => { await handleAddRequest(data); setShowHelpModal(false); }}
+                currentUser={currentUser}
+                initialDept="RTS Help Desk"
+              />
+            )}
             {showInstructions && <InstructionsModal onClose={() => setShowInstructions(false)} />}
             {showBroadcast && <BroadcastModal onClose={() => setShowBroadcast(false)} />}
 
@@ -541,6 +569,20 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
         )}
 
       </div>
+
+      {/* ── RTS Help Desk Floating Button ───────────────────────────────────── */}
+      {!["Admin", "SuperUser"].includes(currentUser?.role) && (
+        <button
+          onClick={() => setShowHelpModal(true)}
+          title="Contact RTS Help Desk"
+          className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-full shadow-2xl shadow-indigo-300 flex items-center justify-center transition-all group"
+        >
+          <Headphones size={24} />
+          <span className="absolute right-16 bg-slate-800 text-white text-[11px] font-black px-3 py-1.5 rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
+            RTS Help Desk
+          </span>
+        </button>
+      )}
 
       {/* ── Toast Notification ──────────────────────────────────────────────── */}
       {toast && (

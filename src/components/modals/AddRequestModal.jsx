@@ -228,12 +228,12 @@ function CalendarPicker({ value, onChange, minDateStr }) {
   );
 }
 
-export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
+export default function AddRequestModal({ onClose, onSubmit, currentUser, initialDept }) {
   const [purpose,      setPurpose]      = useState("");
   const [description,  setDescription]  = useState("");
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
-  const [selectedDept, setSelectedDept] = useState("");
+  const [selectedDept, setSelectedDept] = useState(initialDept || "");
   const [dueDate,      setDueDate]      = useState("");
 
   const [isDragging,   setIsDragging]   = useState(false);
@@ -374,8 +374,15 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
       <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200 max-h-[95dvh] flex flex-col">
 
         {/* Header */}
-        <div className="p-5 border-b flex justify-between items-center bg-slate-50/50 flex-shrink-0">
-          <h2 className="text-xl font-black uppercase tracking-tighter text-slate-800">Add Request</h2>
+        <div className={`p-5 border-b flex justify-between items-center flex-shrink-0 ${initialDept ? "bg-indigo-50/60" : "bg-slate-50/50"}`}>
+          <div>
+            <h2 className="text-xl font-black uppercase tracking-tighter text-slate-800">
+              {initialDept ? "RTS Help Desk" : "Add Request"}
+            </h2>
+            {initialDept && (
+              <p className="text-[11px] text-indigo-500 font-bold mt-0.5">Submit a support ticket to the RTS team</p>
+            )}
+          </div>
           <button onClick={onClose} className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors">
             <X size={22} />
           </button>
@@ -399,14 +406,25 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser }) {
             </div>
           )}
 
-          {/* Single dept selector */}
-          <SearchableSelect
-            value={selectedDept}
-            onChange={setSelectedDept}
-            options={DEPARTMENTS}
-            placeholder="Select Department to Assign"
-            triggerClassName="px-5 py-4 bg-slate-100 rounded-2xl font-medium text-[13px] hover:bg-slate-200"
-          />
+          {/* Dept selector — locked when initialDept is provided */}
+          {initialDept ? (
+            <div className="flex items-center gap-3 bg-indigo-50 border-2 border-indigo-200 rounded-2xl px-5 py-3.5">
+              <div className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-0.5">Assigned Department</p>
+                <p className="text-[15px] font-black text-indigo-700">{initialDept}</p>
+              </div>
+              <span className="text-[9px] font-black text-indigo-300 uppercase tracking-widest bg-indigo-100 px-2 py-1 rounded-lg">Fixed</span>
+            </div>
+          ) : (
+            <SearchableSelect
+              value={selectedDept}
+              onChange={setSelectedDept}
+              options={DEPARTMENTS}
+              placeholder="Select Department to Assign"
+              triggerClassName="px-5 py-4 bg-slate-100 rounded-2xl font-medium text-[13px] hover:bg-slate-200"
+            />
+          )}
 
           {/* Due date */}
           <div className="space-y-1.5">
