@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   X, Upload, ChevronDown, ChevronLeft, ChevronRight,
   FileText, FileSpreadsheet, FileImage,
-  Film, Music, Archive, File, Calendar, AlertTriangle, Clipboard,
+  Film, Music, Archive, File, Calendar, AlertTriangle, Clipboard, Lock,
+  PenLine, Building2, MessageSquare, Paperclip,
 } from "lucide-react";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import Spinner from "../ui/Spinner";
@@ -391,76 +392,101 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
         <div className="p-6 space-y-4 overflow-y-auto flex-1">
 
           {/* Title */}
-          <input
-            className="w-full bg-slate-100 p-4 rounded-2xl text-center border-none focus:ring-2 focus:ring-indigo-500 font-semibold outline-none text-[16px]"
-            placeholder="Enter title / purpose of your request"
-            value={purpose}
-            onChange={(e) => setPurpose(e.target.value)}
-          />
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+              <PenLine size={10} /> Request Title <span className="text-red-400">*</span>
+            </label>
+            <input
+              className="w-full bg-slate-50 border-2 border-slate-200 hover:border-slate-300 focus:border-indigo-400 focus:bg-white px-5 py-3.5 rounded-2xl font-semibold outline-none text-[15px] text-slate-800 placeholder:text-slate-300 transition-all"
+              placeholder="What do you need help with?"
+              value={purpose}
+              onChange={(e) => setPurpose(e.target.value)}
+            />
+          </div>
 
           {/* Your Department */}
           {currentUser?.dept && (
-            <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-2xl px-5 py-3">
-              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Your Department</span>
-              <span className="text-[15px] font-black text-indigo-700 ml-auto">{currentUser.dept}</span>
+            <div className="flex items-center gap-3 bg-indigo-50 border-2 border-indigo-200 rounded-2xl px-5 py-3.5">
+              <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                <Lock size={14} className="text-indigo-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-0.5">Your Department</p>
+                <p className="text-[15px] font-black text-indigo-700">{currentUser.dept}</p>
+              </div>
+              <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-100 px-2.5 py-1 rounded-lg border border-indigo-200">Locked</span>
             </div>
           )}
 
           {/* Dept selector — locked when initialDept is provided */}
-          {initialDept ? (
-            <div className="flex items-center gap-3 bg-indigo-50 border-2 border-indigo-200 rounded-2xl px-5 py-3.5">
-              <div className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-0.5">Assigned Department</p>
-                <p className="text-[15px] font-black text-indigo-700">{initialDept}</p>
+          <div className="space-y-1.5">
+            {!initialDept && (
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                <Building2 size={10} /> Assign to Department
+              </label>
+            )}
+            {initialDept ? (
+              <div className="flex items-center gap-3 bg-indigo-50 border-2 border-indigo-200 rounded-2xl px-5 py-3.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                  <Lock size={14} className="text-indigo-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-0.5">Assigned Department</p>
+                  <p className="text-[15px] font-black text-indigo-700">{initialDept}</p>
+                </div>
+                <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-100 px-2.5 py-1 rounded-lg border border-indigo-200">Fixed</span>
               </div>
-              <span className="text-[9px] font-black text-indigo-300 uppercase tracking-widest bg-indigo-100 px-2 py-1 rounded-lg">Fixed</span>
-            </div>
-          ) : (
-            <SearchableSelect
-              value={selectedDept}
-              onChange={setSelectedDept}
-              options={DEPARTMENTS}
-              placeholder="Select Department to Assign"
-              triggerClassName="px-5 py-4 bg-slate-100 rounded-2xl font-medium text-[13px] hover:bg-slate-200"
-            />
-          )}
+            ) : (
+              <SearchableSelect
+                value={selectedDept}
+                onChange={setSelectedDept}
+                options={DEPARTMENTS}
+                placeholder="Select department…"
+                triggerClassName="px-5 py-3.5 bg-slate-50 border-2 border-slate-200 hover:border-slate-300 rounded-2xl font-medium text-[13px] transition-all"
+              />
+            )}
+          </div>
 
           {/* Due date */}
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-              <Calendar size={11} /> Required By (Due Date) — optional
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+              <Calendar size={10} /> Required By <span className="text-slate-300 font-medium normal-case tracking-normal">— optional</span>
             </label>
             <CalendarPicker value={dueDate} onChange={setDueDate} minDateStr={today} />
             {urgencyInfo && (
               <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black ${urgencyInfo.color}`}>
                 <AlertTriangle size={13} />
-                <span>Urgency Level: {urgencyInfo.label}</span>
+                <span>Urgency: {urgencyInfo.label}</span>
                 <span className="ml-auto font-medium">
-                  {urgencyInfo.days < 0
-                    ? "Overdue!"
-                    : urgencyInfo.days === 0
-                    ? "Due today"
-                    : `${urgencyInfo.days} day${urgencyInfo.days !== 1 ? "s" : ""} remaining`}
+                  {urgencyInfo.days < 0 ? "Overdue!" : urgencyInfo.days === 0 ? "Due today" : `${urgencyInfo.days} day${urgencyInfo.days !== 1 ? "s" : ""} remaining`}
                 </span>
               </div>
             )}
           </div>
 
           {/* Description */}
-          <textarea
-            className="w-full bg-slate-100 p-4 rounded-2xl text-left border-none h-28 focus:ring-2 focus:ring-indigo-500 resize-none font-medium outline-none text-[14px]"
-            placeholder="Describe your request in detail..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+              <MessageSquare size={10} /> Description <span className="text-slate-300 font-medium normal-case tracking-normal">— optional</span>
+            </label>
+            <textarea
+              className="w-full bg-slate-50 border-2 border-slate-200 hover:border-slate-300 focus:border-indigo-400 focus:bg-white px-5 py-3.5 rounded-2xl text-left h-28 resize-none font-medium outline-none text-[14px] text-slate-800 placeholder:text-slate-300 transition-all"
+              placeholder="Describe your request in detail…"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
 
           {/* Upload zone */}
+          <div className="space-y-1.5">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+            <Paperclip size={10} /> Attachments <span className="text-slate-300 font-medium normal-case tracking-normal">— optional</span>
+          </label>
           <div
-            className={`relative border-4 border-dashed min-h-[150px] flex flex-col items-center justify-center rounded-3xl transition-all duration-200 overflow-hidden p-4
+            className={`relative border-2 border-dashed min-h-[130px] flex flex-col items-center justify-center rounded-2xl transition-all duration-200 overflow-hidden p-4
               ${isDragging
                 ? "border-indigo-400 bg-indigo-50 scale-[1.01]"
-                : "border-slate-100 bg-slate-50 hover:bg-blue-50/40 hover:border-slate-200 group"
+                : "border-slate-200 bg-slate-50 hover:bg-indigo-50/30 hover:border-indigo-300 group"
               }`}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
@@ -477,26 +503,23 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
 
             {uploadedFiles.length === 0 ? (
               <>
-                <Upload className={`mb-2 transition-colors ${isDragging ? "text-indigo-400" : "text-slate-300 group-hover:text-blue-400"}`} size={30} />
-                <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px] text-center">
-                  Upload images, PDF, Excel, CSV, ZIP, RAR — max 10 files / 20 MB total
-                </span>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[9px] text-slate-300 font-medium">Drag & drop</span>
-                  <span className="text-slate-200 text-[9px]">·</span>
-                  <span className="text-[9px] text-slate-300 font-medium flex items-center gap-1">
-                    <Clipboard size={9} /> Paste (Ctrl+V)
-                  </span>
-                  <span className="text-slate-200 text-[9px]">·</span>
-                  <span className="text-[9px] text-slate-300 font-medium">Browse</span>
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-colors ${isDragging ? "bg-indigo-100" : "bg-slate-100 group-hover:bg-indigo-100"}`}>
+                  <Upload className={`transition-colors ${isDragging ? "text-indigo-500" : "text-slate-400 group-hover:text-indigo-500"}`} size={22} />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="mt-3 bg-indigo-900 text-white px-5 py-1.5 rounded-xl text-xs font-black shadow-lg active:scale-95 transition-transform"
-                >
-                  Select files
-                </button>
+                <p className="text-[13px] font-black text-slate-500 group-hover:text-indigo-600 transition-colors">Drop files here or browse</p>
+                <p className="text-[10px] text-slate-300 font-medium mt-0.5">Images · PDF · Excel · Word · ZIP — max 10 files / 20 MB</p>
+                <div className="flex items-center gap-3 mt-3">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-xl text-[11px] font-black shadow-md active:scale-95 transition-all"
+                  >
+                    Select Files
+                  </button>
+                  <span className="text-[10px] text-slate-300 flex items-center gap-1 font-medium">
+                    <Clipboard size={9} /> Ctrl+V to paste
+                  </span>
+                </div>
               </>
             ) : (
               <div className="w-full space-y-3">
@@ -536,6 +559,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
             )}
             <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.csv,.xlsx,.xls,.zip,.rar,.7z,.tar,.gz" multiple onChange={handleFileChange} />
           </div>
+          </div>
 
           {fileError && (
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 -mt-1">
@@ -553,16 +577,19 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
           )}
 
           {/* Actions */}
-          <div className="flex gap-4 pt-2">
-            <button onClick={onClose} className="flex-1 bg-red-500 text-white py-4 rounded-2xl font-black text-base hover:bg-red-600 shadow-lg active:scale-95 transition-all">
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={onClose}
+              className="flex-[0.4] py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl font-black text-[13px] active:scale-95 transition-all"
+            >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
               disabled={!purpose.trim() || submitting}
-              className="flex-1 bg-emerald-500 text-white py-4 rounded-2xl font-black text-base hover:bg-emerald-600 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all flex items-center justify-center gap-2"
+              className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-[13px] shadow-lg shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all flex items-center justify-center gap-2"
             >
-              {submitting ? <><Spinner size={16}/> Submitting…</> : "Submit"}
+              {submitting ? <><Spinner size={16}/> Submitting…</> : "Submit Request"}
             </button>
           </div>
         </div>
