@@ -958,6 +958,21 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                 </div>
               )}
 
+              {/* Forwarded-away notice — shown to RM/HOD/DeptHOD whose dept is no longer the assigned dept */}
+              {isForwardedAway && (isRM || isHOD || isDeptHOD) && !isClosed && (
+                <div className="border-t border-slate-100 pt-3">
+                  <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                    <Forward size={16} className="text-blue-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-black text-blue-700 uppercase tracking-wide">Forwarded to {req?.assignedDept}</p>
+                      <p className="text-[10px] text-blue-500 font-medium mt-0.5">
+                        This ticket has been forwarded. {req?.assignedDept} team will take action next.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Due date / priority info */}
               {req?.dueDate && (
                 <div className={`rounded-xl p-3 border flex items-center gap-3 ${
