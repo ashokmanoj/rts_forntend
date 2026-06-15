@@ -156,8 +156,8 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const isManagement = roleLow === "management";
   const isAdmin      = roleLow === "admin";
   const isOwnRequest = req?.empId === currentUser?.empId;
-  const isFromOtherDept = req?.dept !== currentUser?.dept;
-  const isAssignedToMyDept = req?.assignedDept === currentUser?.dept;
+  const isFromOtherDept = (req?.dept || "").trim().toLowerCase() !== (currentUser?.dept || "").trim().toLowerCase();
+  const isAssignedToMyDept = (req?.assignedDept || "").trim().toLowerCase() === (currentUser?.dept || "").trim().toLowerCase();
   const isTeamMemberIncoming = isFromOtherDept && isAssignedToMyDept;
 
   // If this RM/HOD is from the assigned dept (not requestor's dept) → use assigned fields
@@ -176,7 +176,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   // Management can always act regardless of forwarding.
   const isForwardedAway = !!(
     req?.forwarded &&
-    req?.assignedDept !== currentUser?.dept &&
+    (req?.assignedDept || "").trim().toLowerCase() !== (currentUser?.dept || "").trim().toLowerCase() &&
     !isManagement &&
     !isOwnRequest
   );
