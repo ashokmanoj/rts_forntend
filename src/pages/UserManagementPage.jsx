@@ -6,7 +6,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { get, post, patch } from "../services/api";
 import {
   UserPlus,
@@ -29,13 +29,14 @@ import {
   FileText,
   AlertCircle,
   CheckCircle,
-  XCircle
+  XCircle,
+  Check
 } from "lucide-react";
 import SearchableSelect from "../components/ui/SearchableSelect";
 
 const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Intern"];
 const DEPARTMENTS = [
-  "Academics-Assam", "Academics-Karnataka", "Academics-Tripura", "Academics-Uttarakhand",
+  "Academics-Assam", "Academics-Karnataka", "Academics-Mizoram", "Academics-Tripura", "Academics-Uttarakhand",
   "Accounts-A", "Accounts-G", "Animation",
   "Broadcasting-Assam", "Broadcasting-Karnataka", "Broadcasting-Tripura", "Broadcasting-Uttarakhand",
   "Business Development", "Corporate Communications", "Documentation",
@@ -47,6 +48,93 @@ const DEPARTMENTS = [
   "System Admin-Assam", "System Admin-Karnataka", "System Admin-Uttarakhand",
   "TA Committee", "Technical Support"
 ];
+
+function EmpIdPicker({ value, onChange, users, placeholder = "Search by ID or name…" }) {
+  const [open, setOpen]       = useState(false);
+  const [query, setQuery]     = useState("");
+  const ref                   = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const selected = users.find(u => u.empId === value);
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    if (!q) return users.slice(0, 80);
+    return users.filter(u =>
+      u.empId.toLowerCase().includes(q) || u.name.toLowerCase().includes(q)
+    ).slice(0, 80);
+  }, [users, query]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => { setOpen(v => !v); setQuery(""); }}
+        className="w-full flex items-center justify-between gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none text-left"
+      >
+        {selected ? (
+          <span className="flex flex-col leading-tight">
+            <span className="font-black text-slate-800 text-[12px]">{selected.empId}</span>
+            <span className="text-[10px] text-slate-500 font-medium">{selected.name}</span>
+          </span>
+        ) : (
+          <span className="text-slate-400 font-medium text-[12px]">{placeholder}</span>
+        )}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {value && (
+            <span
+              role="button"
+              onClick={(e) => { e.stopPropagation(); onChange(""); }}
+              className="p-0.5 hover:bg-red-100 hover:text-red-500 rounded-full transition-colors"
+            >
+              <X size={12} />
+            </span>
+          )}
+          <ChevronDown size={14} className={`text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        </div>
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+          <div className="p-2 border-b border-slate-100">
+            <div className="relative">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                autoFocus
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search ID or name…"
+                className="w-full pl-7 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[12px] font-medium focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              />
+            </div>
+          </div>
+          <ul className="max-h-48 overflow-y-auto divide-y divide-slate-50">
+            {filtered.length === 0 ? (
+              <li className="px-3 py-3 text-[11px] text-slate-400 font-bold text-center">No users found</li>
+            ) : filtered.map(u => (
+              <li
+                key={u.empId}
+                onClick={() => { onChange(u.empId); setOpen(false); setQuery(""); }}
+                className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors hover:bg-indigo-50 ${value === u.empId ? "bg-indigo-50" : ""}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] font-black text-slate-800 truncate">{u.empId} — {u.name}</p>
+                  <p className="text-[10px] text-slate-400 font-medium truncate">{u.dept} · {u.role}</p>
+                </div>
+                {value === u.empId && <Check size={13} className="text-indigo-600 flex-shrink-0" />}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function UserManagementPage({ currentUser }) {
   const [users, setUsers] = useState([]);
@@ -765,23 +853,21 @@ export default function UserManagementPage({ currentUser }) {
               {/* RM & HOD IDs */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Reporting Manager ID</label>
-                  <input
-                    type="text"
+                  <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Reporting Manager</label>
+                  <EmpIdPicker
                     value={formData.rmEmpId}
-                    onChange={(e) => setFormData({ ...formData, rmEmpId: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-                    placeholder="e.g. GN-01"
+                    onChange={(val) => setFormData({ ...formData, rmEmpId: val })}
+                    users={users}
+                    placeholder="Select RM…"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-500 uppercase ml-1">HOD Employee ID</label>
-                  <input
-                    type="text"
+                  <label className="text-[11px] font-black text-slate-500 uppercase ml-1">HOD</label>
+                  <EmpIdPicker
                     value={formData.hodEmpId}
-                    onChange={(e) => setFormData({ ...formData, hodEmpId: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-                    placeholder="e.g. GN-1042"
+                    onChange={(val) => setFormData({ ...formData, hodEmpId: val })}
+                    users={users}
+                    placeholder="Select HOD…"
                   />
                 </div>
               </div>
@@ -1034,21 +1120,21 @@ export default function UserManagementPage({ currentUser }) {
               {/* RM & HOD IDs */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Reporting Manager ID</label>
-                  <input
-                    type="text"
+                  <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Reporting Manager</label>
+                  <EmpIdPicker
                     value={editFormData.rmEmpId}
-                    onChange={(e) => setEditFormData({ ...editFormData, rmEmpId: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                    onChange={(val) => setEditFormData({ ...editFormData, rmEmpId: val })}
+                    users={users}
+                    placeholder="Select RM…"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-500 uppercase ml-1">HOD Employee ID</label>
-                  <input
-                    type="text"
+                  <label className="text-[11px] font-black text-slate-500 uppercase ml-1">HOD</label>
+                  <EmpIdPicker
                     value={editFormData.hodEmpId}
-                    onChange={(e) => setEditFormData({ ...editFormData, hodEmpId: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                    onChange={(val) => setEditFormData({ ...editFormData, hodEmpId: val })}
+                    users={users}
+                    placeholder="Select HOD…"
                   />
                 </div>
               </div>

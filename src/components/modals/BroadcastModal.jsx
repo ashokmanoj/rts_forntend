@@ -4,7 +4,7 @@ import { post, get } from "../../services/api";
 import SearchableSelect from "../ui/SearchableSelect";
 
 const DEPARTMENTS = [
-  "Academics-Assam","Academics-Karnataka","Academics-Tripura","Academics-Uttarakhand",
+  "Academics-Assam","Academics-Karnataka","Academics-Mizoram","Academics-Tripura","Academics-Uttarakhand",
   "Accounts-A","Accounts-G","Animation",
   "Broadcasting-Assam","Broadcasting-Karnataka","Broadcasting-Tripura","Broadcasting-Uttarakhand",
   "Business Development","Corporate Communications","Documentation",

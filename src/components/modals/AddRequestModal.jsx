@@ -10,7 +10,7 @@ import Spinner from "../ui/Spinner";
 import { get } from "../../services/api";
 
 const DEPARTMENTS = [
-  "Academics-Assam","Academics-Karnataka","Academics-Tripura","Academics-Uttarakhand",
+  "Academics-Assam","Academics-Karnataka","Academics-Mizoram","Academics-Tripura","Academics-Uttarakhand",
   "Accounts-A","Accounts-G","Animation",
   "Broadcasting-Assam","Broadcasting-Karnataka","Broadcasting-Tripura","Broadcasting-Uttarakhand",
   "Business Development","Corporate Communications","Documentation",
@@ -418,7 +418,11 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
     const allowed  = newFiles.filter(isAllowedFile);
     const rejected = newFiles.filter(f => !isAllowedFile(f));
     if (rejected.length) {
-      setFileError(`Unsupported: ${rejected.map(f => f.name).join(", ")}`);
+      const names = rejected.map(f => f.name).join(", ");
+      setFileError(
+        `"${names}" — unsupported format.\n` +
+        `Allowed: Images · PDF · Word (doc/docx) · Excel (xlsx/xls) · CSV · Video · Audio · Archives (zip/rar/7z)`
+      );
       if (!allowed.length) return;
     }
     const combined = [...uploadedFiles, ...allowed];
@@ -952,7 +956,11 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
           {fileError && (
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 -mt-1">
               <span className="text-red-500 text-[11px] font-black flex-shrink-0 mt-px">✕</span>
-              <p className="text-[11px] text-red-700 leading-relaxed">{fileError}</p>
+              <div className="text-[11px] text-red-700 leading-relaxed">
+                {fileError.split("\n").map((line, i) => (
+                  <p key={i} className={i === 1 ? "text-red-500 mt-0.5" : "font-bold"}>{line}</p>
+                ))}
+              </div>
             </div>
           )}
 
