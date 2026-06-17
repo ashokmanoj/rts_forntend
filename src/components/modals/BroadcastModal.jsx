@@ -6,7 +6,7 @@ import SearchableSelect from "../ui/SearchableSelect";
 const DEPARTMENTS = [
   "Academics-Assam","Academics-Karnataka","Academics-Mizoram","Academics-Tripura","Academics-Uttarakhand",
   "Accounts-A","Accounts-G","Animation",
-  "Broadcasting-Assam","Broadcasting-Karnataka","Broadcasting-Tripura","Broadcasting-Uttarakhand",
+  "Broadcasting-Assam","Broadcasting-Karnataka","Broadcasting-Mizoram","Broadcasting-Tripura","Broadcasting-Uttarakhand",
   "Business Development","Corporate Communications","Documentation",
   "Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing",
   "Operations-Assam","Operations-Bihar","Operations-Karnataka","Operations-Maharashtra",

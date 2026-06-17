@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronDown, Search, X, Check } from "lucide-react";
+import { createPortal } from "react-dom";
 
 /**
  * Compact searchable dropdown — replaces all native <select> elements.
@@ -24,17 +25,18 @@ export default function SearchableSelect({
   triggerClassName = "",
   multiSelect = false,
 }) {
-  const [open,  setOpen]  = useState(false);
-  const [query, setQuery] = useState("");
-  const rootRef  = useRef(null);
-  const inputRef = useRef(null);
+  const [open,    setOpen]    = useState(false);
+  const [query,   setQuery]   = useState("");
+  const [rect,    setRect]    = useState(null);
+  const triggerRef = useRef(null);
+  const panelRef   = useRef(null);
+  const inputRef   = useRef(null);
 
-  // Normalise to {value, label} regardless of input shape
+  // Normalise to {value, label}
   const normalised = options.map(o =>
     typeof o === "object" ? o : { value: String(o), label: String(o) }
   );
 
-  // ── Label shown on the trigger button ──────────────────────────────────────
   const getTriggerLabel = () => {
     if (multiSelect) {
       const arr = Array.isArray(value) ? value : [];
@@ -51,16 +53,46 @@ export default function SearchableSelect({
     o.label.toLowerCase().includes(query.toLowerCase())
   );
 
+  // Compute panel position from trigger bounding rect
+  const openPanel = () => {
+    if (disabled) return;
+    const r = triggerRef.current?.getBoundingClientRect();
+    if (r) setRect(r);
+    setOpen(p => !p);
+  };
+
+  // Reposition on scroll / resize while open
+  const reposition = useCallback(() => {
+    if (!open) return;
+    const r = triggerRef.current?.getBoundingClientRect();
+    if (r) setRect(r);
+  }, [open]);
+
   useEffect(() => {
+    if (!open) return;
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [open, reposition]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
     const close = (e) => {
-      if (rootRef.current && !rootRef.current.contains(e.target)) {
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target) &&
+        panelRef.current   && !panelRef.current.contains(e.target)
+      ) {
         setOpen(false);
         setQuery("");
       }
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
-  }, []);
+  }, [open]);
 
   useEffect(() => {
     if (open && inputRef.current) inputRef.current.focus();
@@ -71,7 +103,6 @@ export default function SearchableSelect({
       const arr = Array.isArray(value) ? value : [];
       const next = arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val];
       onChange(next);
-      // Stay open for multi-select
     } else {
       onChange(val);
       setOpen(false);
@@ -93,13 +124,29 @@ export default function SearchableSelect({
   const defaultTrigger =
     "p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold hover:border-indigo-300";
 
+  // Panel position: drop down below trigger; flip up if near bottom of viewport
+  const panelStyle = rect ? (() => {
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const panelH = 260; // approx max panel height
+    const top = spaceBelow >= panelH
+      ? rect.bottom + 4
+      : rect.top - panelH - 4;
+    return {
+      position: "fixed",
+      top,
+      left:  rect.left,
+      width: rect.width,
+      zIndex: 9999,
+    };
+  })() : {};
+
   return (
-    <div ref={rootRef} className={`relative ${className}`}>
+    <div ref={triggerRef} className={`relative ${className}`}>
       {/* ── Trigger button ── */}
       <button
         type="button"
         disabled={disabled}
-        onClick={() => !disabled && setOpen(p => !p)}
+        onClick={openPanel}
         className={`w-full flex items-center justify-between gap-2 text-left transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400
           ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}
           ${triggerClassName || defaultTrigger}`}
@@ -125,20 +172,24 @@ export default function SearchableSelect({
         </span>
       </button>
 
-      {/* ── Dropdown panel ── */}
-      {open && (
-        <div className="absolute z-[999] mt-1 w-full min-w-[160px] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden">
+      {/* ── Dropdown panel — rendered in a portal so it escapes overflow:hidden ── */}
+      {open && rect && createPortal(
+        <div
+          ref={panelRef}
+          style={panelStyle}
+          className="bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden"
+        >
           {/* Search bar */}
           <div className="p-2 border-b border-slate-100">
-            <div className="flex items-center gap-1.5 px-2 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
-              <Search size={12} className="shrink-0 text-slate-400" />
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 focus-within:border-indigo-400 transition-colors">
+              <Search size={13} className="shrink-0 text-slate-400" />
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Search…"
-                className="flex-1 text-xs bg-transparent outline-none text-slate-700 placeholder-slate-400 min-w-0"
+                className="flex-1 text-[12px] font-medium bg-transparent outline-none text-slate-700 placeholder-slate-400 min-w-0"
               />
               {query && (
                 <button type="button" onClick={() => setQuery("")} className="shrink-0">
@@ -164,30 +215,33 @@ export default function SearchableSelect({
             </div>
           )}
 
-          {/* Options list — fixed height, scrollable */}
-          <div className="overflow-y-auto max-h-44 py-1">
+          {/* Options list */}
+          <div className="overflow-y-auto max-h-48 py-1">
             {filtered.length === 0 ? (
-              <p className="text-[11px] text-slate-400 text-center py-3">No results</p>
+              <p className="text-[11px] text-slate-400 text-center py-4">No results</p>
             ) : (
               filtered.map(opt => {
-                const selected = isSelected(opt.value);
+                const sel = isSelected(opt.value);
                 return (
                   <button
                     key={opt.value}
                     type="button"
                     onClick={() => handleSelect(opt.value)}
-                    className={`w-full flex items-center gap-2 text-left px-3 py-2 text-xs transition-colors
-                      ${selected
+                    className={`w-full flex items-center gap-2.5 text-left px-3 py-2.5 text-[12px] transition-colors
+                      ${sel
                         ? "bg-indigo-50 text-indigo-700 font-black"
-                        : "text-slate-700 font-medium hover:bg-indigo-50 hover:text-indigo-700"}`}
+                        : "text-slate-700 font-medium hover:bg-slate-50 hover:text-indigo-700"}`}
                   >
                     {multiSelect && (
                       <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors
-                        ${selected ? "bg-indigo-600 border-indigo-600" : "border-slate-300"}`}>
-                        {selected && <Check size={9} className="text-white" strokeWidth={3} />}
+                        ${sel ? "bg-indigo-600 border-indigo-600" : "border-slate-300"}`}>
+                        {sel && <Check size={9} className="text-white" strokeWidth={3} />}
                       </span>
                     )}
                     <span className="truncate">{opt.label}</span>
+                    {!multiSelect && sel && (
+                      <Check size={13} className="ml-auto shrink-0 text-indigo-600" strokeWidth={3} />
+                    )}
                   </button>
                 );
               })
@@ -200,13 +254,14 @@ export default function SearchableSelect({
               <button
                 type="button"
                 onClick={() => { setOpen(false); setQuery(""); }}
-                className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-lg transition-colors"
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[12px] font-black rounded-xl transition-colors"
               >
                 Done
               </button>
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -38,7 +38,7 @@ const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Inte
 const DEPARTMENTS = [
   "Academics-Assam", "Academics-Karnataka", "Academics-Mizoram", "Academics-Tripura", "Academics-Uttarakhand",
   "Accounts-A", "Accounts-G", "Animation",
-  "Broadcasting-Assam", "Broadcasting-Karnataka", "Broadcasting-Tripura", "Broadcasting-Uttarakhand",
+  "Broadcasting-Assam", "Broadcasting-Karnataka", "Broadcasting-Mizoram", "Broadcasting-Tripura", "Broadcasting-Uttarakhand",
   "Business Development", "Corporate Communications", "Documentation",
   "Facilities", "Food Committee", "Game Development", "Govt. Relations", "HR", "Interns", "Management",
   "Marketing",
@@ -47,6 +47,49 @@ const DEPARTMENTS = [
   "Stores-Assam", "Stores-Karnataka", "Stores-Mizoram", "Stores-Tripura",
   "System Admin-Assam", "System Admin-Karnataka", "System Admin-Uttarakhand",
   "TA Committee", "Technical Support"
+];
+
+const LOCATIONS = [
+  "Agartala", "Bangalore", "Bhagalpur", "Cachar", "Chamoli", "Delhi", "Dehradun",
+  "Dhemaji", "Diphu", "Guwahati", "Hubli", "Kokrajhar", "Maharashtra", "Nagaland",
+  "Silchar", "Singrauli", "Sonbhadra", "Aizawl"
+];
+
+const DESIGNATIONS = [
+  "Associate Cloud Data Engineer", "2D Animator", "2D Artist", "3D Animator", "3D Artist",
+  "3D Generalist", "3D Modelling", "Academic head-Education and Training", "Accounts Executive",
+  "AI Artist", "AI Developer", "Assistant", "Assistant Finance Manager",
+  "Asst Executive - Management", "Asst. Manager Operations", "Asst.HR Manager",
+  "Business Development Executive", "CEO", "Chief Operating Officer", "Content Writer",
+  "Coordinator", "Data Analyst", "Data Coordinator", "Data Engineer", "Data Entry Operator",
+  "Digital Artist", "Digital Marketing Executive", "Director", "Documentation", "DTP",
+  "Educator", "Engineer", "Executive", "Executive Vice President", "EXECUTIVE-HR",
+  "Facilitator-analyst and notes", "Finance Associate", "Finance Manager", "Flutter Developer",
+  "Full Stack Developer", "FX Artist", "Game Designer", "Game Developer",
+  "GM - Operation Sales", "Head - Corporate Communications", "HOD - Biology",
+  "HOD - Mathematics", "Jr. Recruiter", "Jr.Executive", "Lead-Project Launch & Transition",
+  "Manager", "Manager L&D- Academic", "Motion Graphic Artist", "Network Engineer",
+  "Office Executive", "Operation Executive", "Presenter", "Procurement Manager",
+  "Program Manager", "Project coordinator", "Project Manager", "Purchase Executive",
+  "Purchase Manager", "Quality Executive", "Regional Manager", "Sales Executive",
+  "Senior Academic Expert - Science", "Senior Accountant-Cost", "Senior Excutive",
+  "Software Architect", "Software Developer", "Sr Accountant", "Sr. 2D Animator",
+  "Sr. Network Engineer", "Sr. Recruitment Consultant", "Sr. Subject Matter Expert - Biology",
+  "Sr. Subject Matter Expert - FLN", "Sr. Subject Matter Expert - Physics",
+  "Sr. Tech Executive", "Sr.Project Manager", "Sr.Subject Matter Expert - Chemistry",
+  "Sr.Subject Matter Expert - English", "Sr.Subject Matter Expert - Mathematics",
+  "Sr.Subject Matter Expert -Physics", "Store Executive", "Stores Cum MIS Executive",
+  "Studio Engeneer", "Studio Engineer", "Studio Manager/IT manager",
+  "Subject Matter Expert - Biology", "Subject Matter Expert - Chemistry",
+  "Subject Matter Expert - Computer", "Subject Matter Expert - Economics",
+  "Subject Matter Expert - English", "Subject Matter Expert - FLN",
+  "Subject matter expert - Geography", "Subject Matter Expert - Mathematics",
+  "Subject Matter Expert - Physics", "Subject Matter Expert - Political Science",
+  "Subject Matter Expert -Physics", "System Admin", "System Administrator",
+  "Team Lead", "Team Lead - FLN", "Team Lead - Kokrajhar", "Team Lead - Silchar",
+  "Team Lead-Operations", "Technical Executive", "Technical Material Management",
+  "Technical Support Executive", "Technology Management Executive", "TL-Technical Support",
+  "Trainee", "VFX Artist", "Vice President", "Video Editor"
 ];
 
 function EmpIdPicker({ value, onChange, users, placeholder = "Search by ID or name…" }) {
@@ -831,21 +874,20 @@ export default function UserManagementPage({ currentUser }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Designation</label>
-                  <input
-                    type="text"
+                  <SearchableSelect
                     value={formData.designation}
-                    onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                    onChange={(val) => setFormData({ ...formData, designation: val })}
+                    options={DESIGNATIONS}
+                    placeholder="Select designation…"
                   />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Location</label>
-                  <input
-                    type="text"
+                  <SearchableSelect
                     value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-                    placeholder="e.g. Bangalore"
+                    onChange={(val) => setFormData({ ...formData, location: val })}
+                    options={LOCATIONS}
+                    placeholder="Select location…"
                   />
                 </div>
               </div>
@@ -1099,20 +1141,20 @@ export default function UserManagementPage({ currentUser }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Designation</label>
-                  <input
-                    type="text"
+                  <SearchableSelect
                     value={editFormData.designation}
-                    onChange={(e) => setEditFormData({ ...editFormData, designation: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                    onChange={(val) => setEditFormData({ ...editFormData, designation: val })}
+                    options={DESIGNATIONS}
+                    placeholder="Select designation…"
                   />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Location</label>
-                  <input
-                    type="text"
+                  <SearchableSelect
                     value={editFormData.location}
-                    onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                    onChange={(val) => setEditFormData({ ...editFormData, location: val })}
+                    options={LOCATIONS}
+                    placeholder="Select location…"
                   />
                 </div>
               </div>

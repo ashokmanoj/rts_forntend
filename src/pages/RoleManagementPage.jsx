@@ -17,7 +17,7 @@ const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Inte
 const DEPARTMENTS = [
   "Academics-Assam", "Academics-Karnataka", "Academics-Mizoram", "Academics-Tripura", "Academics-Uttarakhand",
   "Accounts-A", "Accounts-G", "Animation",
-  "Broadcasting-Assam", "Broadcasting-Karnataka", "Broadcasting-Tripura", "Broadcasting-Uttarakhand",
+  "Broadcasting-Assam", "Broadcasting-Karnataka", "Broadcasting-Mizoram", "Broadcasting-Tripura", "Broadcasting-Uttarakhand",
   "Business Development", "Corporate Communications", "Documentation",
   "Facilities", "Food Committee", "Game Development", "Govt. Relations", "HR", "Interns", "Management",
   "Marketing",
