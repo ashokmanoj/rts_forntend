@@ -11,4 +11,5 @@ export function fetchUserRoles(params = {}) {
 
 export const addUserRole    = (empId, role, dept) => post("/admin/user-roles", { empId, role, dept });
 export const updateUserRole = (id, role, dept)    => patch(`/admin/user-roles/${id}`, { role, dept });
+export const toggleUserRole = (id)                => patch(`/admin/user-roles/${id}/toggle`, {});
 export const deleteUserRole = (id)                => del(`/admin/user-roles/${id}`);

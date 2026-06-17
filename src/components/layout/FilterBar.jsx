@@ -15,7 +15,7 @@ const ROLE_META = {
   Requestor:     { label: "Requestor",        icon: User,           color: "text-sky-600",     bg: "bg-sky-50",     border: "border-sky-200"     },
   RM:            { label: "Reporting Manager", icon: Users,          color: "text-violet-600",  bg: "bg-violet-50",  border: "border-violet-200"  },
   HOD:           { label: "Head of Dept",      icon: Shield,         color: "text-amber-600",   bg: "bg-amber-50",   border: "border-amber-200"   },
-  DeptHOD:       { label: "Dept HOD",          icon: Building2,      color: "text-indigo-600",  bg: "bg-indigo-50",  border: "border-indigo-200"  },
+  DeptHOD:       { label: "Dept Login",         icon: Building2,      color: "text-indigo-600",  bg: "bg-indigo-50",  border: "border-indigo-200"  },
   Management:    { label: "Management",        icon: Briefcase,      color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200" },
   Admin:         { label: "Admin",             icon: Settings,       color: "text-rose-600",    bg: "bg-rose-50",    border: "border-rose-200"    },
   HR:            { label: "HR",                icon: Heart,          color: "text-pink-600",    bg: "bg-pink-50",    border: "border-pink-200"    },
@@ -30,6 +30,7 @@ export default function FilterBar({
   requestCount,
   onFilterChange,
   onSearchChange,
+  onClearFilters,
   onAddRequest,
   onShowInstructions,
   onLogout,
@@ -62,6 +63,7 @@ export default function FilterBar({
     setLocalSearch("");
     onSearchChange("");
     onFilterChange({ name: [], dept: [], assignedDept: [], rmStatus: [], deptHodStatus: [], type: [], priority: [], unread: false, latest: false, sortMode: "default", sortOrder: "desc", startDate: null, endDate: null, search: "" });
+    onClearFilters?.();
   };
 
   const IGNORED_KEYS = new Set(["sortOrder", "sortMode"]);

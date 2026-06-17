@@ -132,8 +132,8 @@ export default function UserManagementPage({ currentUser }) {
       setSuccess(`User ${!currentStatus ? 'enabled' : 'disabled'} successfully.`);
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError("Failed to update user status.");
-      setTimeout(() => setError(""), 3000);
+      setError(err?.response?.data?.error || err?.message || "Failed to update user status.");
+      setTimeout(() => setError(""), 4000);
     }
   };
 

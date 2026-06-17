@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LogOut, Zap, ClipboardList, ShieldCheck, Users, UtensilsCrossed, BarChart2, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Pencil, Trash2, AlertTriangle, UserPlus, KeyRound, Search, X, Plus, MessageSquare } from "lucide-react";
+import { LogOut, Zap, ClipboardList, ShieldCheck, ShieldOff, Users, UtensilsCrossed, BarChart2, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Pencil, Trash2, AlertTriangle, UserPlus, KeyRound, Search, X, Plus, MessageSquare } from "lucide-react";
 
 import { fetchRequests, fetchFilterOptions, createRequest, submitApproval, acknowledgeRequest, markRequestSeen, markRequestUnread, closeRequest, editRequest, deleteRequest } from "../services/requestService";
-import { fetchUserRoles, addUserRole, updateUserRole, deleteUserRole } from "../services/userRoleService";
+import { fetchUserRoles, addUserRole, updateUserRole, toggleUserRole, deleteUserRole } from "../services/userRoleService";
 import { fetchHodPendingRequests, submitHodApproval } from "../services/managementService";
 import { fetchChat, sendText, sendFile, sendVoice } from "../services/chatService";
 import { adminGetFoodSubscriptions, adminSubscribeUser, adminToggleFoodUser, adminDeleteFoodUser } from "../services/foodService";
@@ -929,6 +929,14 @@ function UserRolesTab() {
     load();
   };
 
+  const handleToggle = async (row) => {
+    try {
+      await toggleUserRole(row.id);
+      setRows(prev => prev.map(r => r.id === row.id ? { ...r, isActive: !r.isActive } : r));
+      showToast("success", `Role ${row.isActive ? "disabled" : "enabled"}.`);
+    } catch (e) { showToast("error", e?.response?.data?.error || e.message || "Failed."); }
+  };
+
   const handleDelete = async () => {
     if (!deleteEntry) return;
     setDeleting(true);
@@ -1011,14 +1019,15 @@ function UserRolesTab() {
                 <th className="px-4 py-3 text-left font-black text-slate-500 uppercase tracking-wider text-[10px]">Name</th>
                 <th className="px-4 py-3 text-left font-black text-slate-500 uppercase tracking-wider text-[10px]">Role</th>
                 <th className="px-4 py-3 text-left font-black text-slate-500 uppercase tracking-wider text-[10px]">Department</th>
+                <th className="px-4 py-3 text-center font-black text-slate-500 uppercase tracking-wider text-[10px]">Status</th>
                 <th className="px-4 py-3 text-center font-black text-slate-500 uppercase tracking-wider text-[10px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={6} className="text-center py-12 text-slate-400 font-bold">Loading…</td></tr>
+                <tr><td colSpan={7} className="text-center py-12 text-slate-400 font-bold">Loading…</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12 text-slate-400 font-bold">No roles found.</td></tr>
+                <tr><td colSpan={7} className="text-center py-12 text-slate-400 font-bold">No roles found.</td></tr>
               ) : rows.map((r, i) => (
                 <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3 text-slate-400 font-bold">{i + 1}</td>
@@ -1028,11 +1037,22 @@ function UserRolesTab() {
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${ROLE_COLORS[r.role] || "bg-slate-100 text-slate-600"}`}>{r.role}</span>
                   </td>
                   <td className="px-4 py-3 text-slate-600 font-medium">{r.dept}</td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black ${r.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${r.isActive ? "bg-green-500" : "bg-red-400"}`} />
+                      {r.isActive ? "Active" : "Disabled"}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-2">
                       <button onClick={() => setEditEntry(r)}
                         className="p-1.5 rounded-lg text-indigo-500 hover:bg-indigo-50 transition-all" title="Edit">
                         <Pencil size={13}/>
+                      </button>
+                      <button onClick={() => handleToggle(r)}
+                        className={`p-1.5 rounded-lg transition-all ${r.isActive ? "text-amber-500 hover:bg-amber-50" : "text-green-600 hover:bg-green-50"}`}
+                        title={r.isActive ? "Disable" : "Enable"}>
+                        {r.isActive ? <ShieldOff size={13}/> : <ShieldCheck size={13}/>}
                       </button>
                       <button onClick={() => setDeleteEntry(r)}
                         className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-all" title="Delete">

@@ -221,7 +221,12 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                           zIndex: 5,
                         } : undefined}
                       >
-                        {val}
+                        {i === 1 ? (
+                          <span className="flex flex-col items-center gap-0.5">
+                            <span>{val}</span>
+                            <span className="text-[10px] text-slate-500 font-bold">{row.time}</span>
+                          </span>
+                        ) : val}
                       </td>
                     );
                   })}

@@ -12,7 +12,7 @@ const CATEGORY_CONFIG = {
   Requestor:     { label: "Requestor",          Icon: User,            bg: "bg-indigo-50",  iconBg: "bg-indigo-100",  text: "text-indigo-700",  border: "hover:border-indigo-400"  },
   RM:            { label: "Reporting Manager",   Icon: Users,           bg: "bg-violet-50",  iconBg: "bg-violet-100",  text: "text-violet-700",  border: "hover:border-violet-400"  },
   HOD:           { label: "Head of Department",  Icon: Shield,          bg: "bg-amber-50",   iconBg: "bg-amber-100",   text: "text-amber-700",   border: "hover:border-amber-400"   },
-  DeptHOD:       { label: "Department HOD",      Icon: Building2,       bg: "bg-emerald-50", iconBg: "bg-emerald-100", text: "text-emerald-700", border: "hover:border-emerald-400" },
+  DeptHOD:       { label: "Dept Login",            Icon: Building2,       bg: "bg-emerald-50", iconBg: "bg-emerald-100", text: "text-emerald-700", border: "hover:border-emerald-400" },
   Management:    { label: "Management",          Icon: Briefcase,       bg: "bg-sky-50",     iconBg: "bg-sky-100",     text: "text-sky-700",     border: "hover:border-sky-400"     },
   Admin:         { label: "Admin",               Icon: Settings,        bg: "bg-rose-50",    iconBg: "bg-rose-100",    text: "text-rose-700",    border: "hover:border-rose-400"    },
   HR:            { label: "HR",                  Icon: Heart,           bg: "bg-pink-50",    iconBg: "bg-pink-100",    text: "text-pink-700",    border: "hover:border-pink-400"    },

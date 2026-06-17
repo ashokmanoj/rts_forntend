@@ -17,9 +17,31 @@ import { UtensilsCrossed, ClipboardList, LogOut, Users, CheckCircle2, XCircle, R
 import DashboardSkeleton from "../components/ui/DashboardSkeleton";
 import TableSkeleton     from "../components/ui/TableSkeleton";
 
+// ── Filter persistence helpers ────────────────────────────────────────────────
+const FILTER_KEY = (empId) => `rts_filters_${empId}`;
+
+function loadFiltersFromStorage(empId) {
+  try {
+    const raw = localStorage.getItem(FILTER_KEY(empId));
+    if (!raw) return null;
+    const f = JSON.parse(raw);
+    if (f.startDate) f.startDate = new Date(f.startDate);
+    if (f.endDate)   f.endDate   = new Date(f.endDate);
+    return f;
+  } catch { return null; }
+}
+
+function saveFiltersToStorage(empId, filters) {
+  try { localStorage.setItem(FILTER_KEY(empId), JSON.stringify(filters)); } catch {}
+}
+
+function clearFiltersFromStorage(empId) {
+  try { localStorage.removeItem(FILTER_KEY(empId)); } catch {}
+}
+
 export default function DashboardPage({ currentUser: currentUserProp, onLogout, onSwitchRole }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   const [requests,         setRequests]         = useState([]);
   const [filterOptions,    setFilterOptions]    = useState({ names: [], depts: [], assignedDepts: [] });
   const [pagination,       setPagination]       = useState({ total: 0, page: 1, limit: 50, totalPages: 1, hasNext: false, hasPrev: false });
@@ -31,22 +53,31 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
     return v ? v.split(",").filter(Boolean) : [];
   };
 
-  // Consolidate filters into one state object, initialized from URL
-  const [filters, setFilters] = useState({
-    name:           parseArr("name"),
-    dept:           parseArr("dept"),
-    assignedDept:   parseArr("assignedDept"),
-    rmStatus:       parseArr("rmStatus"),
-    deptHodStatus:  parseArr("deptHodStatus"),
-    type:           parseArr("type"),
-    priority:       parseArr("priority"),
-    unread:         searchParams.get("unread") === "true",
-    latest:         searchParams.get("latest") === "true",
-    sortOrder:      searchParams.get("sortOrder") || "desc",
-    sortMode:       searchParams.get("sortMode") || "default",
-    startDate:      searchParams.get("startDate") ? new Date(searchParams.get("startDate")) : null,
-    endDate:        searchParams.get("endDate") ? new Date(searchParams.get("endDate")) : null,
-    search:         searchParams.get("search") || "",
+  // Consolidate filters into one state object.
+  // Priority: URL params → localStorage → defaults
+  const [filters, setFilters] = useState(() => {
+    const urlKeys = ["name","dept","assignedDept","rmStatus","deptHodStatus","type","priority","unread","latest","sortOrder","sortMode","startDate","endDate","search"];
+    const hasUrlFilters = urlKeys.some(k => searchParams.has(k));
+    if (!hasUrlFilters) {
+      const stored = loadFiltersFromStorage(currentUserProp?.empId);
+      if (stored) return stored;
+    }
+    return {
+      name:           parseArr("name"),
+      dept:           parseArr("dept"),
+      assignedDept:   parseArr("assignedDept"),
+      rmStatus:       parseArr("rmStatus"),
+      deptHodStatus:  parseArr("deptHodStatus"),
+      type:           parseArr("type"),
+      priority:       parseArr("priority"),
+      unread:         searchParams.get("unread") === "true",
+      latest:         searchParams.get("latest") === "true",
+      sortOrder:      searchParams.get("sortOrder") || "desc",
+      sortMode:       searchParams.get("sortMode") || "default",
+      startDate:      searchParams.get("startDate") ? new Date(searchParams.get("startDate")) : null,
+      endDate:        searchParams.get("endDate") ? new Date(searchParams.get("endDate")) : null,
+      search:         searchParams.get("search") || "",
+    };
   });
 
   const [selectedReq,      setSelectedReq]      = useState(null);
@@ -145,6 +176,11 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   useEffect(() => {
     loadFilterOptions();
   }, [loadFilterOptions]);
+
+  // ── Persist filters to localStorage on every change ───────────────────────
+  useEffect(() => {
+    if (currentUserProp?.empId) saveFiltersToStorage(currentUserProp.empId, filters);
+  }, [filters, currentUserProp?.empId]);
 
   useEffect(() => {
     const close = (e) => {
@@ -312,6 +348,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
             requestCount={pagination.total}
             onFilterChange={handleFilterChange}
             onSearchChange={handleSearchChange}
+            onClearFilters={() => clearFiltersFromStorage(currentUserProp?.empId)}
             onAddRequest={() => setActiveModal("add")}
             onShowInstructions={() => setShowInstructions(true)}
             onLogout={onLogout}
@@ -571,7 +608,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
       </div>
 
       {/* ── RTS Help Desk Floating Button ───────────────────────────────────── */}
-      {!["Admin", "SuperUser"].includes(currentUser?.role) && (
+      {currentUser?.role === "Requestor" && (
         <button
           onClick={() => setShowHelpModal(true)}
           title="Contact RTS Help Desk"

@@ -110,7 +110,7 @@ export default function RoleManagementPage() {
       setRoles(prev => prev.map(r => r.id === entry.id ? { ...r, isActive: !r.isActive } : r));
       showMsg("success", `Role ${entry.isActive ? "disabled" : "enabled"} successfully.`);
     } catch (err) {
-      showMsg("error", "Failed to update role status.");
+      showMsg("error", err?.response?.data?.error || err?.message || "Failed to update role status.");
     }
   };
 
