@@ -29,7 +29,7 @@ const RECURRING_OPTIONS = [
   { value: "1y",  label: "1 Year"   },
 ];
 
-const ALLOWED_EXTENSIONS = [".jpg",".jpeg",".png",".gif",".webp",".bmp",".svg",".mp4",".mov",".avi",".mkv",".mp3",".wav",".ogg",".pdf",".doc",".docx",".csv",".xlsx",".xls",".zip",".rar",".7z",".tar",".gz"];
+const ALLOWED_EXTENSIONS = [".jpg",".jpeg",".png",".gif",".webp",".bmp",".svg",".mp4",".mov",".avi",".mkv",".mp3",".wav",".ogg",".pdf",".doc",".docx",".csv",".xlsx",".xls",".zip",".rar",".7z",".tar",".gz",".jar"];
 
 function isAllowedFile(file) {
   const t    = file.type;
@@ -39,7 +39,7 @@ function isAllowedFile(file) {
   if (t.includes("word") || name.endsWith(".doc") || name.endsWith(".docx")) return true;
   if (t === "text/csv" || name.endsWith(".csv")) return true;
   if (t.includes("excel") || t.includes("spreadsheet") || name.endsWith(".xlsx") || name.endsWith(".xls")) return true;
-  if (t.includes("zip") || t.includes("rar") || t.includes("tar") || t.includes("7z")) return true;
+  if (t.includes("zip") || t.includes("rar") || t.includes("tar") || t.includes("7z") || t.includes("java-archive") || name.endsWith(".jar")) return true;
   if (ALLOWED_EXTENSIONS.some(ext => name.endsWith(ext))) return true;
   return false;
 }
@@ -421,7 +421,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
       const names = rejected.map(f => f.name).join(", ");
       setFileError(
         `"${names}" — unsupported format.\n` +
-        `Allowed: Images · PDF · Word (doc/docx) · Excel (xlsx/xls) · CSV · Video · Audio · Archives (zip/rar/7z)`
+        `Allowed: Images · PDF · Word (doc/docx) · Excel (xlsx/xls) · CSV · Video · Audio · Archives (zip/rar/7z/jar)`
       );
       if (!allowed.length) return;
     }
@@ -948,7 +948,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
                 </div>
               )}
               <input type="file" ref={fileInputRef} className="hidden"
-                accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.csv,.xlsx,.xls,.zip,.rar,.7z,.tar,.gz"
+                accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.csv,.xlsx,.xls,.zip,.rar,.7z,.tar,.gz,.jar"
                 multiple onChange={handleFileChange} />
             </div>
           </div>
