@@ -608,7 +608,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
       </div>
 
       {/* ── RTS Help Desk Floating Button ───────────────────────────────────── */}
-      {currentUser?.role === "Requestor" && (
+      {currentUser && (
         <button
           onClick={() => setShowHelpModal(true)}
           title="Contact RTS Help Desk"
