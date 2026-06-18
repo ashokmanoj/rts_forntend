@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye, MessageSquare, Download, Users, ChevronRight, Search } from "lucide-react";
-import { get } from "../../services/api";
+import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye, MessageSquare, Download, Users, ChevronRight, Search, RefreshCw, StopCircle } from "lucide-react";
+import { get, patch } from "../../services/api";
 
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { getNowTime, getNowDate, getNowDateTime } from "../../utils/dateTime";
@@ -106,6 +106,8 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const [hodApproveMode,       setHodApproveMode]       = useState(null); // null | "forward"
   const [hodForwardDept,       setHodForwardDept]       = useState("");
   const [hodDeptSearch,        setHodDeptSearch]        = useState("");
+  // Stop recurring
+  const [stopRecurringLoading, setStopRecurringLoading] = useState(false);
 
   useEscapeKey(
     lightboxData        ? () => setLightboxData(null)
@@ -292,6 +294,21 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     setPendingAck(status);
     try { await onAcknowledge(req.id, status); }
     finally { setPendingAck(null); }
+  };
+
+  const handleStopRecurring = async () => {
+    if (stopRecurringLoading) return;
+    if (!window.confirm("Stop the recurring schedule? No more auto-requests will be created from this ticket.")) return;
+    setStopRecurringLoading(true);
+    try {
+      await patch(`/requests/${req.id}/stop-recurring`, {});
+      // reload parent by closing — parent list refresh will update it
+      onClose();
+    } catch (err) {
+      alert(err?.message || "Failed to stop recurring.");
+    } finally {
+      setStopRecurringLoading(false);
+    }
   };
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -710,6 +727,8 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               {req?.forwarded && <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-black"><Forward size={10}/> Forwarded</span>}
               {isClosed && <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[10px] font-black">🔒 Closed</span>}
               {isPendingAck && <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black">⏳ Pending Acknowledgement</span>}
+              {req?.reopenedAt && !isClosed && <span className="flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[10px] font-black"><RefreshCw size={9}/> Reopened</span>}
+              {req?.isRecurring && <span className="flex items-center gap-1 px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full text-[10px] font-black">🔁 Recurring</span>}
               {isOwnRequest && !isRequestorMode && <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black">Your Request</span>}
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${roleBadgeCls}`}>{currentUser?.dept}department</span>
             </div>
@@ -1144,6 +1163,24 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               {(isDeptHOD||isManagement) && !isOwnRequest && isClosed && (
                 <div className="mt-2">
                   <button disabled className="w-full py-3 rounded-2xl font-black text-[12px] bg-slate-200 text-slate-400 cursor-not-allowed">🔒 Ticket Closed</button>
+                </div>
+              )}
+
+              {/* Stop Recurring — DeptHOD only, on parent recurring requests */}
+              {isDeptHOD && req?.isRecurring && !isClosed && req?.assignedDept === currentUser?.dept && (
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2 flex items-center gap-1">
+                    <StopCircle size={10}/> Recurring Control
+                  </p>
+                  <button
+                    onClick={handleStopRecurring}
+                    disabled={stopRecurringLoading}
+                    className="w-full py-2.5 rounded-2xl font-black text-[12px] bg-violet-600 hover:bg-violet-700 text-white shadow-md transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {stopRecurringLoading ? <span className="animate-spin">⟳</span> : <StopCircle size={14}/>}
+                    Stop Recurring
+                  </button>
+                  <p className="text-[10px] text-slate-400 text-center mt-1.5 font-medium">No new auto-requests will be created after stopping.</p>
                 </div>
               )}
             </div>

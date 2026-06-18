@@ -22,11 +22,10 @@ const DEPARTMENTS = [
 ];
 
 const RECURRING_OPTIONS = [
-  { value: "1w",  label: "1 Week"   },
-  { value: "2w",  label: "2 Weeks"  },
-  { value: "1m",  label: "1 Month"  },
-  { value: "6m",  label: "6 Months" },
-  { value: "1y",  label: "1 Year"   },
+  { value: "1m",  label: "1 Month"   },
+  { value: "4m",  label: "4 Months"  },
+  { value: "6m",  label: "6 Months"  },
+  { value: "1y",  label: "1 Year"    },
 ];
 
 const ALLOWED_EXTENSIONS = [".jpg",".jpeg",".png",".gif",".webp",".bmp",".svg",".mp4",".mov",".avi",".mkv",".mp3",".wav",".ogg",".pdf",".doc",".docx",".csv",".xlsx",".xls",".zip",".rar",".7z",".tar",".gz",".jar"];

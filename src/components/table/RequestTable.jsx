@@ -64,11 +64,12 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
     setContextMenu(null);
   };
 
-  // Default: unread first, then read — preserving backend order within each group
+  // Default: reopened first, then unread, then read — preserving backend order within each group
   const sorted = (!sortMode || sortMode === "default")
     ? [
-        ...requests.filter(r => !r.seen),
-        ...requests.filter(r =>  r.seen),
+        ...requests.filter(r => r.reopenedAt && !r.isClosed),
+        ...requests.filter(r => !r.seen && !(r.reopenedAt && !r.isClosed)),
+        ...requests.filter(r =>  r.seen && !(r.reopenedAt && !r.isClosed)),
       ]
     : requests;
 
@@ -192,13 +193,15 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
               const isClosed     = row.isClosed || String(row.assignedStatus).includes("Closed");
               const isPendingAck = row.assignedStatus === "Pending Acknowledgement";
               const isOwnRow     = row.empId === currentUser?.empId;
+              const isReopened   = !!(row.reopenedAt && !isClosed);
 
               const rowBg =
                 isClosed      ? "bg-green-50/40"  :
                 isPendingAck  ? "bg-amber-50/40"  :
+                isReopened    ? "bg-orange-50"     :
                 isUnread      ? "bg-blue-50"       :
                 row.forwarded ? "bg-blue-50/20"    : "";
-              const bold = isUnread ? "font-black" : "";
+              const bold = (isUnread || isReopened) ? "font-black" : "";
 
               return (
                 <tr
@@ -208,7 +211,7 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                 >
                   {[row.id, row.date, row.empId, row.name, row.dept, row.designation, row.location].map((val, i) => {
                     const fc = i < 5 ? FROZEN[i] : null;
-                    const frozenBg = isClosed ? "#f0fdf4" : isPendingAck ? "#fffbeb" : isUnread ? "#eff6ff" : row.forwarded ? "#f5f8ff" : "#ffffff";
+                    const frozenBg = isClosed ? "#f0fdf4" : isPendingAck ? "#fffbeb" : isReopened ? "#fff7ed" : isUnread ? "#eff6ff" : row.forwarded ? "#f5f8ff" : "#ffffff";
                     return (
                       <td
                         key={i}
@@ -279,11 +282,16 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
 
                   {/* Details / purpose */}
                   <td className="border-l border-b border-r border-black px-3 py-2 cursor-pointer text-center" onClick={() => onOpenDetails(row)}>
-                    <span className="flex items-center justify-center gap-1.5">
-                      {isUnread && <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 inline-block" />}
-                      <span className={`text-blue-600 underline text-[11px] ${isUnread ? "font-black" : "font-bold"}`} title={row.purpose}>
-                        {row.purpose?.length > 15 ? row.purpose.slice(0, 15) + "…" : row.purpose}
+                    <span className="flex flex-col items-center gap-0.5">
+                      <span className="flex items-center justify-center gap-1.5">
+                        {isReopened && <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0 inline-block" />}
+                        {!isReopened && isUnread && <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 inline-block" />}
+                        <span className={`text-blue-600 underline text-[11px] ${(isUnread || isReopened) ? "font-black" : "font-bold"}`} title={row.purpose}>
+                          {row.purpose?.length > 15 ? row.purpose.slice(0, 15) + "…" : row.purpose}
+                        </span>
                       </span>
+                      {isReopened && <span className="text-[9px] font-black text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full">🔄 Reopened</span>}
+                      {row.isRecurring && <span className="text-[9px] font-black text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full">🔁 Recurring</span>}
                     </span>
                   </td>
 
