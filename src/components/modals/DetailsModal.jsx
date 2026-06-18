@@ -36,9 +36,10 @@ function StatusDot({ status, label, index }) {
   );
 }
 
-function ApprovalProgress({ rmStatus, hodStatus, assignedRmStatus, assignedHodStatus, deptHodStatus, isClosed, dept, assignedDept }) {
+function ApprovalProgress({ rmStatus, hodStatus, assignedRmStatus, assignedHodStatus, deptHodStatus, managementStatus, isClosed, dept, assignedDept }) {
   const lineCls = (s) => !s || s === "--" ? "bg-slate-200" : s === "Approved" ? "bg-emerald-400" : s === "Rejected" ? "bg-red-400" : "bg-amber-300";
   const isCrossDept = dept && assignedDept && dept !== assignedDept;
+  const hasMgmt = managementStatus && managementStatus !== "--";
 
   return (
     <div className="space-y-2">
@@ -67,7 +68,11 @@ function ApprovalProgress({ rmStatus, hodStatus, assignedRmStatus, assignedHodSt
               <StatusDot status={assignedHodStatus} label="HOD" index={1} />
               <div className={`h-0.5 w-2 flex-shrink-0 ${lineCls(assignedHodStatus)}`}/>
             </>}
-            <StatusDot status={deptHodStatus} label="Dept HOD" index={isCrossDept ? 2 : 0} />
+            {hasMgmt && <>
+              <StatusDot status={managementStatus} label="Mgmt" index={isCrossDept ? 2 : 0} />
+              <div className={`h-0.5 w-2 flex-shrink-0 ${lineCls(managementStatus)}`}/>
+            </>}
+            <StatusDot status={deptHodStatus} label="Dept HOD" index={isCrossDept ? (hasMgmt ? 3 : 2) : (hasMgmt ? 1 : 0)} />
             <div className={`h-0.5 w-2 flex-shrink-0 ${isClosed?"bg-emerald-400":"bg-slate-200"}`}/>
             <div className="flex flex-col items-center">
               <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[9px] font-black ${isClosed?"bg-emerald-500 border-emerald-500 text-white":"bg-slate-100 border-slate-200 text-slate-300"}`}>
@@ -168,7 +173,8 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     ? (isAssignedDeptUser ? req?.assignedRmStatus : req?.rmStatus)
     : isHOD
     ? (isAssignedDeptUser ? req?.assignedHodStatus : req?.hodStatus)
-    : (isDeptHOD || isManagement) ? req?.deptHodStatus
+    : isDeptHOD ? req?.deptHodStatus
+    : isManagement ? req?.managementStatus
     : "--";
   const hasAlreadyActed = myApprovalStatus && myApprovalStatus !== "--";
   const isSpecificallyAssigned = !isOwnRequest && !!(req?.assignedPersonEmpId?.split(",").map(s => s.trim()).includes(currentUser?.empId));
@@ -749,7 +755,8 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               <ApprovalProgress
                 rmStatus={req?.rmStatus}           hodStatus={req?.hodStatus}
                 assignedRmStatus={req?.assignedRmStatus} assignedHodStatus={req?.assignedHodStatus}
-                deptHodStatus={req?.deptHodStatus}  isClosed={isClosed}
+                deptHodStatus={req?.deptHodStatus}  managementStatus={req?.managementStatus}
+                isClosed={isClosed}
                 dept={req?.dept}                   assignedDept={req?.assignedDept}
               />
 
@@ -882,7 +889,11 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
 
                   {canApprove ? (
                     <>
-                      <div className={`grid gap-1.5 ${req?.dept !== req?.assignedDept ? "grid-cols-5" : "grid-cols-3"}`}>
+                      <div className={`grid gap-1.5 ${
+                        req?.dept !== req?.assignedDept
+                          ? (req?.managementStatus && req.managementStatus !== "--" ? "grid-cols-6" : "grid-cols-5")
+                          : (req?.managementStatus && req.managementStatus !== "--" ? "grid-cols-4" : "grid-cols-3")
+                      }`}>
                         {[
                           {label:"RM",status:req?.rmStatus,date:req?.rmDate},
                           {label:"HOD",status:req?.hodStatus,date:req?.hodDate},
@@ -890,6 +901,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                             {label:"Assign RM",status:req?.assignedRmStatus,date:req?.assignedRmDate},
                             {label:"Assign HOD",status:req?.assignedHodStatus,date:req?.assignedHodDate},
                           ] : []),
+                          ...(req?.managementStatus && req.managementStatus !== "--" ? [{label:"Mgmt",status:req?.managementStatus,date:req?.managementDate}] : []),
                           {label:"DeptHOD",status:req?.deptHodStatus,date:req?.deptHodDate},
                         ].map((s) => (
                           <div key={s.label} className="bg-slate-50 rounded-xl p-2 border border-slate-100 text-center">
