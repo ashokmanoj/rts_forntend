@@ -292,6 +292,7 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                       </span>
                       {isReopened && <span className="text-[9px] font-black text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full">🔄 Reopened</span>}
                       {row.isRecurring && <span className="text-[9px] font-black text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full">🔁 Recurring</span>}
+                      {row.requestorRole === "broadcast" && <span className="text-[9px] font-black text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded-full">📢 Broadcast</span>}
                     </span>
                   </td>
 

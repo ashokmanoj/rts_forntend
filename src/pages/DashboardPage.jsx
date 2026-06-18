@@ -10,10 +10,11 @@ import CloseTicketModal  from "../components/modals/CloseTicketModal";
 import AddRequestModal   from "../components/modals/AddRequestModal";
 import InstructionsModal from "../components/modals/InstructionsModal";
 import BroadcastModal    from "../components/modals/BroadcastModal";
+import BroadcastSendModal from "../components/modals/BroadcastSendModal";
 import FoodPage            from "./FoodPage";
 import UserManagementPage  from "./UserManagementPage";
 import RoleManagementPage  from "./RoleManagementPage";
-import { UtensilsCrossed, ClipboardList, LogOut, Users, CheckCircle2, XCircle, RefreshCw, ChevronDown, Megaphone, ShieldCheck, Headphones } from "lucide-react";
+import { UtensilsCrossed, ClipboardList, LogOut, Users, CheckCircle2, XCircle, RefreshCw, ChevronDown, Megaphone, ShieldCheck, Headphones, Radio } from "lucide-react";
 import DashboardSkeleton from "../components/ui/DashboardSkeleton";
 import TableSkeleton     from "../components/ui/TableSkeleton";
 
@@ -84,7 +85,8 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   const [activeModal,      setActiveModal]      = useState(null);
   const [closeTicketReq,   setCloseTicketReq]   = useState(null);
   const [showInstructions, setShowInstructions] = useState(false);
-  const [showBroadcast,    setShowBroadcast]    = useState(false);
+  const [showBroadcast,     setShowBroadcast]     = useState(false);
+  const [showBroadcastSend, setShowBroadcastSend] = useState(false);
   const [showHelpModal,    setShowHelpModal]    = useState(false);
   const [loadingReqs,      setLoadingReqs]      = useState(true);
   const [isFiltering,      setIsFiltering]      = useState(false); // For subtle loading state
@@ -485,16 +487,26 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
           );
         })()}
 
-        {/* Broadcast button — HR / Food Committee / RTS Help Desk DeptHOD only */}
-        {currentUser?.role === "DeptHOD" && ["HR", "Food Committee", "RTS Help Desk"].includes(currentUser?.dept) && (
-          <button
-            onClick={() => setShowBroadcast(true)}
-            title="Send Broadcast Notification"
-            className="flex items-center gap-1.5 h-9 px-3 bg-violet-50 border border-violet-200 rounded-xl text-[11px] font-black text-violet-600 hover:bg-violet-100 hover:border-violet-300 transition-all active:scale-95 shadow-sm flex-shrink-0"
-          >
-            <Megaphone size={13} />
-            <span className="hidden sm:inline">Broadcast</span>
-          </button>
+        {/* Broadcast button — HR / Food Committee / TA Committee / RTS Help Desk DeptHOD only */}
+        {currentUser?.role === "DeptHOD" && ["HR", "Food Committee", "TA Committee", "RTS Help Desk"].includes(currentUser?.dept) && (
+          <>
+            <button
+              onClick={() => setShowBroadcast(true)}
+              title="Send Broadcast Notification"
+              className="flex items-center gap-1.5 h-9 px-3 bg-violet-50 border border-violet-200 rounded-xl text-[11px] font-black text-violet-600 hover:bg-violet-100 hover:border-violet-300 transition-all active:scale-95 shadow-sm flex-shrink-0"
+            >
+              <Megaphone size={13} />
+              <span className="hidden sm:inline">Broadcast</span>
+            </button>
+            <button
+              onClick={() => setShowBroadcastSend(true)}
+              title="Send Ticket to All Users"
+              className="flex items-center gap-1.5 h-9 px-3 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] font-black text-indigo-600 hover:bg-indigo-100 hover:border-indigo-300 transition-all active:scale-95 shadow-sm flex-shrink-0"
+            >
+              <Radio size={13} />
+              <span className="hidden sm:inline">Send to All</span>
+            </button>
+          </>
         )}
 
         {/* Refresh button */}
@@ -600,7 +612,8 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
               />
             )}
             {showInstructions && <InstructionsModal onClose={() => setShowInstructions(false)} />}
-            {showBroadcast && <BroadcastModal onClose={() => setShowBroadcast(false)} />}
+            {showBroadcast     && <BroadcastModal     onClose={() => setShowBroadcast(false)} />}
+            {showBroadcastSend && <BroadcastSendModal onClose={() => setShowBroadcastSend(false)} />}
 
           </div>
         )}
