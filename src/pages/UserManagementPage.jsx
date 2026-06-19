@@ -38,7 +38,7 @@ const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Inte
 const DEPARTMENTS = [
   "Academics-Assam", "Academics-Karnataka", "Academics-Mizoram", "Academics-Tripura", "Academics-Uttarakhand",
   "Accounts-A", "Accounts-G", "Animation",
-  "Broadcasting-Assam", "Broadcasting-Karnataka", "Broadcasting-Mizoram", "Broadcasting-Tripura", "Broadcasting-Uttarakhand",
+  "Broadcasting-Assam", "Broadcasting-Karnataka", "Broadcasting-Mizoram", "Broadcasting-Telangana", "Broadcasting-Tripura", "Broadcasting-Uttarakhand",
   "Business Development", "Corporate Communications", "Documentation",
   "Facilities", "Food Committee", "Game Development", "Govt. Relations", "HR", "Interns", "Management",
   "Marketing",
@@ -51,7 +51,7 @@ const DEPARTMENTS = [
 
 const LOCATIONS = [
   "Agartala", "Bangalore", "Bhagalpur", "Cachar", "Chamoli", "Delhi", "Dehradun",
-  "Dhemaji", "Diphu", "Guwahati", "Hubli", "Kokrajhar", "Maharashtra", "Nagaland",
+  "Dhemaji", "Diphu", "Guwahati", "Hubli", "Hyderabad", "Kokrajhar", "Maharashtra", "Nagaland",
   "Silchar", "Singrauli", "Sonbhadra", "Aizawl"
 ];
 
