@@ -36,7 +36,7 @@ import SearchableSelect from "../components/ui/SearchableSelect";
 
 const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Intern"];
 const DEPARTMENTS = [
-  "Academics-Assam", "Academics-Karnataka", "Academics-Mizoram", "Academics-Tripura", "Academics-Uttarakhand",
+  "Academics-Assam", "Academics-Karnataka", "Academics-Mizoram", "Academics-Telangana", "Academics-Tripura", "Academics-Uttarakhand",
   "Accounts-A", "Accounts-G", "Animation",
   "Broadcasting-Assam", "Broadcasting-Karnataka", "Broadcasting-Mizoram", "Broadcasting-Telangana", "Broadcasting-Tripura", "Broadcasting-Uttarakhand",
   "Business Development", "Corporate Communications", "Documentation",

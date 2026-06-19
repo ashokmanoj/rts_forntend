@@ -191,8 +191,8 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
 
   const canApprove    = (isRM || isHOD || isDeptHOD || isManagement) && !isClosed && !isPendingAck && !isOwnRequest && !isForwardedAway;
   const canChangeDept = (isRM || isHOD || isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck && !isForwardedAway;
-  // Facilities requestor can close requests from their dept that were forwarded to another dept
-  const isFacilitiesRequestorClose = currentUser?.dept === "Facilities" && roleLow === "requestor" && req?.dept === "Facilities" && req?.assignedDept !== "Facilities" && !isClosed && !isPendingAck;
+  // Facilities requestor can close incoming requests assigned to Facilities (not their own)
+  const isFacilitiesRequestorClose = currentUser?.dept === "Facilities" && roleLow === "requestor" && req?.assignedDept === "Facilities" && !isOwnRequest && !isClosed && !isPendingAck;
   const canClose      = ((isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck && !isForwardedAway) ||
                         (isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !isForwardedAway) ||
                         (isSpecificallyAssigned && !isClosed && !isPendingAck && !isAdmin) ||
