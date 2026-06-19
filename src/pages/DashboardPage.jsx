@@ -247,8 +247,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   const handleOpenDetails = async (row) => {
     setSelectedReq(row);
     setActiveModal("details");
-    const isReopened = !!(row.reopenedAt && !row.isClosed);
-    if (!row.seen && !isReopened) {
+    if (!row.seen) {
       setTimeout(async () => {
         setRequests((prev) => prev.map((r) => (r.id === row.id ? { ...r, seen: true } : r)));
         await markRequestSeen(row.id).catch(() => {});

@@ -64,11 +64,12 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
     setContextMenu(null);
   };
 
-  // Reopened (any seen state) → top; then unread; then read
+  // 1) Reopened + unread → very top  2) Normal unread  3) Reopened + read  4) Normal read
   const sorted = (!sortMode || sortMode === "default")
     ? [
-        ...requests.filter(r => r.reopenedAt && !r.isClosed),
+        ...requests.filter(r => r.reopenedAt && !r.isClosed && !r.seen),
         ...requests.filter(r => !r.seen && !(r.reopenedAt && !r.isClosed)),
+        ...requests.filter(r => r.reopenedAt && !r.isClosed &&  r.seen),
         ...requests.filter(r =>  r.seen && !(r.reopenedAt && !r.isClosed)),
       ]
     : requests;
