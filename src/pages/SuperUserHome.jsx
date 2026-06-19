@@ -231,7 +231,8 @@ function RequestsTab({ currentUser, onLogout, onSwitchRole }) {
   const handleOpenDetails = async (row) => {
     setSelectedReq(row);
     setActiveModal("details");
-    if (!row.seen) {
+    const isReopened = !!(row.reopenedAt && !row.isClosed);
+    if (!row.seen && !isReopened) {
       setTimeout(async () => {
         setRequests(prev => prev.map(r => r.id === row.id ? { ...r, seen: true } : r));
         await markRequestSeen(row.id).catch(() => {});
