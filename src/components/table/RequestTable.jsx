@@ -197,12 +197,12 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
               const isReopened   = !!(row.reopenedAt && !isClosed);
 
               const rowBg =
-                isClosed      ? "bg-green-50/40"  :
-                isPendingAck  ? "bg-amber-50/40"  :
-                isReopened    ? "bg-orange-50"     :
-                isUnread      ? "bg-blue-50"       :
-                row.forwarded ? "bg-blue-50/20"    : "";
-              const bold = (isUnread || isReopened) ? "font-black" : "";
+                isClosed                  ? "bg-green-50/40"  :
+                isPendingAck              ? "bg-amber-50/40"  :
+                (isReopened && isUnread)  ? "bg-orange-50"    :
+                isUnread                  ? "bg-blue-50"      :
+                row.forwarded             ? "bg-blue-50/20"   : "";
+              const bold = isUnread ? "font-black" : "";
 
               return (
                 <tr
@@ -212,7 +212,7 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                 >
                   {[row.id, row.date, row.empId, row.name, row.dept, row.designation, row.location].map((val, i) => {
                     const fc = i < 5 ? FROZEN[i] : null;
-                    const frozenBg = isClosed ? "#f0fdf4" : isPendingAck ? "#fffbeb" : isReopened ? "#fff7ed" : isUnread ? "#eff6ff" : row.forwarded ? "#f5f8ff" : "#ffffff";
+                    const frozenBg = isClosed ? "#f0fdf4" : isPendingAck ? "#fffbeb" : (isReopened && isUnread) ? "#fff7ed" : isUnread ? "#eff6ff" : row.forwarded ? "#f5f8ff" : "#ffffff";
                     return (
                       <td
                         key={i}
@@ -285,9 +285,9 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                   <td className="border-l border-b border-r border-black px-3 py-2 cursor-pointer text-center" onClick={() => onOpenDetails(row)}>
                     <span className="flex flex-col items-center gap-0.5">
                       <span className="flex items-center justify-center gap-1.5">
-                        {isReopened && <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0 inline-block" />}
+                        {isReopened && isUnread && <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0 inline-block" />}
                         {!isReopened && isUnread && <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 inline-block" />}
-                        <span className={`text-blue-600 underline text-[11px] ${(isUnread || isReopened) ? "font-black" : "font-bold"}`} title={row.purpose}>
+                        <span className={`text-blue-600 underline text-[11px] ${isUnread ? "font-black" : "font-bold"}`} title={row.purpose}>
                           {row.purpose?.length > 15 ? row.purpose.slice(0, 15) + "…" : row.purpose}
                         </span>
                       </span>
