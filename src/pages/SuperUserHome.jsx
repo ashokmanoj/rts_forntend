@@ -867,18 +867,21 @@ function RoleModal({ title, initial, onSave, onClose, excludeEmpId }) {
         )}
         <div className="space-y-1">
           <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Role</label>
-          <select value={role} onChange={e => setRole(e.target.value)}
-            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:border-indigo-400 bg-white">
-            {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-          </select>
+          <SearchableSelect
+            value={role}
+            onChange={setRole}
+            options={ALL_ROLES}
+            placeholder="Select role…"
+          />
         </div>
         <div className="space-y-1">
           <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Department</label>
-          <select value={dept} onChange={e => setDept(e.target.value)}
-            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:border-indigo-400 bg-white">
-            <option value="">-- Select Department --</option>
-            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
+          <SearchableSelect
+            value={dept}
+            onChange={setDept}
+            options={DEPARTMENTS}
+            placeholder="Select department…"
+          />
         </div>
         <div className="flex gap-3 pt-1">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-black text-[12px] hover:bg-slate-50 transition-all">Cancel</button>
@@ -991,16 +994,20 @@ function UserRolesTab() {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by Emp ID or Name…"
               className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-[12px] bg-white focus:outline-none focus:border-indigo-400"/>
           </div>
-          <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
-            className="border border-slate-200 rounded-xl px-3 py-2 text-[12px] bg-white focus:outline-none focus:border-indigo-400">
-            <option value="">All Roles</option>
-            {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-          </select>
-          <select value={filterDept} onChange={e => setFilterDept(e.target.value)}
-            className="border border-slate-200 rounded-xl px-3 py-2 text-[12px] bg-white focus:outline-none focus:border-indigo-400 max-w-[200px]">
-            <option value="">All Departments</option>
-            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
+          <SearchableSelect
+            value={filterRole}
+            onChange={setFilterRole}
+            options={ALL_ROLES}
+            placeholder="All Roles"
+            className="w-36"
+          />
+          <SearchableSelect
+            value={filterDept}
+            onChange={setFilterDept}
+            options={DEPARTMENTS}
+            placeholder="All Departments"
+            className="w-52"
+          />
           {(search || filterRole || filterDept) && (
             <button onClick={() => { setSearch(""); setFilterRole(""); setFilterDept(""); }}
               className="flex items-center gap-1 px-2.5 py-2 border border-slate-200 rounded-xl text-[11px] font-bold text-slate-500 hover:bg-slate-100 bg-white transition-all">

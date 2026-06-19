@@ -3,6 +3,7 @@ import {
   Paperclip, FileText, FileSpreadsheet, FileImage,
   Film, Music, Archive, File, ZoomIn, Eye, Reply, Download, Images,
 } from "lucide-react";
+import { renderWithLinks } from "../../utils/linkUtils";
 import VoiceMessageBubble      from "./VoiceMessageBubble";
 import SpreadsheetPreviewModal from "../modals/SpreadsheetPreviewModal";
 import GalleryLightbox         from "../modals/GalleryLightbox";
@@ -240,7 +241,7 @@ export default function MessageBubble({ log, onReply }) {
 
             {/* ── Text / caption ── */}
             {hasText && (
-              <p className="text-slate-600 text-[11px] leading-relaxed break-words whitespace-pre-wrap">{log.text}</p>
+              <p className="text-slate-600 text-[11px] leading-relaxed break-words whitespace-pre-wrap">{renderWithLinks(log.text)}</p>
             )}
           </div>
         </div>

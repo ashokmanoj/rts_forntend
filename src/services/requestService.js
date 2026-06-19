@@ -27,7 +27,7 @@ export async function fetchRequestById(id) {
   return get(`/requests/${id}`);
 }
 
-export async function createRequest({ purpose, assignedDept, assignedDepts, description, files, dueDate, assignedPersonEmpId, assignedPersonName }) {
+export async function createRequest({ purpose, assignedDept, assignedDepts, description, files, dueDate, assignedPersonEmpId, assignedPersonName, ccDepts, ccEmpIds, ccPersonNames, isRecurring, recurringInterval }) {
   const fd = new FormData();
   fd.append("purpose", purpose);
   if (assignedDept)  fd.append("assignedDept",  assignedDept);
@@ -37,6 +37,11 @@ export async function createRequest({ purpose, assignedDept, assignedDepts, desc
   if (dueDate) fd.append("dueDate", dueDate);
   if (assignedPersonEmpId) fd.append("assignedPersonEmpId", assignedPersonEmpId);
   if (assignedPersonName)  fd.append("assignedPersonName",  assignedPersonName);
+  if (ccDepts)       fd.append("ccDepts",      ccDepts);
+  if (ccEmpIds)      fd.append("ccEmpIds",     ccEmpIds);
+  if (ccPersonNames) fd.append("ccPersonNames", ccPersonNames);
+  if (isRecurring)   fd.append("isRecurring",  isRecurring);
+  if (recurringInterval) fd.append("recurringInterval", recurringInterval);
   return postForm("/requests", fd);
 }
 
@@ -50,10 +55,11 @@ export async function acknowledgeRequest(id, status) {
 export async function markRequestSeen(id)   { return patch(`/requests/${id}/seen`, {}); }
 export async function markRequestUnread(id) { return patch(`/requests/${id}/unread`, {}); }
 
-export async function closeRequest(id, note = "", file = null) {
+export async function closeRequest(id, note = "", files = []) {
   const fd = new FormData();
   if (note) fd.append("note", note);
-  if (file) fd.append("file", file);
+  const arr = Array.isArray(files) ? files : (files ? [files] : []);
+  arr.forEach(f => fd.append("files", f));
   return patchForm(`/requests/${id}/close`, fd);
 }
 

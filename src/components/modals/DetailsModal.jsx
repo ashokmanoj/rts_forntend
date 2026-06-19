@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
-import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye, MessageSquare, Download, Users, ChevronRight, Search, RefreshCw, StopCircle } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye, MessageSquare, Download, Users, ChevronRight, Search, RefreshCw, StopCircle, Check } from "lucide-react";
 import { get, patch } from "../../services/api";
+import { renderWithLinks, LinkPreview } from "../../utils/linkUtils";
 
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { getNowTime, getNowDate, getNowDateTime } from "../../utils/dateTime";
@@ -113,6 +115,16 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const [hodDeptSearch,        setHodDeptSearch]        = useState("");
   // Stop recurring
   const [stopRecurringLoading, setStopRecurringLoading] = useState(false);
+  // Forward dept+person combined picker
+  const [fwdDeptUsers,   setFwdDeptUsers]   = useState({});
+  const [fwdLoadingDept, setFwdLoadingDept] = useState(false);
+  const [fwdPersons,     setFwdPersons]     = useState(new Set());
+  const [fwdPickerOpen,  setFwdPickerOpen]  = useState(false);
+  const [fwdDeptSearch,  setFwdDeptSearch]  = useState("");
+  const [fwdPersonSearch,setFwdPersonSearch]= useState("");
+  const [fwdPickerRect,  setFwdPickerRect]  = useState(null);
+  const fwdPickerRef      = useRef(null);
+  const fwdPickerPanelRef = useRef(null);
 
   useEscapeKey(
     lightboxData        ? () => setLightboxData(null)
@@ -120,6 +132,61 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     : showChat          ? () => setShowChat(false)
     : onClose
   );
+
+  const ASSIGNABLE_ROLES = new Set(["RM", "HOD", "DeptHOD"]);
+  const filterAssignable = (users) =>
+    users.filter(u =>
+      ASSIGNABLE_ROLES.has(u.role) ||
+      (u.roles || []).some(r => ASSIGNABLE_ROLES.has(r.role))
+    );
+  const fwdDeptUsersRef = useRef({});
+  const selectFwdDept = async (dept) => {
+    setSelectedDept(dept);
+    setFwdPersons(new Set());
+    setFwdPersonSearch("");
+    if (fwdDeptUsersRef.current[dept] !== undefined) return; // already cached
+    setFwdLoadingDept(true);
+    try {
+      const data  = await get(`/requests/users-by-dept?depts=${encodeURIComponent(dept)}`);
+      const all   = Array.isArray(data) ? data : (data?.data ?? []);
+      const users = filterAssignable(all);
+      fwdDeptUsersRef.current = { ...fwdDeptUsersRef.current, [dept]: users };
+      setFwdDeptUsers(fwdDeptUsersRef.current);
+    } catch {
+      fwdDeptUsersRef.current = { ...fwdDeptUsersRef.current, [dept]: [] };
+      setFwdDeptUsers(fwdDeptUsersRef.current);
+    } finally {
+      setFwdLoadingDept(false);
+    }
+  };
+
+  // Close fwd picker on outside click
+  useEffect(() => {
+    if (!fwdPickerOpen) return;
+    const close = (e) => {
+      if (
+        fwdPickerRef.current      && !fwdPickerRef.current.contains(e.target) &&
+        fwdPickerPanelRef.current && !fwdPickerPanelRef.current.contains(e.target)
+      ) { setFwdPickerOpen(false); setFwdDeptSearch(""); setFwdPersonSearch(""); }
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [fwdPickerOpen]);
+
+  const repositionFwdPicker = useCallback(() => {
+    if (!fwdPickerOpen) return;
+    const r = fwdPickerRef.current?.getBoundingClientRect();
+    if (r) setFwdPickerRect(r);
+  }, [fwdPickerOpen]);
+  useEffect(() => {
+    if (!fwdPickerOpen) return;
+    window.addEventListener("scroll", repositionFwdPicker, true);
+    window.addEventListener("resize", repositionFwdPicker);
+    return () => {
+      window.removeEventListener("scroll", repositionFwdPicker, true);
+      window.removeEventListener("resize", repositionFwdPicker);
+    };
+  }, [fwdPickerOpen, repositionFwdPicker]);
 
   const handleBulkDownload = async () => {
     if (!req?.fileUrls?.length || bulkDownloading) return;
@@ -189,19 +256,25 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     !isOwnRequest
   );
 
-  const canApprove    = (isRM || isHOD || isDeptHOD || isManagement) && !isClosed && !isPendingAck && !isOwnRequest && !isForwardedAway;
-  const canChangeDept = (isRM || isHOD || isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck && !isForwardedAway;
+  // CC users: explicitly CC'd on this ticket — can only view and chat, no actions
+  const isCcUser = !isOwnRequest && !!(
+    (req?.ccDepts  && req.ccDepts.split(",").map(s => s.trim()).some(d => d === currentUser?.dept)) ||
+    (req?.ccEmpIds && req.ccEmpIds.split(",").map(s => s.trim()).some(e => e === currentUser?.empId))
+  );
+
+  const canApprove    = (isRM || isHOD || isDeptHOD || isManagement) && !isClosed && !isPendingAck && !isOwnRequest && !isForwardedAway && !isCcUser;
+  const canChangeDept = (isRM || isHOD || isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck && !isForwardedAway && !isCcUser;
   // Facilities requestor can close incoming requests assigned to Facilities (not their own)
-  const isFacilitiesRequestorClose = currentUser?.dept === "Facilities" && roleLow === "requestor" && req?.assignedDept === "Facilities" && !isOwnRequest && !isClosed && !isPendingAck;
-  const canClose      = ((isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck && !isForwardedAway) ||
+  const isFacilitiesRequestorClose = currentUser?.dept === "Facilities" && roleLow === "requestor" && req?.assignedDept === "Facilities" && !isOwnRequest && !isClosed && !isPendingAck && !isCcUser;
+  const canClose      = (((isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck && !isForwardedAway) ||
                         (isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !isForwardedAway) ||
                         (isSpecificallyAssigned && !isClosed && !isPendingAck && !isAdmin) ||
-                        isFacilitiesRequestorClose;
+                        isFacilitiesRequestorClose) && !isCcUser;
   const canChat       = !isAdmin && !isClosed;
   const isRequestorMode = roleLow === "requestor" || isOwnRequest;
 
   // Team members can click "Checking" on incoming requests from other departments
-  const canUserCheck = isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !canApprove && !isForwardedAway;
+  const canUserCheck = isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !canApprove && !isForwardedAway && !isCcUser;
 
   // Facilities dept team members can forward incoming requests to another department
   const canUserForward = currentUser?.dept === "Facilities" && isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !canApprove && !isForwardedAway;
@@ -375,6 +448,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                 onChange={e => setCheckingReason(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-[12px] font-medium outline-none focus:ring-2 focus:ring-amber-400 resize-none transition-all"
               />
+              <LinkPreview text={checkingReason} />
             </div>
 
             {checkingDate && (
@@ -736,6 +810,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               {req?.reopenedAt && !isClosed && <span className="flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[10px] font-black"><RefreshCw size={9}/> Reopened</span>}
               {req?.isRecurring && <span className="flex items-center gap-1 px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full text-[10px] font-black">🔁 Recurring</span>}
               {isOwnRequest && !isRequestorMode && <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black">Your Request</span>}
+              {isCcUser && <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black">📋 CC Viewer</span>}
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${roleBadgeCls}`}>{currentUser?.dept}department</span>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
@@ -783,15 +858,178 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                   Assigned Department
                   {deptChanged && (canChangeDept || canUserForward) && <span className="ml-1 text-blue-600 normal-case font-bold text-[9px]">(<span className="line-through text-slate-400">{req?.assignedDept}</span> → <b>{selectedDept}</b>)</span>}
                 </p>
-                <SearchableSelect
-                  value={selectedDept}
-                  onChange={(val) => (canChangeDept || canUserForward) && setSelectedDept(val)}
-                  options={DEPARTMENTS}
-                  placeholder="Select department…"
-                  disabled={!canChangeDept && !canUserForward}
-                  triggerClassName={`p-3 rounded-xl font-bold text-sm text-center border-none ${deptChanged && (canChangeDept || canUserForward) ? "bg-blue-50 text-blue-700 ring-2 ring-blue-300" : (canChangeDept || canUserForward) ? "bg-slate-100 text-slate-700" : "bg-slate-100 text-slate-500"}`}
-                />
+
+                {(canChangeDept || canUserForward) ? (() => {
+                  const selCount = fwdPersons.size;
+                  const users    = fwdDeptUsers[selectedDept] || [];
+                  const filteredDepts   = DEPARTMENTS.filter(d => d.toLowerCase().includes(fwdDeptSearch.toLowerCase()));
+                  const filteredPersons = users.filter(u =>
+                    u.name?.toLowerCase().includes(fwdPersonSearch.toLowerCase()) ||
+                    u.empId?.toLowerCase().includes(fwdPersonSearch.toLowerCase())
+                  );
+                  return (
+                    <div>
+                      {/* Trigger */}
+                      <button
+                        ref={fwdPickerRef}
+                        type="button"
+                        onClick={() => {
+                          const r = fwdPickerRef.current?.getBoundingClientRect();
+                          if (r) setFwdPickerRect(r);
+                          setFwdPickerOpen(p => !p);
+                        }}
+                        className={`w-full flex items-center justify-between gap-2 p-3 rounded-xl font-bold text-sm border-none transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                          deptChanged ? "bg-blue-50 text-blue-700 ring-2 ring-blue-300" : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        <span className="truncate flex-1 text-left">
+                          {selectedDept
+                            ? selCount > 0 ? `${selectedDept} · ${selCount} person${selCount > 1 ? "s" : ""} selected` : selectedDept
+                            : "Select department…"}
+                        </span>
+                        <span className="flex items-center gap-1 shrink-0">
+                          {selectedDept && (
+                            <span
+                              role="button"
+                              tabIndex={-1}
+                              onMouseDown={e => { e.stopPropagation(); setSelectedDept(req?.assignedDept || ""); setFwdPersons(new Set()); setFwdPickerOpen(false); fwdDeptUsersRef.current = {}; setFwdDeptUsers({}); }}
+                              className="text-slate-400 hover:text-red-400 transition-colors"
+                            >
+                              <X size={12} />
+                            </span>
+                          )}
+                          <ChevronDown size={15} className={`text-slate-400 transition-transform duration-150 ${fwdPickerOpen ? "rotate-180" : ""}`} />
+                        </span>
+                      </button>
+
+                      {/* Portal: two-column panel */}
+                      {fwdPickerOpen && fwdPickerRect && createPortal(
+                        (() => {
+                          const spaceBelow = window.innerHeight - fwdPickerRect.bottom;
+                          const panelH = 310;
+                          const top = spaceBelow >= panelH ? fwdPickerRect.bottom + 4 : fwdPickerRect.top - panelH - 4;
+                          const panelStyle = { position: "fixed", top, left: fwdPickerRect.left, width: Math.max(fwdPickerRect.width, 480), zIndex: 9999 };
+                          return (
+                            <div ref={fwdPickerPanelRef} style={panelStyle} className="bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex">
+
+                              {/* Left: dept list */}
+                              <div className="w-52 border-r border-slate-100 flex flex-col">
+                                <div className="p-2 border-b border-slate-100">
+                                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 focus-within:border-blue-400 transition-colors">
+                                    <Search size={13} className="shrink-0 text-slate-400" />
+                                    <input autoFocus type="text" value={fwdDeptSearch} onChange={e => setFwdDeptSearch(e.target.value)} placeholder="Search dept…"
+                                      className="flex-1 text-[12px] font-medium bg-transparent outline-none text-slate-700 placeholder-slate-400 min-w-0" />
+                                    {fwdDeptSearch && <button type="button" onClick={() => setFwdDeptSearch("")}><X size={11} className="text-slate-400 hover:text-slate-600" /></button>}
+                                  </div>
+                                </div>
+                                <div className="overflow-y-auto max-h-64 py-1">
+                                  {filteredDepts.length === 0
+                                    ? <p className="text-[11px] text-slate-400 text-center py-4">No results</p>
+                                    : filteredDepts.map(dept => {
+                                      const isSel = selectedDept === dept;
+                                      return (
+                                        <button key={dept} type="button"
+                                          onClick={() => selectFwdDept(dept)}
+                                          className={`w-full flex items-center gap-2 text-left px-3 py-2.5 text-[12px] transition-colors ${isSel ? "bg-blue-50 text-blue-700 font-black" : "text-slate-700 font-medium hover:bg-slate-50 hover:text-blue-700"}`}
+                                        >
+                                          <span className="truncate flex-1">{dept}</span>
+                                          {isSel && <Check size={13} className="shrink-0 text-blue-600" strokeWidth={3} />}
+                                        </button>
+                                      );
+                                    })
+                                  }
+                                </div>
+                              </div>
+
+                              {/* Right: person list */}
+                              <div className="flex-1 flex flex-col min-w-0">
+                                {!selectedDept ? (
+                                  <div className="flex-1 flex items-center justify-center p-6">
+                                    <p className="text-[11px] text-slate-300 italic text-center">Select a department<br/>to assign persons</p>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div className="p-2 border-b border-slate-100">
+                                      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 focus-within:border-blue-400 transition-colors">
+                                        <Search size={13} className="shrink-0 text-slate-400" />
+                                        <input type="text" value={fwdPersonSearch} onChange={e => setFwdPersonSearch(e.target.value)} placeholder="Search person…"
+                                          className="flex-1 text-[12px] font-medium bg-transparent outline-none text-slate-700 placeholder-slate-400 min-w-0" />
+                                        {fwdPersonSearch && <button type="button" onClick={() => setFwdPersonSearch("")}><X size={11} className="text-slate-400 hover:text-slate-600" /></button>}
+                                      </div>
+                                    </div>
+                                    {selCount > 0 && (
+                                      <div className="flex items-center justify-between px-3 py-1.5 bg-blue-50 border-b border-blue-100">
+                                        <span className="text-[10px] font-black text-blue-600 uppercase tracking-wide">{selCount} selected</span>
+                                        <button type="button" onClick={() => setFwdPersons(new Set())} className="text-[10px] font-black text-red-500 hover:text-red-700">Clear all</button>
+                                      </div>
+                                    )}
+                                    <div className="overflow-y-auto flex-1 max-h-52 py-1">
+                                      {fwdLoadingDept ? (
+                                        <div className="flex items-center gap-2 px-4 py-3 text-[11px] text-slate-400"><Spinner size={13} /> Loading…</div>
+                                      ) : filteredPersons.length === 0 ? (
+                                        <p className="text-[11px] text-slate-400 text-center py-4 italic">{fwdPersonSearch ? "No results" : "No RM/HOD users found."}</p>
+                                      ) : filteredPersons.map(u => {
+                                        const isChecked = fwdPersons.has(u.empId);
+                                        return (
+                                          <button key={u.empId} type="button"
+                                            onClick={() => setFwdPersons(prev => { const n = new Set(prev); n.has(u.empId) ? n.delete(u.empId) : n.add(u.empId); return n; })}
+                                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${isChecked ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"}`}
+                                          >
+                                            <span className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isChecked ? "bg-blue-600 border-blue-600" : "border-slate-300"}`}>
+                                              {isChecked && <Check size={9} className="text-white" strokeWidth={3} />}
+                                            </span>
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-[12px] font-semibold truncate">{u.name}</p>
+                                              <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                                {(u.roles?.length ? [...new Set(u.roles.map(r => r.role))] : [u.role]).filter(Boolean).map(r => (
+                                                  <span key={r} className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-700">{r}</span>
+                                                ))}
+                                                {u.designation && <span className="text-[9px] text-slate-400 truncate">{u.designation}</span>}
+                                              </div>
+                                            </div>
+                                            <span className="text-[9px] text-slate-300 flex-shrink-0">{u.empId}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                    <div className="p-2 border-t border-slate-100">
+                                      <button type="button"
+                                        onClick={() => { setFwdPickerOpen(false); setFwdDeptSearch(""); setFwdPersonSearch(""); }}
+                                        className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-black rounded-xl transition-colors"
+                                      >
+                                        Done
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })(),
+                        document.body
+                      )}
+                    </div>
+                  );
+                })() : (
+                  <div className="p-3 rounded-xl font-bold text-sm text-center bg-slate-100 text-slate-500">
+                    {selectedDept || "—"}
+                  </div>
+                )}
               </div>
+
+              {(req?.ccDepts || req?.ccPersonNames) && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <p className="text-[9px] text-amber-600 font-black uppercase tracking-wider mb-1.5 flex items-center gap-1">📋 CC'd (Copy To — view &amp; chat only)</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {req.ccDepts?.split(",").map(d => (
+                      <span key={d} className="px-2.5 py-1 rounded-full text-[11px] font-bold border bg-amber-100 text-amber-700 border-amber-200">{d.trim()}</span>
+                    ))}
+                    {req.ccPersonNames?.split(",").map(n => (
+                      <span key={n} className="px-2.5 py-1 rounded-full text-[11px] font-bold border bg-white text-amber-700 border-amber-200">{n.trim()}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {req?.assignedDepts && req.assignedDepts.split(",").length > 1 && (
                 <div>
@@ -821,7 +1059,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
 
               <div>
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 ml-0.5">Request Description</p>
-                <div className="w-full bg-slate-50 p-3 rounded-xl text-slate-600 border border-slate-200 leading-relaxed text-[12px]">{req?.description || "No description provided."}</div>
+                <div className="w-full bg-slate-50 p-3 rounded-xl text-slate-600 border border-slate-200 leading-relaxed text-[12px] whitespace-pre-wrap break-words">{renderWithLinks(req?.description) || "No description provided."}</div>
               </div>
 
               <div>
@@ -914,6 +1152,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                         className="w-full border-2 border-slate-100 p-3 rounded-xl h-16 outline-none focus:border-indigo-400 bg-slate-50 transition-all font-medium text-[12px] resize-none"
                         placeholder="Add your official comments here..."
                         disabled={approvalLoading}/>
+                      <LinkPreview text={approvalComment} />
                       {(() => {
                         const isActedApproved = myApprovalStatus === "Approved" || myApprovalStatus === "Forwarded";
                         const isActedChecking = myApprovalStatus === "Checking";
@@ -927,7 +1166,11 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                           <div className={`grid ${cols} gap-2`}>
                             {/* Approve / Forward */}
                             {deptChanged ? (
-                              <button onClick={() => handleApproval("Forwarded")} disabled={approvalLoading || isActedApproved} className="bg-blue-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-blue-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5 relative">
+                              <button onClick={() => {
+                                const selUsers = (fwdDeptUsers[selectedDept] || []).filter(u => fwdPersons.has(u.empId));
+                                const extras = selUsers.length ? { assignedPersonEmpId: selUsers.map(u => u.empId).join(","), assignedPersonName: selUsers.map(u => u.name).join(",") } : {};
+                                handleApproval("Forwarded", null, null, extras);
+                              }} disabled={approvalLoading || isActedApproved} className="bg-blue-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-blue-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5 relative">
                                 {pendingDecision === "Forwarded" ? <Spinner size={13}/> : isActedApproved ? <CheckCircle size={13}/> : <Forward size={13}/>} Forward
                                 {isActedApproved && <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center"><CheckCircle size={10} className="text-blue-500"/></span>}
                               </button>
@@ -967,7 +1210,13 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                     /* Facilities dept — forward incoming request to another dept */
                     <div className="grid grid-cols-3 gap-2">
                       <button
-                        onClick={() => handleApproval("Forwarded")}
+                        onClick={() => {
+                          const selUsers = (fwdDeptUsers[selectedDept] || []).filter(u => fwdPersons.has(u.empId));
+                          const extras = selUsers.length
+                            ? { assignedPersonEmpId: selUsers.map(u => u.empId).join(","), assignedPersonName: selUsers.map(u => u.name).join(",") }
+                            : {};
+                          handleApproval("Forwarded", null, null, extras);
+                        }}
                         disabled={approvalLoading || !deptChanged}
                         className="bg-blue-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-blue-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"
                       >
@@ -1111,29 +1360,33 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                 <div className="border border-emerald-200 bg-emerald-50 rounded-2xl p-4 space-y-2">
                    <p className="text-[10px] text-emerald-700 font-black uppercase tracking-widest flex items-center gap-1"><ShieldCheck size={12}/> Closure Details</p>
                    <div className="space-y-1">
-                      <p className="text-[11px] text-slate-700 font-bold leading-relaxed">{req.closeData.description}</p>
+                      <p className="text-[11px] text-slate-700 font-bold leading-relaxed whitespace-pre-wrap break-words">
+                        {renderWithLinks(req.closeData.description)}
+                      </p>
                       <p className="text-[9px] text-slate-400 font-medium">Closed on {req.closeData.closedDate}</p>
                    </div>
-                   {req.closeData.fileUrl && (
-                      <div className="pt-2">
-                         {isImageUrl(req.closeData.fileUrl) ? (
-                            <div className="relative group w-fit">
-                              <img src={resolveFileUrl(req.closeData.fileUrl)} onClick={() => setLightboxData({ urls: [req.closeData.fileUrl], names: [req.closeData.fileName || "closure-attachment"], index: 0 })} className="h-20 w-auto rounded-lg border-2 border-white shadow-sm cursor-pointer hover:brightness-90 transition-all"/>
+                   {/* Multiple closure attachments */}
+                   {req.closeData.fileUrls?.length > 0 && (
+                      <div className="pt-1 space-y-1.5">
+                        {req.closeData.fileUrls.map((url, idx) => {
+                          const name = req.closeData.fileNames?.[idx] || `attachment-${idx + 1}`;
+                          const resolved = resolveFileUrl(url);
+                          return isImageUrl(url) ? (
+                            <div key={idx} className="relative group w-fit">
+                              <img src={resolved} onClick={() => setLightboxData({ urls: req.closeData.fileUrls, names: req.closeData.fileNames || [], index: idx })} className="h-20 w-auto rounded-lg border-2 border-white shadow-sm cursor-pointer hover:brightness-90 transition-all"/>
                               <div className="absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg bg-black/20">
                                 <div className="bg-black/60 rounded-full p-1"><ZoomIn size={13} className="text-white"/></div>
-                                <a href={resolveFileUrl(req.closeData.fileUrl)} download={req.closeData.fileName || "closure-image"} onClick={e => e.stopPropagation()} className="bg-black/60 hover:bg-emerald-600 rounded-full p-1 transition-colors" title="Download"><Download size={13} className="text-white"/></a>
+                                <a href={resolved} download={name} onClick={e => e.stopPropagation()} className="bg-black/60 hover:bg-emerald-600 rounded-full p-1 transition-colors" title="Download"><Download size={13} className="text-white"/></a>
                               </div>
                             </div>
-                         ) : isSpreadsheetUrl(req.closeData.fileUrl) ? (
-                            <button
-                              onClick={() => setSpreadsheetPreview({ url: req.closeData.fileUrl, fileName: req.closeData.fileName || "closure-attachment" })}
-                              className="flex items-center gap-1.5 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 font-bold text-[10px] px-2.5 py-1.5 rounded-lg transition-all"
-                            >
-                              <FileSpreadsheet size={12} className="text-teal-600" /> View Spreadsheet <Eye size={10} className="text-teal-400" />
+                          ) : isSpreadsheetUrl(url) ? (
+                            <button key={idx} onClick={() => setSpreadsheetPreview({ url, fileName: name })} className="flex items-center gap-1.5 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 font-bold text-[10px] px-2.5 py-1.5 rounded-lg transition-all">
+                              <FileSpreadsheet size={12} className="text-teal-600" /> {name} <Eye size={10} className="text-teal-400" />
                             </button>
-                         ) : (
-                            <a href={resolveFileUrl(req.closeData.fileUrl)} target="_blank" rel="noreferrer" className="text-emerald-600 font-bold text-[10px] flex items-center gap-1 underline">📎 View Closure Attachment</a>
-                         )}
+                          ) : (
+                            <a key={idx} href={resolved} target="_blank" rel="noreferrer" className="text-emerald-600 font-bold text-[10px] flex items-center gap-1 underline">📎 {name}</a>
+                          );
+                        })}
                       </div>
                    )}
                 </div>

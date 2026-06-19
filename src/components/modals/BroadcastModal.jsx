@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Megaphone, Send, Users, MapPin } from "lucide-react";
 import { post, get } from "../../services/api";
 import SearchableSelect from "../ui/SearchableSelect";
+import { LinkPreview } from "../../utils/linkUtils";
 
 const DEPARTMENTS = [
   "Academics-Assam","Academics-Karnataka","Academics-Mizoram","Academics-Tripura","Academics-Uttarakhand",
@@ -164,6 +165,7 @@ export default function BroadcastModal({ onClose }) {
               maxLength={300}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[13px] font-medium text-slate-700 outline-none focus:ring-2 focus:ring-violet-400 resize-none transition-all placeholder:text-slate-300"
             />
+            <LinkPreview text={message} />
             <p className="text-[10px] text-slate-400 text-right">{message.length}/300</p>
           </div>
 

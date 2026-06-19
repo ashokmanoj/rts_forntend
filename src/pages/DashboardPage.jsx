@@ -306,11 +306,12 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
     showToast("success", "Request added successfully.");
   };
 
-  const handleConfirmCloseTicket = async (reqId, note, file) => {
+  const handleConfirmCloseTicket = async (reqId, note, files) => {
     try {
-      const updated = await closeRequest(reqId, note, file);
+      const updated = await closeRequest(reqId, note, files);
       setRequests((prev) => prev.map((r) => (r.id === reqId ? { ...updated, seen: true } : r)));
-      setSelectedReq({ ...updated, seen: true });
+      setActiveModal(null);
+      setSelectedReq(null);
       const result = await fetchChat(reqId);
       setChatLogs((prev) => ({ ...prev, [reqId]: result?.data ?? result }));
     } finally { setCloseTicketReq(null); }
@@ -594,7 +595,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
                 onClose={() => { setActiveModal(null); setSelectedReq(null); }}
                 onSendMessage={handleSendMessage} onApproval={handleApproval}
                 onAcknowledge={handleAcknowledge}
-                onOpenCloseTicket={(req) => setCloseTicketReq(req)}
+                onOpenCloseTicket={(req) => { setCloseTicketReq(req); setActiveModal(null); setSelectedReq(null); }}
               />
             )}
             {closeTicketReq && (

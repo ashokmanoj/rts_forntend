@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   X, Upload, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
   FileText, FileSpreadsheet, FileImage,
   Film, Music, Archive, File, Calendar, AlertTriangle, Clipboard, Lock,
-  PenLine, Building2, MessageSquare, Paperclip, Users, Check, Repeat2,
+  PenLine, Building2, MessageSquare, Paperclip, Users, Check, Repeat2, Mail, Search,
 } from "lucide-react";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import Spinner from "../ui/Spinner";
+import SearchableSelect from "../ui/SearchableSelect";
 import { get } from "../../services/api";
+import { LinkPreview } from "../../utils/linkUtils";
 
 const DEPARTMENTS = [
   "Academics-Assam","Academics-Karnataka","Academics-Mizoram","Academics-Telangana","Academics-Tripura","Academics-Uttarakhand",
@@ -238,15 +241,28 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
   const fileInputRef   = useRef(null);
   const dragCounterRef = useRef(0);
 
-  // ── Multi-dept + user selection ───────────────────────────────────────────────
-  const [selectedDepts,   setSelectedDepts]   = useState(initialDept ? [initialDept] : []);
-  const [deptPickerOpen,  setDeptPickerOpen]  = useState(false);
-  const [deptSearch,      setDeptSearch]      = useState("");
-  const [deptUsers,       setDeptUsers]       = useState({});     // { deptName: User[] }
-  const [loadingDepts,    setLoadingDepts]    = useState(new Set()); // depts currently fetching
-  const [selectedEmpIds,  setSelectedEmpIds]  = useState(new Set());
-  const [expandedDepts,   setExpandedDepts]   = useState(new Set()); // depts with user panel open
-  const deptPickerRef = useRef(null);
+  // ── Single-dept + user selection ─────────────────────────────────────────────
+  const [selectedDept,       setSelectedDept]       = useState(initialDept || "");
+  const [deptUsers,          setDeptUsers]          = useState({});
+  const [loadingDept,        setLoadingDept]        = useState(false);
+  const [selectedEmpIds,     setSelectedEmpIds]     = useState(new Set());
+  const [deptPersonOpen,     setDeptPersonOpen]     = useState(false);
+  const [deptSearch,         setDeptSearch]         = useState("");
+  const [personSearch,       setPersonSearch]       = useState("");
+  const [deptPickerRect,     setDeptPickerRect]     = useState(null);
+  const deptPickerRef      = useRef(null);
+  const deptPickerPanelRef = useRef(null);
+
+  // ── CC (Copy To) selection ────────────────────────────────────────────────────
+  const [ccDepts,          setCcDepts]          = useState([]);
+  const [ccPickerOpen,     setCcPickerOpen]     = useState(false);
+  const [ccDeptSearch,     setCcDeptSearch]     = useState("");
+  const [ccDeptUsers,      setCcDeptUsers]      = useState({});
+  const [ccLoadingDepts,   setCcLoadingDepts]   = useState(new Set());
+  const [ccSelectedEmpIds, setCcSelectedEmpIds] = useState(new Set());
+  const [ccExpandedDepts,  setCcExpandedDepts]  = useState(new Set());
+  const [ccPersonSearch,   setCcPersonSearch]   = useState("");
+  const ccPickerRef = useRef(null);
 
   // ── Recurring ────────────────────────────────────────────────────────────────
   const [recurringType,     setRecurringType]     = useState("one-time");
@@ -271,9 +287,9 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
       if (d.dueDate)           setDueDate(d.dueDate);
       if (d.recurringType)     setRecurringType(d.recurringType);
       if (d.recurringInterval) setRecurringInterval(d.recurringInterval);
-      if (!initialDept && Array.isArray(d.selectedDepts) && d.selectedDepts.length) {
-        setSelectedDepts(d.selectedDepts);
-        restoredDepts = d.selectedDepts;
+      if (!initialDept && d.selectedDept) {
+        setSelectedDept(d.selectedDept);
+        restoredDepts = [d.selectedDept];
       }
       if (Array.isArray(d.selectedEmpIds) && d.selectedEmpIds.length) {
         restoredEmpIds = new Set(d.selectedEmpIds);
@@ -300,7 +316,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
     clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       try {
-        const hasData = purpose || description || dueDate || selectedDepts.length || selectedEmpIds.size;
+        const hasData = purpose || description || dueDate || selectedDept || selectedEmpIds.size;
         if (!hasData) return;
         localStorage.setItem(DRAFT_KEY, JSON.stringify({
           purpose,
@@ -308,13 +324,13 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
           dueDate,
           recurringType,
           recurringInterval,
-          selectedDepts: initialDept ? [] : selectedDepts,
+          selectedDept: initialDept ? "" : selectedDept,
           selectedEmpIds: [...selectedEmpIds],
         }));
       } catch {}
     }, 600);
     return () => clearTimeout(saveTimerRef.current);
-  }, [purpose, description, dueDate, recurringType, recurringInterval, selectedDepts, selectedEmpIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [purpose, description, dueDate, recurringType, recurringInterval, selectedDept, selectedEmpIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clearDraft = () => {
     try { localStorage.removeItem(DRAFT_KEY); } catch {}
@@ -323,68 +339,59 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
 
   useEscapeKey(onClose);
 
-  // Only show RM and HOD-level users in the picker (exclude Requestor, Intern, etc.)
   const ASSIGNABLE_ROLES = new Set(["RM", "HOD", "DeptHOD"]);
   const filterAssignable = (users) =>
-    users.filter(u => {
-      const roles = u.roles?.map(r => r.role) || [u.role];
-      return roles.some(r => ASSIGNABLE_ROLES.has(r));
-    });
+    users.filter(u =>
+      ASSIGNABLE_ROLES.has(u.role) ||
+      (u.roles || []).some(r => ASSIGNABLE_ROLES.has(r.role))
+    );
 
-  // Load users for a specific dept (lazy — only when arrow is clicked)
-  const loadUsersForDept = useCallback(async (dept) => {
-    if (deptUsers[dept] !== undefined) return; // already loaded
-    setLoadingDepts(prev => new Set(prev).add(dept));
-    try {
-      const data  = await get(`/requests/users-by-dept?depts=${encodeURIComponent(dept)}`);
-      const users = filterAssignable(Array.isArray(data) ? data : (data?.data ?? []));
-      setDeptUsers(prev => ({ ...prev, [dept]: users }));
-    } catch {
-      setDeptUsers(prev => ({ ...prev, [dept]: [] }));
-    } finally {
-      setLoadingDepts(prev => { const n = new Set(prev); n.delete(dept); return n; });
-    }
-  }, [deptUsers]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Toggle dept user panel — single selection (closes others, opens right panel)
-  const toggleDeptExpand = (dept) => {
-    setExpandedDepts(prev => {
-      if (prev.has(dept)) return new Set();   // click same → close
-      return new Set([dept]);                  // click new → switch
-    });
-    loadUsersForDept(dept);
-  };
-
-  // Close dept picker on outside click
+  // Auto-load users when dept changes
   useEffect(() => {
-    const handler = (e) => {
-      if (deptPickerRef.current && !deptPickerRef.current.contains(e.target))
-        setDeptPickerOpen(false);
+    setPersonSearch("");
+    setSelectedEmpIds(new Set());
+    if (!selectedDept) { setDeptUsers({}); return; }
+    if (deptUsers[selectedDept] !== undefined) return;
+    setLoadingDept(true);
+    get(`/requests/users-by-dept?depts=${encodeURIComponent(selectedDept)}`)
+      .then(data => {
+        const users = filterAssignable(Array.isArray(data) ? data : (data?.data ?? []));
+        setDeptUsers(prev => ({ ...prev, [selectedDept]: users }));
+      })
+      .catch(() => setDeptUsers(prev => ({ ...prev, [selectedDept]: [] })))
+      .finally(() => setLoadingDept(false));
+  }, [selectedDept]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close combined picker on outside click
+  useEffect(() => {
+    if (!deptPersonOpen) return;
+    const close = (e) => {
+      if (
+        deptPickerRef.current   && !deptPickerRef.current.contains(e.target) &&
+        deptPickerPanelRef.current && !deptPickerPanelRef.current.contains(e.target)
+      ) { setDeptPersonOpen(false); setDeptSearch(""); setPersonSearch(""); }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [deptPersonOpen]);
+
+  // Reposition picker panel on scroll/resize
+  const repositionDeptPicker = useCallback(() => {
+    if (!deptPersonOpen) return;
+    const r = deptPickerRef.current?.getBoundingClientRect();
+    if (r) setDeptPickerRect(r);
+  }, [deptPersonOpen]);
+  useEffect(() => {
+    if (!deptPersonOpen) return;
+    window.addEventListener("scroll", repositionDeptPicker, true);
+    window.addEventListener("resize", repositionDeptPicker);
+    return () => {
+      window.removeEventListener("scroll", repositionDeptPicker, true);
+      window.removeEventListener("resize", repositionDeptPicker);
+    };
+  }, [deptPersonOpen, repositionDeptPicker]);
 
   // ── Dept helpers ─────────────────────────────────────────────────────────────
-  const toggleDept = (dept) => {
-    if (initialDept) return;
-    setSelectedDepts(prev => {
-      if (prev.includes(dept)) {
-        // Remove dept — deselect its users and collapse its panel
-        const users = deptUsers[dept] || [];
-        setSelectedEmpIds(ids => {
-          const next = new Set(ids);
-          users.forEach(u => next.delete(u.empId));
-          return next;
-        });
-        setExpandedDepts(e => { const n = new Set(e); n.delete(dept); return n; });
-        setDeptUsers(g => { const n = { ...g }; delete n[dept]; return n; });
-        return prev.filter(d => d !== dept);
-      }
-      return [...prev, dept];
-    });
-  };
-
   const toggleUser = (empId) => {
     setSelectedEmpIds(prev => {
       const next = new Set(prev);
@@ -393,18 +400,75 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
     });
   };
 
-  const toggleAllInDept = (dept, e) => {
-    e.stopPropagation();
-    const users     = deptUsers[dept] || [];
+  const toggleAllInDept = () => {
+    const users = deptUsers[selectedDept] || [];
     const selectable = users.filter(u => u.empId !== currentUser?.empId);
-    const allSel    = selectable.length > 0 && selectable.every(u => selectedEmpIds.has(u.empId));
+    const allSelected = selectable.every(u => selectedEmpIds.has(u.empId));
     setSelectedEmpIds(prev => {
       const next = new Set(prev);
-      if (allSel) selectable.forEach(u => next.delete(u.empId));
-      else        selectable.forEach(u => next.add(u.empId));
+      if (allSelected) selectable.forEach(u => next.delete(u.empId));
+      else selectable.forEach(u => next.add(u.empId));
       return next;
     });
   };
+
+  // ── CC helpers ───────────────────────────────────────────────────────────────
+  const loadUsersForCcDept = useCallback(async (dept) => {
+    if (ccDeptUsers[dept] !== undefined) return;
+    setCcLoadingDepts(prev => new Set(prev).add(dept));
+    try {
+      const data  = await get(`/requests/users-by-dept?depts=${encodeURIComponent(dept)}`);
+      const users = Array.isArray(data) ? data : (data?.data ?? []);
+      setCcDeptUsers(prev => ({ ...prev, [dept]: users }));
+    } catch {
+      setCcDeptUsers(prev => ({ ...prev, [dept]: [] }));
+    } finally {
+      setCcLoadingDepts(prev => { const n = new Set(prev); n.delete(dept); return n; });
+    }
+  }, [ccDeptUsers]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleCcDeptExpand = (dept) => {
+    setCcPersonSearch("");
+    setCcExpandedDepts(prev => prev.has(dept) ? new Set() : new Set([dept]));
+    loadUsersForCcDept(dept);
+  };
+
+  const toggleCcDept = (dept) => {
+    setCcDepts(prev => {
+      if (prev.includes(dept)) {
+        const users = ccDeptUsers[dept] || [];
+        setCcSelectedEmpIds(ids => { const n = new Set(ids); users.forEach(u => n.delete(u.empId)); return n; });
+        setCcExpandedDepts(e => { const n = new Set(e); n.delete(dept); return n; });
+        setCcDeptUsers(g => { const n = { ...g }; delete n[dept]; return n; });
+        return prev.filter(d => d !== dept);
+      }
+      return [...prev, dept];
+    });
+  };
+
+  const toggleCcUser = (empId) => {
+    setCcSelectedEmpIds(prev => { const n = new Set(prev); n.has(empId) ? n.delete(empId) : n.add(empId); return n; });
+  };
+
+  const toggleAllInCcDept = (dept, e) => {
+    e.stopPropagation();
+    const selectable = (ccDeptUsers[dept] || []).filter(u => u.empId !== currentUser?.empId);
+    const allSel = selectable.length > 0 && selectable.every(u => ccSelectedEmpIds.has(u.empId));
+    setCcSelectedEmpIds(prev => {
+      const n = new Set(prev);
+      if (allSel) selectable.forEach(u => n.delete(u.empId));
+      else        selectable.forEach(u => n.add(u.empId));
+      return n;
+    });
+  };
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ccPickerRef.current && !ccPickerRef.current.contains(e.target)) setCcPickerOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // ── File handling ─────────────────────────────────────────────────────────────
   const MAX_FILES       = 10;
@@ -455,20 +519,24 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
     setSubmitting(true);
     setSubmitError(null);
 
-    const primaryDept   = selectedDepts[0] || "";
-    const allUsers      = Object.values(deptUsers).flat();
-    const selectedUsers = allUsers.filter(u => selectedEmpIds.has(u.empId));
+    const deptUserList  = deptUsers[selectedDept] || [];
+    const selectedUsers = deptUserList.filter(u => selectedEmpIds.has(u.empId));
+    const ccAllUsers      = Object.values(ccDeptUsers).flat();
+    const selectedCcUsers = ccAllUsers.filter(u => ccSelectedEmpIds.has(u.empId));
 
     try {
       await onSubmit({
         purpose,
-        assignedDept:        primaryDept,
-        assignedDepts:       selectedDepts.join(",") || primaryDept,
+        assignedDept:        selectedDept,
+        assignedDepts:       selectedDept,
         description,
         files:               uploadedFiles.length > 0 ? uploadedFiles : null,
         dueDate:             dueDate || null,
         assignedPersonEmpId: selectedUsers.length ? selectedUsers.map(u => u.empId).join(",") : null,
         assignedPersonName:  selectedUsers.length ? selectedUsers.map(u => u.name).join(",")  : null,
+        ccDepts:      ccDepts.length        ? ccDepts.join(",")                                  : null,
+        ccEmpIds:     selectedCcUsers.length ? selectedCcUsers.map(u => u.empId).join(",")       : null,
+        ccPersonNames: selectedCcUsers.length ? selectedCcUsers.map(u => u.name).join(",")       : null,
         isRecurring:         recurringType === "recurring",
         recurringInterval:   recurringType === "recurring" ? recurringInterval : null,
       });
@@ -483,8 +551,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
 
   const urgencyInfo     = priorityFromDueDate(dueDate);
   const today           = new Date().toISOString().split("T")[0];
-  const filteredDepts   = DEPARTMENTS.filter(d => d.toLowerCase().includes(deptSearch.toLowerCase()));
-  const totalSelected   = selectedEmpIds.size;
+  const filteredCcDepts  = DEPARTMENTS.filter(d => d.toLowerCase().includes(ccDeptSearch.toLowerCase()));
 
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -549,10 +616,10 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
             </div>
           )}
 
-          {/* ── Assign to Department(s) ─────────────────────────────────────── */}
+          {/* ── Assign to Department ─────────────────────────────────────── */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-              <Building2 size={10} /> Assign to Department{!initialDept && "s"}
+              <Building2 size={10} /> Assign to Department
             </label>
 
             {initialDept ? (
@@ -567,242 +634,350 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
                 </div>
                 <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-100 px-2.5 py-1 rounded-lg border border-indigo-200">Fixed</span>
               </div>
-            ) : (
-              /* ── Multi-dept picker + inline user expansion ───────────────── */
-              <div ref={deptPickerRef} className="relative">
-
-                {/* Trigger */}
-                <button
-                  type="button"
-                  onClick={() => setDeptPickerOpen(p => !p)}
-                  className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl border-2 font-medium text-[13px] transition-all text-left ${
-                    selectedDepts.length
-                      ? "bg-indigo-50 border-indigo-300"
-                      : "bg-slate-50 border-slate-200 hover:border-slate-300"
-                  }`}
-                >
-                  <Building2 size={14} className={selectedDepts.length ? "text-indigo-500" : "text-slate-400"} />
-                  <span className={`flex-1 ${selectedDepts.length ? "text-indigo-700" : "text-slate-400"}`}>
-                    {selectedDepts.length
-                      ? `${selectedDepts.length} department${selectedDepts.length > 1 ? "s" : ""} selected`
-                      : "Select department(s)…"}
-                  </span>
-                  {selectedDepts.length > 0 && (
-                    <span className="bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
-                      {selectedDepts.length}
+            ) : (() => {
+              const selCount = [...selectedEmpIds].length;
+              return (
+                <div>
+                  {/* Combined trigger */}
+                  <button
+                    ref={deptPickerRef}
+                    type="button"
+                    onClick={() => {
+                      const r = deptPickerRef.current?.getBoundingClientRect();
+                      if (r) setDeptPickerRect(r);
+                      setDeptPersonOpen(p => !p);
+                    }}
+                    className={`w-full flex items-center justify-between gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold hover:border-indigo-300 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 ${deptPersonOpen ? "border-indigo-400 ring-2 ring-indigo-400" : ""}`}
+                  >
+                    <span className={`truncate flex-1 text-left ${selectedDept ? "text-slate-800" : "text-slate-400"}`}>
+                      {selectedDept
+                        ? selCount > 0
+                          ? `${selectedDept} · ${selCount} person${selCount > 1 ? "s" : ""} selected`
+                          : selectedDept
+                        : "Select department…"}
                     </span>
+                    <span className="flex items-center gap-1 shrink-0">
+                      {selectedDept && (
+                        <span
+                          role="button"
+                          tabIndex={-1}
+                          onMouseDown={e => { e.stopPropagation(); setSelectedDept(""); setSelectedEmpIds(new Set()); setDeptPersonOpen(false); }}
+                          className="text-slate-300 hover:text-red-400 transition-colors"
+                        >
+                          <X size={12} />
+                        </span>
+                      )}
+                      <ChevronDown size={15} className={`text-slate-400 transition-transform duration-150 ${deptPersonOpen ? "rotate-180" : ""}`} />
+                    </span>
+                  </button>
+
+                  {/* Portal: two-column panel */}
+                  {deptPersonOpen && deptPickerRect && createPortal(
+                    (() => {
+                      const spaceBelow = window.innerHeight - deptPickerRect.bottom;
+                      const panelH = 310;
+                      const top = spaceBelow >= panelH ? deptPickerRect.bottom + 4 : deptPickerRect.top - panelH - 4;
+                      const panelStyle = { position: "fixed", top, left: deptPickerRect.left, width: Math.max(deptPickerRect.width, 480), zIndex: 9999 };
+
+                      const users           = deptUsers[selectedDept] || [];
+                      const selectable      = users.filter(u => u.empId !== currentUser?.empId);
+                      const filteredDepts   = DEPARTMENTS.filter(d => d.toLowerCase().includes(deptSearch.toLowerCase()));
+                      const filteredPersons = selectable.filter(u =>
+                        u.name?.toLowerCase().includes(personSearch.toLowerCase()) ||
+                        u.empId?.toLowerCase().includes(personSearch.toLowerCase())
+                      );
+
+                      return (
+                        <div ref={deptPickerPanelRef} style={panelStyle} className="bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex">
+
+                          {/* ── Left: dept list ── */}
+                          <div className="w-52 border-r border-slate-100 flex flex-col">
+                            <div className="p-2 border-b border-slate-100">
+                              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 focus-within:border-indigo-400 transition-colors">
+                                <Search size={13} className="shrink-0 text-slate-400" />
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  value={deptSearch}
+                                  onChange={e => setDeptSearch(e.target.value)}
+                                  placeholder="Search dept…"
+                                  className="flex-1 text-[12px] font-medium bg-transparent outline-none text-slate-700 placeholder-slate-400 min-w-0"
+                                />
+                                {deptSearch && <button type="button" onClick={() => setDeptSearch("")}><X size={11} className="text-slate-400 hover:text-slate-600" /></button>}
+                              </div>
+                            </div>
+                            <div className="overflow-y-auto max-h-64 py-1">
+                              {filteredDepts.length === 0
+                                ? <p className="text-[11px] text-slate-400 text-center py-4">No results</p>
+                                : filteredDepts.map(dept => {
+                                  const isSel = selectedDept === dept;
+                                  return (
+                                    <button
+                                      key={dept}
+                                      type="button"
+                                      onClick={() => { setSelectedDept(dept); setPersonSearch(""); }}
+                                      className={`w-full flex items-center gap-2 text-left px-3 py-2.5 text-[12px] transition-colors ${isSel ? "bg-indigo-50 text-indigo-700 font-black" : "text-slate-700 font-medium hover:bg-slate-50 hover:text-indigo-700"}`}
+                                    >
+                                      <span className="truncate flex-1">{dept}</span>
+                                      {isSel && <Check size={13} className="shrink-0 text-indigo-600" strokeWidth={3} />}
+                                    </button>
+                                  );
+                                })
+                              }
+                            </div>
+                          </div>
+
+                          {/* ── Right: person list ── */}
+                          <div className="flex-1 flex flex-col min-w-0">
+                            {!selectedDept ? (
+                              <div className="flex-1 flex items-center justify-center p-6">
+                                <p className="text-[11px] text-slate-300 italic text-center">Select a department<br/>to assign persons</p>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="p-2 border-b border-slate-100">
+                                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 focus-within:border-indigo-400 transition-colors">
+                                    <Search size={13} className="shrink-0 text-slate-400" />
+                                    <input
+                                      type="text"
+                                      value={personSearch}
+                                      onChange={e => setPersonSearch(e.target.value)}
+                                      placeholder="Search person…"
+                                      className="flex-1 text-[12px] font-medium bg-transparent outline-none text-slate-700 placeholder-slate-400 min-w-0"
+                                    />
+                                    {personSearch && <button type="button" onClick={() => setPersonSearch("")}><X size={11} className="text-slate-400 hover:text-slate-600" /></button>}
+                                  </div>
+                                </div>
+                                {selCount > 0 && (
+                                  <div className="flex items-center justify-between px-3 py-1.5 bg-indigo-50 border-b border-indigo-100">
+                                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-wide">{selCount} selected</span>
+                                    <button type="button" onClick={() => setSelectedEmpIds(new Set())} className="text-[10px] font-black text-red-500 hover:text-red-700">Clear all</button>
+                                  </div>
+                                )}
+                                <div className="overflow-y-auto flex-1 max-h-52 py-1">
+                                  {loadingDept ? (
+                                    <div className="flex items-center gap-2 px-4 py-3 text-[11px] text-slate-400"><Spinner size={13} /> Loading…</div>
+                                  ) : filteredPersons.length === 0 ? (
+                                    <p className="text-[11px] text-slate-400 text-center py-4 italic">{personSearch ? "No results" : "No active RM/HOD users found."}</p>
+                                  ) : filteredPersons.map(u => {
+                                    const isChecked = selectedEmpIds.has(u.empId);
+                                    return (
+                                      <button
+                                        key={u.empId}
+                                        type="button"
+                                        onClick={() => toggleUser(u.empId)}
+                                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${isChecked ? "bg-indigo-50 text-indigo-700" : "text-slate-700 hover:bg-slate-50"}`}
+                                      >
+                                        <span className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isChecked ? "bg-indigo-600 border-indigo-600" : "border-slate-300"}`}>
+                                          {isChecked && <Check size={9} className="text-white" strokeWidth={3} />}
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-[12px] font-semibold truncate">{u.name}</p>
+                                          <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                            {(u.roles?.length ? [...new Set(u.roles.map(r => r.role))] : [u.role]).map(r => (
+                                              <span key={r} className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${roleColor(r)}`}>{r}</span>
+                                            ))}
+                                            {u.designation && <span className="text-[9px] text-slate-400 truncate">{u.designation}</span>}
+                                          </div>
+                                        </div>
+                                        <span className="text-[9px] text-slate-300 flex-shrink-0">{u.empId}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                <div className="p-2 border-t border-slate-100">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setDeptPersonOpen(false); setDeptSearch(""); setPersonSearch(""); }}
+                                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[12px] font-black rounded-xl transition-colors"
+                                  >
+                                    Done
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                        </div>
+                      );
+                    })(),
+                    document.body
                   )}
-                  {deptPickerOpen
-                    ? <ChevronUp   size={14} className="text-slate-400 flex-shrink-0" />
-                    : <ChevronDown size={14} className="text-slate-400 flex-shrink-0" />}
-                </button>
+                </div>
+              );
+            })()}
+          </div>
 
-                {/* Dropdown — two-panel layout */}
-                {deptPickerOpen && (() => {
-                  const activeDept    = [...expandedDepts][0] ?? null;
-                  const activeUsers   = activeDept ? (deptUsers[activeDept] || []) : [];
-                  const activeLoading = activeDept ? loadingDepts.has(activeDept) : false;
-                  const activeSelectable = activeUsers.filter(u => u.empId !== currentUser?.empId);
-                  const activeSelCount   = activeSelectable.filter(u => selectedEmpIds.has(u.empId)).length;
+          {/* ── CC / Copy To ──────────────────────────────────────────────────── */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+              <Mail size={10} /> Copy To (CC) <span className="text-slate-300 font-medium normal-case tracking-normal">— optional, view & chat only</span>
+            </label>
+            <div ref={ccPickerRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setCcPickerOpen(p => !p)}
+                className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl border-2 font-medium text-[13px] transition-all text-left ${
+                  ccDepts.length || ccSelectedEmpIds.size
+                    ? "bg-amber-50 border-amber-300"
+                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <Mail size={14} className={ccDepts.length || ccSelectedEmpIds.size ? "text-amber-500" : "text-slate-400"} />
+                <span className={`flex-1 ${ccDepts.length || ccSelectedEmpIds.size ? "text-amber-700" : "text-slate-400"}`}>
+                  {ccDepts.length || ccSelectedEmpIds.size
+                    ? `${ccDepts.length ? `${ccDepts.length} dept${ccDepts.length > 1 ? "s" : ""}` : ""}${ccDepts.length && ccSelectedEmpIds.size ? " · " : ""}${ccSelectedEmpIds.size ? `${ccSelectedEmpIds.size} person${ccSelectedEmpIds.size > 1 ? "s" : ""}` : ""} CC'd`
+                    : "Select CC departments or persons…"}
+                </span>
+                {(ccDepts.length > 0 || ccSelectedEmpIds.size > 0) && (
+                  <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                    {ccDepts.length + ccSelectedEmpIds.size}
+                  </span>
+                )}
+                {ccPickerOpen
+                  ? <ChevronUp   size={14} className="text-slate-400 flex-shrink-0" />
+                  : <ChevronDown size={14} className="text-slate-400 flex-shrink-0" />}
+              </button>
 
-                  return (
+              {ccPickerOpen && (() => {
+                const activeDept      = [...ccExpandedDepts][0] ?? null;
+                const activeUsers     = activeDept ? (ccDeptUsers[activeDept] || []) : [];
+                const activeLoading   = activeDept ? ccLoadingDepts.has(activeDept) : false;
+                const activeSelectable = activeUsers.filter(u => u.empId !== currentUser?.empId);
+                const activeSelCount   = activeSelectable.filter(u => ccSelectedEmpIds.has(u.empId)).length;
+                return (
                   <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex">
-
-                    {/* LEFT — dept list */}
                     <div className={`flex flex-col ${activeDept ? "w-1/2 border-r border-slate-100" : "w-full"}`}>
                       <div className="p-2 border-b border-slate-100">
-                        <input
-                          autoFocus
-                          type="text"
-                          value={deptSearch}
-                          onChange={e => setDeptSearch(e.target.value)}
-                          placeholder="Search departments…"
-                          className="w-full px-3 py-2 text-[12px] font-medium bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
-                        />
+                        <input autoFocus type="text" value={ccDeptSearch} onChange={e => setCcDeptSearch(e.target.value)} placeholder="Search departments…" className="w-full px-3 py-2 text-[12px] font-medium bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-amber-400" />
                       </div>
                       <div className="max-h-64 overflow-y-auto py-1">
-                        {filteredDepts.length === 0 ? (
+                        {filteredCcDepts.length === 0 ? (
                           <p className="text-center text-[11px] text-slate-400 py-4">No departments found</p>
-                        ) : filteredDepts.map(dept => {
-                          const checked    = selectedDepts.includes(dept);
-                          const expanded   = expandedDepts.has(dept);
-                          const loading    = loadingDepts.has(dept);
-                          const users      = deptUsers[dept] || [];
+                        ) : filteredCcDepts.map(dept => {
+                          const checked    = ccDepts.includes(dept);
+                          const expanded   = ccExpandedDepts.has(dept);
+                          const loading    = ccLoadingDepts.has(dept);
+                          const users      = ccDeptUsers[dept] || [];
                           const selectable = users.filter(u => u.empId !== currentUser?.empId);
-                          const selCount   = selectable.filter(u => selectedEmpIds.has(u.empId)).length;
-
+                          const selCount   = selectable.filter(u => ccSelectedEmpIds.has(u.empId)).length;
                           return (
-                            <div key={dept} className={`flex items-center transition-colors ${checked ? "bg-indigo-50/60" : "hover:bg-slate-50"}`}>
-                              {/* Checkbox + name */}
-                              <button
-                                type="button"
-                                onClick={() => toggleDept(dept)}
-                                className="flex items-center gap-3 flex-1 px-4 py-2.5 text-left min-w-0"
-                              >
-                                <span className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border-2 transition-colors ${
-                                  checked ? "bg-indigo-600 border-indigo-600" : "border-slate-300"
-                                }`}>
+                            <div key={dept} className={`flex items-center transition-colors ${checked ? "bg-amber-50/60" : "hover:bg-slate-50"}`}>
+                              <button type="button" onClick={() => toggleCcDept(dept)} className="flex items-center gap-3 flex-1 px-4 py-2.5 text-left min-w-0">
+                                <span className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border-2 transition-colors ${checked ? "bg-amber-500 border-amber-500" : "border-slate-300"}`}>
                                   {checked && <Check size={10} className="text-white" strokeWidth={3} />}
                                 </span>
-                                <span className={`text-[12px] font-medium truncate flex-1 ${checked ? "text-indigo-700 font-semibold" : "text-slate-700"}`}>
-                                  {dept}
-                                </span>
+                                <span className={`text-[12px] font-medium truncate flex-1 ${checked ? "text-amber-700 font-semibold" : "text-slate-700"}`}>{dept}</span>
                                 {checked && selectable.length > 0 && (
-                                  <span className="text-[10px] font-black text-indigo-400 bg-indigo-100 px-1.5 py-0.5 rounded-md flex-shrink-0">
-                                    {selCount}/{selectable.length}
-                                  </span>
+                                  <span className="text-[10px] font-black text-amber-400 bg-amber-100 px-1.5 py-0.5 rounded-md flex-shrink-0">{selCount}/{selectable.length}</span>
                                 )}
                               </button>
-
-                              {/* Person pill → opens right panel */}
                               {checked && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); toggleDeptExpand(dept); }}
-                                  title="Select persons to notify"
-                                  className={`flex items-center gap-1 mr-2 px-2 py-1 rounded-lg text-[11px] font-black transition-all border flex-shrink-0 ${
-                                    expanded
-                                      ? "bg-indigo-100 text-indigo-700 border-indigo-300"
-                                      : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
-                                  }`}
-                                >
-                                  <Users size={12} />
-                                  <span>Person</span>
-                                  {loading
-                                    ? <Spinner size={10} />
-                                    : <ChevronRight size={11} className={expanded ? "text-indigo-500" : ""} />}
+                                <button type="button" onClick={e => { e.stopPropagation(); toggleCcDeptExpand(dept); }} title="Select persons to CC"
+                                  className={`flex items-center gap-1 mr-2 px-2 py-1 rounded-lg text-[11px] font-black transition-all border flex-shrink-0 ${expanded ? "bg-amber-100 text-amber-700 border-amber-300" : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200"}`}>
+                                  <Users size={12} /><span>Person</span>
+                                  {loading ? <Spinner size={10} /> : <ChevronRight size={11} className={expanded ? "text-amber-500" : ""} />}
                                 </button>
                               )}
                             </div>
                           );
                         })}
                       </div>
-
-                      {/* Footer: clear + done — left panel */}
                       <div className="p-2 border-t border-slate-100 flex items-center justify-between px-3">
-                        {selectedDepts.length > 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedDepts([]);
-                              setDeptUsers({});
-                              setSelectedEmpIds(new Set());
-                              setExpandedDepts(new Set());
-                            }}
-                            className="text-[11px] font-black text-red-500 hover:text-red-700 transition-colors"
-                          >
-                            Clear all
-                          </button>
+                        {ccDepts.length > 0 ? (
+                          <button type="button" onClick={() => { setCcDepts([]); setCcDeptUsers({}); setCcSelectedEmpIds(new Set()); setCcExpandedDepts(new Set()); }} className="text-[11px] font-black text-red-500 hover:text-red-700 transition-colors">Clear all</button>
                         ) : <span />}
-                        <button
-                          type="button"
-                          onClick={() => setDeptPickerOpen(false)}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black px-4 py-1.5 rounded-xl transition-colors active:scale-95"
-                        >
-                          Done
-                        </button>
+                        <button type="button" onClick={() => setCcPickerOpen(false)} className="bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-black px-4 py-1.5 rounded-xl transition-colors active:scale-95">Done</button>
                       </div>
-                    </div>{/* end left panel */}
-
-                    {/* RIGHT — person panel */}
-                    {activeDept && (
-                      <div className="w-1/2 flex flex-col">
-                        {/* Header */}
-                        <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between">
-                          <div className="min-w-0">
-                            <p className="text-[11px] font-black text-indigo-700 truncate">{activeDept}</p>
-                            <p className="text-[10px] text-slate-400 font-medium">
-                              {activeLoading ? "Loading…" : `${activeSelCount} of ${activeSelectable.length} selected`}
-                            </p>
-                          </div>
-                          {!activeLoading && activeSelectable.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={(e) => toggleAllInDept(activeDept, e)}
-                              className="text-[10px] font-black text-indigo-500 hover:text-indigo-700 transition-colors flex-shrink-0 ml-2"
-                            >
-                              {activeSelCount === activeSelectable.length ? "Deselect All" : "Select All"}
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Person list */}
-                        <div className="flex-1 overflow-y-auto max-h-[14rem] py-1">
-                          {activeLoading ? (
-                            <div className="flex items-center gap-2 px-4 py-3 text-[11px] text-slate-400">
-                              <Spinner size={13} /> Loading persons…
-                            </div>
-                          ) : activeUsers.length === 0 ? (
-                            <p className="px-4 py-3 text-[11px] text-slate-400 italic">No active users found.</p>
-                          ) : activeUsers.map(u => {
-                            const isChecked = selectedEmpIds.has(u.empId);
-                            return (
-                              <button
-                                key={u.empId}
-                                type="button"
-                                onClick={() => toggleUser(u.empId)}
-                                className={`w-full flex items-center gap-2 px-4 py-2 text-left transition-colors ${
-                                  isChecked ? "bg-emerald-50/70" : "hover:bg-slate-50"
-                                }`}
-                              >
-                                <span className={`w-3.5 h-3.5 rounded flex items-center justify-center flex-shrink-0 border-2 transition-colors ${
-                                  isChecked ? "bg-emerald-500 border-emerald-500" : "border-slate-300"
-                                }`}>
-                                  {isChecked && <Check size={9} className="text-white" strokeWidth={3} />}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[12px] font-semibold text-slate-800 truncate">{u.name}</p>
-                                  <div className="flex items-center gap-1 flex-wrap mt-0.5">
-                                    {(u.roles?.length
-                                      ? [...new Set(u.roles.map(r => r.role))]
-                                      : [u.role]
-                                    ).map(r => (
-                                      <span key={r} className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${roleColor(r)}`}>
-                                        {r}
-                                      </span>
-                                    ))}
-                                    {u.designation && (
-                                      <span className="text-[9px] text-slate-400 truncate">{u.designation}</span>
-                                    )}
-                                  </div>
-                                </div>
-                                <span className="text-[9px] text-slate-300 flex-shrink-0">{u.empId}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  );
-                })()}
-
-                {/* Selected dept pills (shown below trigger when picker is closed) */}
-                {selectedDepts.length > 0 && !deptPickerOpen && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {selectedDepts.map(dept => {
-                      const users    = deptUsers[dept] || [];
-                      const selCount = users.filter(u => selectedEmpIds.has(u.empId)).length;
-                      return (
-                        <span key={dept} className="inline-flex items-center gap-1.5 bg-indigo-100 text-indigo-700 text-[11px] font-bold px-3 py-1 rounded-full border border-indigo-200">
-                          {dept}
-                          {users.length > 0 && (
-                            <span className="text-[9px] text-indigo-400">({selCount}/{users.length})</span>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => toggleDept(dept)}
-                            className="hover:text-red-500 text-indigo-300 transition-colors ml-0.5"
-                          >
-                            <X size={10} />
-                          </button>
-                        </span>
+                    </div>
+                    {activeDept && (() => {
+                      const filteredCcPersons = activeSelectable.filter(u =>
+                        u.name?.toLowerCase().includes(ccPersonSearch.toLowerCase()) ||
+                        u.empId?.toLowerCase().includes(ccPersonSearch.toLowerCase())
                       );
-                    })}
+                      return (
+                        <div className="w-1/2 flex flex-col">
+                          {/* Header: dept name + count + Select All */}
+                          <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between">
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-black text-amber-700 truncate">{activeDept}</p>
+                              <p className="text-[10px] text-slate-400 font-medium">{activeLoading ? "Loading…" : `${activeSelCount} of ${activeSelectable.length} selected`}</p>
+                            </div>
+                            {!activeLoading && activeSelectable.length > 0 && (
+                              <button type="button" onClick={e => toggleAllInCcDept(activeDept, e)} className="text-[10px] font-black text-amber-500 hover:text-amber-700 transition-colors flex-shrink-0 ml-2">
+                                {activeSelCount === activeSelectable.length ? "Deselect All" : "Select All"}
+                              </button>
+                            )}
+                          </div>
+                          {/* Search bar */}
+                          <div className="p-2 border-b border-slate-100">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 focus-within:border-amber-400 transition-colors">
+                              <Search size={13} className="shrink-0 text-slate-400" />
+                              <input
+                                type="text"
+                                value={ccPersonSearch}
+                                onChange={e => setCcPersonSearch(e.target.value)}
+                                placeholder="Search person…"
+                                className="flex-1 text-[12px] font-medium bg-transparent outline-none text-slate-700 placeholder-slate-400 min-w-0"
+                              />
+                              {ccPersonSearch && (
+                                <button type="button" onClick={() => setCcPersonSearch("")}>
+                                  <X size={11} className="text-slate-400 hover:text-slate-600" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {/* Person list */}
+                          <div className="flex-1 overflow-y-auto max-h-48 py-1">
+                            {activeLoading ? (
+                              <div className="flex items-center gap-2 px-4 py-3 text-[11px] text-slate-400"><Spinner size={13} /> Loading persons…</div>
+                            ) : filteredCcPersons.length === 0 ? (
+                              <p className="px-4 py-3 text-[11px] text-slate-400 italic">{ccPersonSearch ? "No results" : "No active users found."}</p>
+                            ) : filteredCcPersons.map(u => {
+                              const isChecked = ccSelectedEmpIds.has(u.empId);
+                              return (
+                                <button key={u.empId} type="button" onClick={() => toggleCcUser(u.empId)}
+                                  className={`w-full flex items-center gap-2 px-4 py-2 text-left transition-colors ${isChecked ? "bg-amber-50/70" : "hover:bg-slate-50"}`}>
+                                  <span className={`w-3.5 h-3.5 rounded flex items-center justify-center flex-shrink-0 border-2 transition-colors ${isChecked ? "bg-amber-500 border-amber-500" : "border-slate-300"}`}>
+                                    {isChecked && <Check size={9} className="text-white" strokeWidth={3} />}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[12px] font-semibold text-slate-800 truncate">{u.name}</p>
+                                    <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                      {(u.roles?.length ? [...new Set(u.roles.map(r => r.role))] : [u.role]).map(r => (
+                                        <span key={r} className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${roleColor(r)}`}>{r}</span>
+                                      ))}
+                                      {u.designation && <span className="text-[9px] text-slate-400 truncate">{u.designation}</span>}
+                                    </div>
+                                  </div>
+                                  <span className="text-[9px] text-slate-300 flex-shrink-0">{u.empId}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
-                )}
-              </div>
-            )}
+                );
+              })()}
+
+              {(ccDepts.length > 0 || ccSelectedEmpIds.size > 0) && !ccPickerOpen && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {ccDepts.map(dept => {
+                    const users    = ccDeptUsers[dept] || [];
+                    const selCount = users.filter(u => ccSelectedEmpIds.has(u.empId)).length;
+                    return (
+                      <span key={dept} className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 text-[11px] font-bold px-3 py-1 rounded-full border border-amber-200">
+                        {dept}
+                        {users.length > 0 && <span className="text-[9px] text-amber-400">({selCount}/{users.length})</span>}
+                        <button type="button" onClick={() => toggleCcDept(dept)} className="hover:text-red-500 text-amber-300 transition-colors ml-0.5"><X size={10} /></button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* ── One Time / Recurring ────────────────────────────────────────── */}
@@ -889,6 +1064,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+            <LinkPreview text={description} />
           </div>
 
           {/* Upload zone */}
