@@ -140,19 +140,26 @@ export default function MessageBubble({ log, onReply }) {
 
         <div className="flex-1">
           {/* Header: name + timestamp */}
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="font-bold text-slate-800 text-[12px]">{log.author}</span>
-            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${
-              log.role === "RM"      ? "bg-blue-100 text-blue-600" :
-              log.role === "HOD"     ? "bg-purple-100 text-purple-600" :
-              log.role === "DeptHOD" ? "bg-teal-100 text-teal-600" :
-              log.role === "Admin"   ? "bg-orange-100 text-orange-600" :
-              "bg-slate-100 text-slate-500"
-            }`}>
-              {log.role}
-            </span>
-            <span className="text-[9px] text-slate-400 ml-auto">{log.date} · {log.time}</span>
-          </div>
+          {(() => {
+            const displayName = (log.role === "Requestor" || !log.role)
+              ? log.author
+              : (log.dept ? `${log.dept} - ${log.role}` : log.role);
+            return (
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="font-bold text-slate-800 text-[12px]">{displayName}</span>
+                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${
+                  log.role === "RM"      ? "bg-blue-100 text-blue-600" :
+                  log.role === "HOD"     ? "bg-purple-100 text-purple-600" :
+                  log.role === "DeptHOD" ? "bg-teal-100 text-teal-600" :
+                  log.role === "Admin"   ? "bg-orange-100 text-orange-600" :
+                  "bg-slate-100 text-slate-500"
+                }`}>
+                  {log.role}
+                </span>
+                <span className="text-[9px] text-slate-400 ml-auto">{log.date} · {log.time}</span>
+              </div>
+            );
+          })()}
 
           {/* Replied-to quote */}
           {log.replyTo && (
