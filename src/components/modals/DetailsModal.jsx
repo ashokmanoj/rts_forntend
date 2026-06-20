@@ -256,8 +256,10 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     !isOwnRequest
   );
 
-  // CC users: explicitly CC'd on this ticket — can only view and chat, no actions
-  const isCcUser = !isOwnRequest && !!(
+  // CC users: explicitly CC'd on this ticket — can only view and chat, no actions.
+  // Exception: if the user's dept is the assigned dept, they keep full action rights
+  // even if the same dept was also added to ccDepts (e.g. old tickets with overlap).
+  const isCcUser = !isOwnRequest && !isAssignedToMyDept && !!(
     (req?.ccDepts  && req.ccDepts.split(",").map(s => s.trim()).some(d => d === currentUser?.dept)) ||
     (req?.ccEmpIds && req.ccEmpIds.split(",").map(s => s.trim()).some(e => e === currentUser?.empId))
   );
