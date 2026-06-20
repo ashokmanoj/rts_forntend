@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Paperclip, FileText, FileSpreadsheet, FileImage,
   Film, Music, Archive, File, ZoomIn, Eye, Reply, Download, Images,
+  Check, CheckCheck,
 } from "lucide-react";
 import { renderWithLinks } from "../../utils/linkUtils";
 import VoiceMessageBubble      from "./VoiceMessageBubble";
@@ -91,14 +92,37 @@ function ImageGrid({ images, onOpenLightbox }) {
   );
 }
 
+// ── TickMark — WhatsApp-style delivery/read indicator ─────────────
+function TickMark({ status }) {
+  if (!status) return null;
+  if (status === "read")
+    return (
+      <span title="Seen">
+        <CheckCheck size={12} className="text-blue-500 flex-shrink-0" strokeWidth={2.5} />
+      </span>
+    );
+  if (status === "delivered")
+    return (
+      <span title="Delivered">
+        <CheckCheck size={12} className="text-slate-400 flex-shrink-0" strokeWidth={2} />
+      </span>
+    );
+  return (
+    <span title="Sent">
+      <Check size={12} className="text-slate-400 flex-shrink-0" strokeWidth={2} />
+    </span>
+  );
+}
+
 // ── MessageBubble ─────────────────────────────────────────────────
 const isSpreadsheetFile = (name = "") => /\.(csv|xlsx|xls)$/i.test(name);
 
-export default function MessageBubble({ log, onReply }) {
+export default function MessageBubble({ log, onReply, currentUser }) {
   const [lightboxIdx,     setLightboxIdx]     = useState(-1);
   const [spreadsheetOpen, setSpreadsheetOpen] = useState(false);
   const [hovered,         setHovered]         = useState(false);
 
+  const isOwn   = !!currentUser && currentUser.empId === log.authorId;
   const isGroup  = Array.isArray(log.images) && log.images.length > 1;
   const hasFile  = log.type === "file"  || log.type === "mixed";
   const hasVoice = log.type === "voice" || log.type === "mixed";
@@ -157,7 +181,10 @@ export default function MessageBubble({ log, onReply }) {
                 }`}>
                   {log.role}
                 </span>
-                <span className="text-[9px] text-slate-400 ml-auto">{log.date} · {log.time}</span>
+                <span className="text-[9px] text-slate-400 ml-auto flex items-center gap-1">
+                  {log.date} · {log.time}
+                  {isOwn && <TickMark status={log.tickStatus} />}
+                </span>
               </div>
             );
           })()}

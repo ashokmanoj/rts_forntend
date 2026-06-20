@@ -20,6 +20,7 @@ import MessageBubble     from "./MessageBubble";
 import SystemMessage     from "./SystemMessage";
 import ChatInputBar      from "./ChatInputBar";
 import { getNowTime, getNowDate } from "../../utils/dateTime";
+import { post } from "../../services/api";
 
 /** Group consecutive image messages from the same author+time into one entry */
 function groupLogs(logs) {
@@ -43,9 +44,19 @@ function groupLogs(logs) {
   return out;
 }
 
-export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isClosed, canChat }) {
+export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isClosed, canChat, onRefreshChat }) {
   const chatEndRef = useRef(null);
   const [replyTo, setReplyTo] = useState(null);
+
+  // Mark chat as read when panel opens and refresh ticks every 8 s
+  useEffect(() => {
+    if (!reqId) return;
+    post(`/requests/${reqId}/chat/read`, {}).catch(() => {});
+    const interval = setInterval(() => {
+      onRefreshChat?.(reqId);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [reqId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-scroll to newest message
   useEffect(() => {
@@ -186,7 +197,7 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
         {groupLogs(logs).map((log) =>
           log.type === "approval" ? <ApprovalCard  key={log.id} log={log} /> :
           log.type === "system"   ? <SystemMessage key={log.id} log={log} /> :
-                                    <MessageBubble key={log.id} log={log} onReply={canChat ? handleReply : null} />
+                                    <MessageBubble key={log.id} log={log} onReply={canChat ? handleReply : null} currentUser={currentUser} />
         )}
         <div ref={chatEndRef} />
       </div>

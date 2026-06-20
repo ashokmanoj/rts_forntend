@@ -89,7 +89,7 @@ function ApprovalProgress({ rmStatus, hodStatus, assignedRmStatus, assignedHodSt
   );
 }
 
-export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSendMessage, onApproval, onOpenCloseTicket, onAcknowledge }) {
+export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSendMessage, onApproval, onOpenCloseTicket, onAcknowledge, onRefreshChat }) {
   const [selectedDept,            setSelectedDept]            = useState(req?.assignedDept || "");
   const [approvalComment,         setApprovalComment]         = useState("");
   const [lightboxData,            setLightboxData]            = useState(null); // { urls, names, index }
@@ -1459,7 +1459,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                   ← Back to Details
                 </button>
               </div>
-              <ChatPanel reqId={req?.id} logs={logs} currentUser={currentUser} onSendMessage={onSendMessage} isClosed={isClosed} canChat={canChat}/>
+              <ChatPanel reqId={req?.id} logs={logs} currentUser={currentUser} onSendMessage={onSendMessage} isClosed={isClosed} canChat={canChat} onRefreshChat={onRefreshChat} />
             </div>
           </div>
         </div>

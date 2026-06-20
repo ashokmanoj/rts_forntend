@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { fetchRequests, fetchFilterOptions, createRequest, submitApproval, acknowledgeRequest, markRequestSeen, markRequestUnread, closeRequest, fetchRequestById } from "../services/requestService";
 import { fetchChat, sendText, sendFile, sendVoice } from "../services/chatService";
+import { post } from "../services/api";
 import { getStoredUser } from "../services/authService";
 import FilterBar         from "../components/layout/FilterBar";
 import RequestTable      from "../components/table/RequestTable";
@@ -229,6 +230,20 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
     }
     prevRoleKeyRef.current = newKey;
   }, [currentUserProp?.role, currentUserProp?.dept, loadFilterOptions]);
+
+  // Heartbeat — tells the server this user is online (for chat tick marks)
+  useEffect(() => {
+    post("/users/heartbeat", {}).catch(() => {});
+    const interval = setInterval(() => post("/users/heartbeat", {}).catch(() => {}), 30_000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRefreshChat = useCallback(async (reqId) => {
+    try {
+      const result = await fetchChat(reqId);
+      setChatLogs(prev => ({ ...prev, [reqId]: result?.data ?? result }));
+    } catch {}
+  }, []);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleFilterChange = (newFilters) => {
@@ -596,6 +611,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
                 onSendMessage={handleSendMessage} onApproval={handleApproval}
                 onAcknowledge={handleAcknowledge}
                 onOpenCloseTicket={(req) => { setCloseTicketReq(req); setActiveModal(null); setSelectedReq(null); }}
+                onRefreshChat={handleRefreshChat}
               />
             )}
             {closeTicketReq && (

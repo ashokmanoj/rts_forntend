@@ -246,6 +246,20 @@ export default function ManagementPortal({ currentUser, onLogout }) {
     return () => clearInterval(hb);
   }, []);
 
+  // Presence heartbeat for chat tick marks
+  useEffect(() => {
+    post("/users/heartbeat", {}).catch(() => {});
+    const interval = setInterval(() => post("/users/heartbeat", {}).catch(() => {}), 30_000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRefreshChat = useCallback(async (reqId) => {
+    try {
+      const result = await fetchChat(reqId);
+      setChatLogs(prev => ({ ...prev, [reqId]: result?.data ?? result }));
+    } catch {}
+  }, []);
+
   const handleActionComplete = useCallback(() => {
     load(true);
   }, [load]);
@@ -595,6 +609,7 @@ export default function ManagementPortal({ currentUser, onLogout }) {
           onApproval={handleApproval}
           onOpenCloseTicket={(req) => { setCloseTicketReq(req); setSelectedReq(null); }}
           onAcknowledge={() => {}}
+          onRefreshChat={handleRefreshChat}
         />
       )}
       {closeTicketReq && (

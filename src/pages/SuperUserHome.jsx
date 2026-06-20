@@ -5,6 +5,7 @@ import { fetchRequests, fetchFilterOptions, createRequest, submitApproval, ackno
 import { fetchUserRoles, addUserRole, updateUserRole, toggleUserRole, deleteUserRole } from "../services/userRoleService";
 import { fetchHodPendingRequests, submitHodApproval } from "../services/managementService";
 import { fetchChat, sendText, sendFile, sendVoice } from "../services/chatService";
+import { post } from "../services/api";
 import { adminGetFoodSubscriptions, adminSubscribeUser, adminToggleFoodUser, adminDeleteFoodUser } from "../services/foodService";
 
 import SearchableSelect   from "../components/ui/SearchableSelect";
@@ -222,6 +223,20 @@ function RequestsTab({ currentUser, onLogout, onSwitchRole }) {
 
   useEffect(() => { loadRequests(currentPage, filters); }, [filters, currentPage]); // eslint-disable-line
 
+  // Heartbeat — tells the server this user is online (for chat tick marks)
+  useEffect(() => {
+    post("/users/heartbeat", {}).catch(() => {});
+    const interval = setInterval(() => post("/users/heartbeat", {}).catch(() => {}), 30_000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRefreshChat = useCallback(async (reqId) => {
+    try {
+      const res = await fetchChat(reqId);
+      setChatLogs(prev => ({ ...prev, [reqId]: res?.data ?? res }));
+    } catch {}
+  }, []);
+
   const showToast = (type, message) => {
     clearTimeout(toastRef.current);
     setToast({ type, message });
@@ -363,6 +378,7 @@ function RequestsTab({ currentUser, onLogout, onSwitchRole }) {
           onApproval={handleApproval}
           onOpenCloseTicket={() => { setCloseTicketReq(selectedReq); setActiveModal(null); }}
           onAcknowledge={handleAcknowledge}
+          onRefreshChat={handleRefreshChat}
         />
       )}
       {activeModal === "add" && (
@@ -586,6 +602,7 @@ function ManagementTab({ currentUser }) {
           onApproval={handleApproval}
           onOpenCloseTicket={(req) => { setCloseTicketReq(req); setSelectedReq(null); }}
           onAcknowledge={() => {}}
+          onRefreshChat={handleRefreshChat}
         />
       )}
       {closeTicketReq && (
