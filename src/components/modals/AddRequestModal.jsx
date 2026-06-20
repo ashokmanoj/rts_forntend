@@ -462,6 +462,14 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
     });
   };
 
+  // Remove assigned dept from CC if user switches assigned dept to one already CC'd
+  useEffect(() => {
+    if (!selectedDept) return;
+    if (ccDepts.includes(selectedDept)) {
+      toggleCcDept(selectedDept);
+    }
+  }, [selectedDept]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const handler = (e) => {
       if (ccPickerRef.current && !ccPickerRef.current.contains(e.target)) setCcPickerOpen(false);
@@ -551,7 +559,11 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
 
   const urgencyInfo     = priorityFromDueDate(dueDate);
   const today           = new Date().toISOString().split("T")[0];
-  const filteredCcDepts  = DEPARTMENTS.filter(d => d.toLowerCase().includes(ccDeptSearch.toLowerCase()));
+  const assignedDept    = initialDept || selectedDept;
+  const filteredCcDepts = DEPARTMENTS.filter(d =>
+    d !== assignedDept &&
+    d.toLowerCase().includes(ccDeptSearch.toLowerCase())
+  );
 
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
