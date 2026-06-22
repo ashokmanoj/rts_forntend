@@ -562,6 +562,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
   const assignedDept    = initialDept || selectedDept;
   const filteredCcDepts = DEPARTMENTS.filter(d =>
     d !== assignedDept &&
+    d !== currentUser?.dept &&
     d.toLowerCase().includes(ccDeptSearch.toLowerCase())
   );
 
