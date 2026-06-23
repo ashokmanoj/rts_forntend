@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import SearchableSelect from "../components/ui/SearchableSelect";
 
-const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Intern"];
+const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Intern", "ViewCloseTicket"];
 const DEPARTMENTS = [
   "Academics-Assam", "Academics-Karnataka", "Academics-Mizoram", "Academics-Tripura", "Academics-Uttarakhand",
   "Accounts-A", "Accounts-G", "Animation",

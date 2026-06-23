@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import SearchableSelect from "../components/ui/SearchableSelect";
 
-const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Intern"];
+const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Intern", "ViewCloseTicket"];
 const DEPARTMENTS = [
   "Academics-Assam", "Academics-Karnataka", "Academics-Mizoram", "Academics-Telangana", "Academics-Tripura", "Academics-Uttarakhand",
   "Accounts-A", "Accounts-G", "Animation",
@@ -811,7 +811,16 @@ export default function UserManagementPage({ currentUser }) {
                     required
                     type="text"
                     value={formData.empId}
-                    onChange={(e) => setFormData({ ...formData, empId: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const isIntern = /^(AI|I)/i.test(val);
+                      setFormData({
+                        ...formData,
+                        empId: val,
+                        role: isIntern ? "Intern" : "Requestor",
+                        location: isIntern ? "Bangalore" : formData.location,
+                      });
+                    }}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none"
                     placeholder="e.g. AI-2300"
                   />
