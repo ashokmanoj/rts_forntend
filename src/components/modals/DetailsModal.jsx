@@ -224,11 +224,12 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const role        = currentUser?.role || "";
   const roleLow     = role.toLowerCase();
 
-  const isRM         = roleLow === "rm";
-  const isHOD        = roleLow === "hod";
-  const isDeptHOD    = roleLow === "depthod";
-  const isManagement = roleLow === "management";
-  const isAdmin      = roleLow === "admin";
+  const isRM              = roleLow === "rm";
+  const isHOD             = roleLow === "hod";
+  const isDeptHOD         = roleLow === "depthod";
+  const isManagement      = roleLow === "management";
+  const isAdmin           = roleLow === "admin";
+  const isViewCloseTicket = roleLow === "viewcloseticket";
   const isOwnRequest = req?.empId === currentUser?.empId;
   const isFromOtherDept = (req?.dept || "").trim().toLowerCase() !== (currentUser?.dept || "").trim().toLowerCase();
   const isAssignedToMyDept = (req?.assignedDept || "").trim().toLowerCase() === (currentUser?.dept || "").trim().toLowerCase();
@@ -268,15 +269,17 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const canChangeDept = (isRM || isHOD || isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck && !isForwardedAway && !isCcUser;
   // Facilities requestor can close incoming requests assigned to Facilities (not their own)
   const isFacilitiesRequestorClose = currentUser?.dept === "Facilities" && roleLow === "requestor" && req?.assignedDept === "Facilities" && !isOwnRequest && !isClosed && !isPendingAck && !isCcUser;
+  // ViewCloseTicket: buttons only visible after the assigned dept HOD or DeptHOD has approved
+  const viewCloseTicketGate = !isViewCloseTicket || req?.assignedHodStatus === "Approved" || req?.deptHodStatus === "Approved";
   const canClose      = (((isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck && !isForwardedAway) ||
                         (isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !isForwardedAway) ||
                         (isSpecificallyAssigned && !isClosed && !isPendingAck && !isAdmin) ||
-                        isFacilitiesRequestorClose) && !isCcUser;
+                        isFacilitiesRequestorClose) && !isCcUser && viewCloseTicketGate;
   const canChat       = !isAdmin && !isClosed;
   const isRequestorMode = roleLow === "requestor" || isOwnRequest;
 
   // Team members can click "Checking" on incoming requests from other departments
-  const canUserCheck = isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !canApprove && !isForwardedAway && !isCcUser;
+  const canUserCheck = isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !canApprove && !isForwardedAway && !isCcUser && viewCloseTicketGate && !isViewCloseTicket;
 
   // Facilities dept team members can forward incoming requests to another department
   const canUserForward = currentUser?.dept === "Facilities" && isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !canApprove && !isForwardedAway;
