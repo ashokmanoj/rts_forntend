@@ -63,6 +63,13 @@ export async function closeRequest(id, note = "", files = []) {
   return patchForm(`/requests/${id}/close`, fd);
 }
 
+export async function attachAfterClose(id, files = []) {
+  const fd = new FormData();
+  const arr = Array.isArray(files) ? files : (files ? [files] : []);
+  arr.forEach(f => fd.append("files", f));
+  return patchForm(`/requests/${id}/attach-after-close`, fd);
+}
+
 export async function editRequest(id, data) {
   return patch(`/requests/${id}/edit`, data);
 }

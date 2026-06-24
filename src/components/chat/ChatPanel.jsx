@@ -14,7 +14,7 @@
  */
 
 import { useRef, useEffect, useState } from "react";
-import { MessageSquare, Lock } from "lucide-react";
+import { MessageSquare, Lock, Paperclip } from "lucide-react";
 import ApprovalCard      from "./ApprovalCard";
 import MessageBubble     from "./MessageBubble";
 import SystemMessage     from "./SystemMessage";
@@ -44,9 +44,11 @@ function groupLogs(logs) {
   return out;
 }
 
-export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isClosed, canChat, onRefreshChat }) {
-  const chatEndRef = useRef(null);
-  const [replyTo, setReplyTo] = useState(null);
+export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isClosed, canChat, onRefreshChat, canAttachPostClose, onAttachPostClose }) {
+  const chatEndRef         = useRef(null);
+  const postCloseFileRef   = useRef(null);
+  const [replyTo,              setReplyTo]            = useState(null);
+  const [postCloseUploading,   setPostCloseUploading] = useState(false);
 
   // Mark chat as read when panel opens and refresh ticks every 8 s
   useEffect(() => {
@@ -207,9 +209,41 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
         {canChat ? (
           <ChatInputBar onSend={handleSend} replyTo={replyTo} onCancelReply={() => setReplyTo(null)} />
         ) : isClosed ? (
-          <div className="flex items-center justify-center gap-2 bg-red-50 border-2 border-red-200 rounded-2xl px-4 py-3 text-red-500">
-            <Lock size={14} />
-            <span className="font-black text-[12px]">This ticket has been closed. Chat is disabled.</span>
+          <div className="space-y-2">
+            <div className="flex items-center justify-center gap-2 bg-red-50 border-2 border-red-200 rounded-2xl px-4 py-3 text-red-500">
+              <Lock size={14} />
+              <span className="font-black text-[12px]">This ticket has been closed. Chat is disabled.</span>
+            </div>
+            {canAttachPostClose && (
+              <>
+                <input
+                  ref={postCloseFileRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={async (e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (!files.length) return;
+                    setPostCloseUploading(true);
+                    try {
+                      await onAttachPostClose?.(files);
+                    } catch (err) {
+                      alert(err?.response?.data?.error || "Upload failed.");
+                    } finally {
+                      setPostCloseUploading(false);
+                      if (postCloseFileRef.current) postCloseFileRef.current.value = "";
+                    }
+                  }}
+                />
+                <button
+                  disabled={postCloseUploading}
+                  onClick={() => postCloseFileRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-2xl text-[11px] font-black transition-all active:scale-95"
+                >
+                  <Paperclip size={12} /> {postCloseUploading ? "Uploading…" : "Attach Files"}
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <div className="flex items-center justify-center gap-2 bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-slate-400">

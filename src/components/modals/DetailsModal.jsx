@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye, MessageSquare, Download, Users, ChevronRight, Search, RefreshCw, StopCircle, Check } from "lucide-react";
+import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye, MessageSquare, Download, Users, ChevronRight, Search, RefreshCw, StopCircle, Check, Paperclip } from "lucide-react";
 import { get, patch } from "../../services/api";
+import { attachAfterClose } from "../../services/requestService";
 import { renderWithLinks, LinkPreview } from "../../utils/linkUtils";
 
 import { useEscapeKey } from "../../hooks/useEscapeKey";
@@ -275,7 +276,8 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                         (isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !isForwardedAway) ||
                         (isSpecificallyAssigned && !isClosed && !isPendingAck && !isAdmin) ||
                         isFacilitiesRequestorClose) && !isCcUser && viewCloseTicketGate;
-  const canChat       = !isAdmin && !isClosed;
+  const canChat              = !isAdmin && !isClosed;
+  const canAttachPostClose   = isClosed && req?.acknowledgement === "Resolved" && (isTeamMemberIncoming || isSpecificallyAssigned) && !isAdmin && !isCcUser;
   const isRequestorMode = roleLow === "requestor" || isOwnRequest;
 
   // Team members can click "Checking" on incoming requests from other departments
@@ -288,6 +290,11 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const isSpreadsheetUrl = (url) => url && /\.(csv|xlsx|xls)(\?.*)?$/i.test(url);
 
   const [spreadsheetPreview, setSpreadsheetPreview] = useState(null); // { url, fileName }
+
+  const handleAttachPostClose = async (files) => {
+    await attachAfterClose(req.id, files);
+    onRefreshChat?.(req.id);
+  };
 
   const handleApproval = async (decision, checkingDeadline = null, checkingReasonVal = null, extras = {}) => {
     if (approvalLoading) return;
@@ -1462,7 +1469,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                   ← Back to Details
                 </button>
               </div>
-              <ChatPanel reqId={req?.id} logs={logs} currentUser={currentUser} onSendMessage={onSendMessage} isClosed={isClosed} canChat={canChat} onRefreshChat={onRefreshChat} />
+              <ChatPanel reqId={req?.id} logs={logs} currentUser={currentUser} onSendMessage={onSendMessage} isClosed={isClosed} canChat={canChat} onRefreshChat={onRefreshChat} canAttachPostClose={canAttachPostClose} onAttachPostClose={handleAttachPostClose} />
             </div>
           </div>
         </div>

@@ -26,6 +26,10 @@ export const triggerFoodReminder    = ()            => post('/push/trigger-remin
 export const getFoodCalendar        = (month, year) => get(`/food/calendar?month=${month}&year=${year}`);
 export const getFoodReport          = (params)      => get(`/food/report?${new URLSearchParams(params)}`);
 
+// HR / FoodCommittee / SuperUser — manual entry
+export const getFoodUsers        = ()                            => get('/food/admin/users');
+export const addFoodManualEntry  = (empId, weekDate, amount, note) => post('/food/admin/manual-entry', { empId, weekDate, amount, note: note || null });
+
 // SuperUser admin CRUD
 export const adminGetFoodSubscriptions = ()             => get('/food/admin/subscriptions');
 export const adminSubscribeUser        = (empId, period = 'permanent', periodDate = null) => post(`/food/admin/subscribe/${empId}`, { period, periodDate });

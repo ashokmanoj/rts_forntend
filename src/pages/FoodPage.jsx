@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   UtensilsCrossed, Download, AlertCircle, CheckCircle2,
   RefreshCw, CalendarX, CalendarCheck, CalendarOff, CalendarRange, Lock,
-  Bell, BellOff,
+  Bell, BellOff, UserPlus, X,
 } from 'lucide-react';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import {
@@ -19,6 +19,8 @@ import {
   getFoodReport,
   downloadFoodReport,
   triggerFoodReminder,
+  getFoodUsers,
+  addFoodManualEntry,
 } from '../services/foodService';
 import FoodOptInModal  from '../components/food/FoodOptInModal';
 import FoodCalendar    from '../components/food/FoodCalendar';
@@ -71,6 +73,13 @@ export default function FoodPage({ currentUser }) {
   const [reportData,    setReportData]    = useState(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [dlLoading,     setDlLoading]     = useState(false);
+
+  // ── Add User for This Week (manual entry) ────────────────────────────────
+  const [showAddModal,    setShowAddModal]    = useState(false);
+  const [addModalLoading, setAddModalLoading] = useState(false);
+  const [allUsers,        setAllUsers]        = useState([]);
+  const [usersLoading,    setUsersLoading]    = useState(false);
+  const [addForm, setAddForm] = useState({ empId: '', weekDate: '', amount: '', note: '' });
 
   // ── Load status ───────────────────────────────────────────────────────────
   const loadStatus = useCallback(async () => {
@@ -198,6 +207,31 @@ export default function FoodPage({ currentUser }) {
       setStatusMsg({ type: 'error', text: err.message || 'Action failed.' });
     } finally {
       setBtn4Loading(false);
+    }
+  };
+
+  // ── Open "Add User" modal — load user list ───────────────────────────────
+  const openAddModal = async () => {
+    setAddForm({ empId: '', weekDate: new Date().toISOString().split('T')[0], amount: '', note: '' });
+    setShowAddModal(true);
+    if (allUsers.length === 0) {
+      setUsersLoading(true);
+      try { setAllUsers(await getFoodUsers()); } catch { /* ignore */ } finally { setUsersLoading(false); }
+    }
+  };
+
+  const handleAddManualEntry = async () => {
+    if (!addForm.empId || !addForm.weekDate || !addForm.amount) return;
+    setAddModalLoading(true);
+    try {
+      const res = await addFoodManualEntry(addForm.empId, addForm.weekDate, parseFloat(addForm.amount), addForm.note);
+      setShowAddModal(false);
+      setStatusMsg({ type: 'success', text: `${res.userName} added to food for week of ${res.weekStart}.` });
+      if (reportData) loadReport();
+    } catch (err) {
+      setStatusMsg({ type: 'error', text: err?.response?.data?.error || 'Failed to add manual entry.' });
+    } finally {
+      setAddModalLoading(false);
     }
   };
 
@@ -340,6 +374,94 @@ export default function FoodPage({ currentUser }) {
       {/* Opt-In Modal */}
       {showOptIn && isRequestor && (
         <FoodOptInModal loading={optInLoading} onConfirm={handleOptIn} onDecline={() => setShowOptIn(false)} />
+      )}
+
+      {/* Add User for This Week Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md space-y-4 p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserPlus size={16} className="text-indigo-600" />
+                <h2 className="font-black text-slate-800 text-[15px]">Add User for This Week</h2>
+              </div>
+              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* User select */}
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">Select User</label>
+                {usersLoading ? (
+                  <div className="text-[11px] text-slate-400 py-2">Loading users…</div>
+                ) : (
+                  <SearchableSelect
+                    value={addForm.empId}
+                    onChange={val => setAddForm(f => ({ ...f, empId: val }))}
+                    options={allUsers.map(u => ({ value: u.empId, label: `${u.name} (${u.empId}) — ${u.dept}` }))}
+                    placeholder="Search user…"
+                    triggerClassName="border border-slate-200 py-2 px-3 rounded-xl text-[12px] font-bold text-slate-700 w-full hover:border-indigo-300"
+                  />
+                )}
+              </div>
+
+              {/* Date */}
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">Any Date in the Week</label>
+                <input
+                  type="date"
+                  value={addForm.weekDate}
+                  onChange={e => setAddForm(f => ({ ...f, weekDate: e.target.value }))}
+                  className="w-full border border-slate-200 py-2 px-3 rounded-xl text-[12px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+
+              {/* Amount */}
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">Amount (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={addForm.amount}
+                  onChange={e => setAddForm(f => ({ ...f, amount: e.target.value }))}
+                  placeholder="e.g. 150"
+                  className="w-full border border-slate-200 py-2 px-3 rounded-xl text-[12px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+
+              {/* Note */}
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">Note <span className="text-slate-400 font-medium normal-case">(optional)</span></label>
+                <input
+                  type="text"
+                  value={addForm.note}
+                  onChange={e => setAddForm(f => ({ ...f, note: e.target.value }))}
+                  placeholder="e.g. Present on holiday"
+                  className="w-full border border-slate-200 py-2 px-3 rounded-xl text-[12px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 border border-slate-200 rounded-xl text-[12px] font-black text-slate-600 hover:bg-slate-50 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddManualEntry}
+                disabled={addModalLoading || !addForm.empId || !addForm.weekDate || !addForm.amount}
+                className="flex items-center gap-1.5 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[12px] font-black shadow-sm transition-all active:scale-95 disabled:opacity-50"
+              >
+                {addModalLoading && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                Add to Food
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Toast */}
@@ -674,16 +796,24 @@ export default function FoodPage({ currentUser }) {
               <UtensilsCrossed size={18} className="text-indigo-600" />
               <h3 className="font-black text-slate-800 text-[14px]">Food Request Report</h3>
             </div>
-            {reportData && (
+            <div className="flex items-center gap-2 flex-wrap">
               <button
-                onClick={handleDownload}
-                disabled={dlLoading}
-                className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-black text-[11px] shadow-sm transition-all active:scale-95 disabled:opacity-60"
+                onClick={openAddModal}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-[11px] shadow-sm transition-all active:scale-95"
               >
-                <Download size={14} />
-                {dlLoading ? 'Downloading...' : 'Download CSV'}
+                <UserPlus size={14} /> Add User for This Week
               </button>
-            )}
+              {reportData && (
+                <button
+                  onClick={handleDownload}
+                  disabled={dlLoading}
+                  className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-black text-[11px] shadow-sm transition-all active:scale-95 disabled:opacity-60"
+                >
+                  <Download size={14} />
+                  {dlLoading ? 'Downloading...' : 'Download CSV'}
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="px-5 py-4 bg-slate-50 border-b border-slate-100 flex flex-wrap items-end gap-3">
@@ -780,7 +910,13 @@ export default function FoodPage({ currentUser }) {
                           <td className="px-4 py-3 font-bold text-slate-800">{row.name}</td>
                           <td className="px-4 py-3 text-slate-600">{row.dept}</td>
                           <td className="px-4 py-3 text-slate-600">{row.period}</td>
-                          <td className="px-4 py-3 text-center font-black text-indigo-700">{row.workingDays}</td>
+                          <td className="px-4 py-3 text-center font-black text-indigo-700">
+                            {row.isManual && row.workingDays == null ? (
+                              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black">Manual</span>
+                            ) : (
+                              <span>{row.workingDays}{row.hasManual && <span className="ml-1 text-[9px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full font-black">+M</span>}</span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 font-black text-green-700">₹{row.totalAmount}</td>
                         </tr>
                       ))

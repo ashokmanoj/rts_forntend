@@ -5,6 +5,9 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const TYPE_STYLES = {
   'working':          'bg-green-100 text-green-700 font-black border border-green-200',
   'working-saturday': 'bg-green-100 text-green-700 font-black border border-green-200',
+  'manual':           'bg-green-100 text-green-700 font-black border border-green-300 ring-1 ring-green-400',
+  'other-week':       'bg-green-50 text-green-400 font-medium border border-dashed border-green-200',
+  'next-week':        'bg-green-100 text-green-700 font-black border border-dashed border-green-400',
   'cancelled':        'bg-red-100 text-red-600 font-bold border border-red-200',
   'inactive':         'bg-orange-50 text-orange-300 font-medium border border-orange-100',
   'holiday':          'bg-purple-100 text-purple-700 font-bold border border-purple-200',
@@ -80,10 +83,16 @@ export default function FoodCalendar({ calendarData, month, year, onPrev, onNext
                   date.getMonth()    === today.getMonth() &&
                   date.getFullYear() === today.getFullYear();
 
+                const cellTitle =
+                  cell.type === 'manual'     ? 'Manual Entry (counted this month)' :
+                  cell.type === 'other-week' ? 'Food active — counted in previous month\'s bill' :
+                  cell.type === 'next-week'  ? 'Next month day — counted in this month\'s bill' :
+                  cell.name || cell.type;
+
                 return (
                   <div
                     key={cell.date}
-                    title={cell.name || cell.type}
+                    title={cellTitle}
                     className={`
                       relative flex flex-col items-center justify-center rounded-xl h-10
                       text-[12px] transition-all
@@ -92,7 +101,16 @@ export default function FoodCalendar({ calendarData, month, year, onPrev, onNext
                     `}
                   >
                     <span>{dateNum}</span>
-                    {cell.name && (
+                    {cell.type === 'manual' && (
+                      <span className="absolute bottom-1 w-1 h-1 rounded-full bg-green-500" />
+                    )}
+                    {cell.type === 'other-week' && (
+                      <span className="text-[7px] leading-none text-green-400 font-bold">prev</span>
+                    )}
+                    {cell.type === 'next-week' && (
+                      <span className="text-[7px] leading-none text-green-600 font-bold">next</span>
+                    )}
+                    {cell.name && cell.type !== 'manual' && cell.type !== 'other-week' && cell.type !== 'next-week' && (
                       <span className="text-[8px] leading-tight text-purple-600 font-bold truncate max-w-[90%]">
                         {cell.name.split(' ')[0]}
                       </span>
@@ -137,11 +155,13 @@ export default function FoodCalendar({ calendarData, month, year, onPrev, onNext
       {/* ── Legend ───────────────────────────────────────────────────────── */}
       <div className="px-3 sm:px-5 py-3 border-t border-slate-100 flex flex-wrap gap-2 sm:gap-3">
         {[
-          { color: 'bg-green-100 border-green-200',   label: 'Working Day' },
-          { color: 'bg-red-100 border-red-200',       label: 'Cancelled' },
-          { color: 'bg-orange-50 border-orange-100',  label: 'Food Disabled' },
-          { color: 'bg-purple-100 border-purple-200', label: 'Holiday' },
-          { color: 'bg-purple-100 border-purple-200',  label: 'Weekend / Off' },
+          { color: 'bg-green-100 border-green-200',                        label: 'Working Day' },
+          { color: 'bg-green-100 border-dashed border-green-400',          label: 'Next Month (this bill)' },
+          { color: 'bg-green-100 border-green-300 ring-1 ring-green-400',  label: 'Manual Entry' },
+          { color: 'bg-green-50 border-dashed border-green-200',           label: 'Prev Month Week' },
+          { color: 'bg-red-100 border-red-200',                            label: 'Cancelled' },
+          { color: 'bg-orange-50 border-orange-100',                       label: 'Food Disabled' },
+          { color: 'bg-purple-100 border-purple-200',                      label: 'Holiday / Weekend' },
         ].map(({ color, label }) => (
           <div key={label} className="flex items-center gap-1.5">
             <div className={`w-3 h-3 rounded-sm border ${color}`} />
@@ -152,9 +172,12 @@ export default function FoodCalendar({ calendarData, month, year, onPrev, onNext
 
       {/* ── Summary ──────────────────────────────────────────────────────── */}
       {calendarData?.subscribed && (
-        <div className="px-5 py-3 bg-indigo-50 border-t border-indigo-100 flex items-center justify-between">
+        <div className="px-5 py-3 bg-indigo-50 border-t border-indigo-100 flex items-center justify-between gap-2 flex-wrap">
           <span className="text-[12px] text-indigo-700 font-bold">
             Working Days: <span className="font-black">{calendarData.workingDays}</span>
+            {calendarData.hasManual && (
+              <span className="ml-2 text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-black border border-green-200">+ Manual Entry</span>
+            )}
           </span>
           <span className="text-[13px] text-indigo-700 font-black">
             ₹{calendarData.totalAmount}
