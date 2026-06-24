@@ -317,7 +317,7 @@ export default function FilterBar({
                 <p className="text-[12px] font-black text-slate-800 leading-tight group-hover:text-indigo-600 transition-colors">
                   {currentUser?.name}
                 </p>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">{currentUser?.empId}</p>
+                <p className="text-[10px] text-black font-bold uppercase tracking-tighter">{currentUser?.empId}</p>
                 <p className={`text-[10px] font-black uppercase tracking-tighter ${ROLE_META[currentUser?.role]?.color || "text-indigo-500"}`}>
                   {ROLE_META[currentUser?.role]?.label || currentUser?.role}
                 </p>

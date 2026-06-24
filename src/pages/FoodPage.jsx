@@ -365,9 +365,9 @@ export default function FoodPage({ currentUser }) {
             <div className="flex justify-end -mt-1">
               <button
                 onClick={() => setShowGuide(true)}
-                className="flex items-center gap-1.5 text-[11px] font-black text-slate-400 hover:text-orange-500 transition-colors"
+                className="flex items-center gap-1.5 text-[13px] font-black text-orange-500 hover:text-orange-600 transition-colors"
               >
-                <BookOpen size={12} /> How to use this tab
+                <BookOpen size={14} /> How to use this tab
               </button>
             </div>
 
@@ -387,7 +387,7 @@ export default function FoodPage({ currentUser }) {
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-black text-slate-800 text-[13px]">
+                    <p className="font-black text-slate-800 text-[17px]">
                       {status?.subscribed ? 'Food Subscription' : 'Not Subscribed'}
                     </p>
                     {status?.subscribed && (

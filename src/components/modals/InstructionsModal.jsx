@@ -1,4 +1,4 @@
-import { BookOpen, X, Download } from "lucide-react";
+import { BookOpen, X, Download, ExternalLink } from "lucide-react";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 export default function InstructionsModal({
@@ -28,6 +28,14 @@ export default function InstructionsModal({
           <div className="flex items-center gap-2">
             <a
               href={pdfSrc}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg text-[11px] font-black transition-all active:scale-95"
+            >
+              <ExternalLink size={12} /> Open in Tab
+            </a>
+            <a
+              href={pdfSrc}
               download={downloadName}
               className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-black transition-all active:scale-95"
             >
@@ -43,10 +51,10 @@ export default function InstructionsModal({
         </div>
 
         {/* PDF embed */}
-        <div className="flex-1 overflow-hidden rounded-b-2xl">
-          <iframe
+        <div className="flex-1 overflow-hidden rounded-b-2xl bg-slate-100">
+          <embed
             src={pdfSrc}
-            title={title}
+            type="application/pdf"
             className="w-full h-full border-none"
           />
         </div>

@@ -216,7 +216,7 @@ export default function SearchableSelect({
           )}
 
           {/* Options list */}
-          <div className="overflow-y-auto max-h-48 py-1">
+          <div className="overflow-y-auto max-h-64 py-1">
             {filtered.length === 0 ? (
               <p className="text-[11px] text-slate-400 text-center py-4">No results</p>
             ) : (
