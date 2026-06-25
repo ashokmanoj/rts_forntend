@@ -7,6 +7,7 @@ import {
   SlidersHorizontal, ChevronRight, ChevronLeft, MapPin,
 } from "lucide-react";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
+import { fetchRoleCounts } from "../../services/requestService";
 import SearchableSelect from "../ui/SearchableSelect";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -41,7 +42,19 @@ export default function FilterBar({
   const [localSearch,    setLocalSearch]    = useState(searchTerm);
   const [switchingTo,    setSwitchingTo]    = useState(null);
   const [switchCategory, setSwitchCategory] = useState(null);
+  const [roleCounts,     setRoleCounts]     = useState({});
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!showProfile || !currentUser?.availableRoles?.length) return;
+    fetchRoleCounts()
+      .then(counts => {
+        const map = {};
+        counts.forEach(({ role, dept, count }) => { map[`${role}::${dept}`] = count; });
+        setRoleCounts(map);
+      })
+      .catch(() => {});
+  }, [showProfile]);
 
   const handleRoleSwitch = async (role, dept) => {
     if (switchingTo) return;
@@ -158,12 +171,14 @@ export default function FilterBar({
                 value={activeFilters.rmStatus || []}
                 onChange={val => updateFilter("rmStatus", val)}
                 options={[
-                  { value: "--",          label: "Open" },
-                  { value: "Approved",    label: "Approved" },
-                  { value: "Rejected",    label: "Rejected" },
-                  { value: "Checking",    label: "Checking" },
-                  { value: "Forwarded",   label: "Forwarded" },
-                  { value: "ack_pending", label: "Ack. Pending" },
+                  { value: "--",           label: "Open" },
+                  { value: "Approved",     label: "Approved" },
+                  { value: "not_approved", label: "Not Approved" },
+                  { value: "Rejected",     label: "Rejected" },
+                  { value: "Checking",     label: "Checking" },
+                  { value: "Forwarded",    label: "Forwarded" },
+                  { value: "ack_pending",  label: "Ack. Pending" },
+                  { value: "closed",       label: "Closed" },
                 ]}
                 placeholder="All"
                 triggerClassName={filterTrigger}
@@ -178,10 +193,13 @@ export default function FilterBar({
                 value={activeFilters.deptHodStatus || []}
                 onChange={val => updateFilter("deptHodStatus", val)}
                 options={[
-                  { value: "--",       label: "Open" },
-                  { value: "Approved", label: "Approved" },
-                  { value: "Rejected", label: "Rejected" },
-                  { value: "Checking", label: "Checking" },
+                  { value: "--",           label: "Open" },
+                  { value: "Approved",     label: "Approved" },
+                  { value: "not_approved", label: "Not Approved" },
+                  { value: "Rejected",     label: "Rejected" },
+                  { value: "Checking",     label: "Checking" },
+                  { value: "ack_pending",  label: "Ack. Pending" },
+                  { value: "closed",       label: "Closed" },
                 ]}
                 placeholder="All"
                 triggerClassName={filterTrigger}
@@ -386,7 +404,7 @@ export default function FilterBar({
                         )}
                       </div>
 
-                      <div className="space-y-1.5">
+                      <div className="space-y-1 max-h-[200px] overflow-y-auto pr-0.5">
 
                         {/* Step 1: category list */}
                         {!switchCategory && (() => {
@@ -409,7 +427,7 @@ export default function FilterBar({
                                   }
                                 }}
                                 disabled={!!switchingTo || (!multi && isActive)}
-                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all text-left ${
+                                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-all text-left ${
                                   isActive && !multi
                                     ? `${meta.bg || "bg-indigo-50"} ${meta.border || "border-indigo-200"} cursor-default`
                                     : switchingTo
@@ -417,19 +435,27 @@ export default function FilterBar({
                                     : "bg-slate-50 border-slate-100 hover:bg-white hover:border-slate-300 hover:shadow-sm active:scale-[0.98]"
                                 }`}
                               >
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive ? (meta.bg || "bg-indigo-100") : "bg-white border border-slate-200"}`}>
-                                  <Icon size={13} className={isActive ? (meta.color || "text-indigo-600") : "text-slate-400"} />
+                                <div className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 ${isActive ? (meta.bg || "bg-indigo-100") : "bg-white border border-slate-200"}`}>
+                                  <Icon size={12} className={isActive ? (meta.color || "text-indigo-600") : "text-slate-400"} />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className={`text-[11px] font-black leading-tight ${isActive ? (meta.color || "text-indigo-700") : "text-slate-700"}`}>
                                     {meta.label || role}
                                   </p>
-                                  <p className="text-[9px] text-slate-400 font-medium mt-0.5">
+                                  <p className="text-[9px] text-slate-400 font-medium">
                                     {multi ? `${depts.length} departments` : depts[0].dept}
                                   </p>
                                 </div>
-                                {isActive && !multi && <CheckCircle2 size={13} className={meta.color || "text-indigo-500"} />}
-                                {multi && <ChevronRight size={13} className="text-slate-300 flex-shrink-0" />}
+                                {!multi && (() => {
+                                  const c = roleCounts[`${role}::${depts[0].dept}`] || 0;
+                                  return c > 0 ? (
+                                    <span className="flex-shrink-0 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-black leading-none">
+                                      {c > 99 ? "99+" : c}
+                                    </span>
+                                  ) : null;
+                                })()}
+                                {isActive && !multi && <CheckCircle2 size={12} className={meta.color || "text-indigo-500"} />}
+                                {multi && <ChevronRight size={12} className="text-slate-300 flex-shrink-0" />}
                               </button>
                             );
                           });
@@ -447,7 +473,7 @@ export default function FilterBar({
                                 key={dept}
                                 onClick={() => { if (!isActive && !switchingTo) handleRoleSwitch(switchCategory, dept); }}
                                 disabled={isActive || !!switchingTo}
-                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all text-left ${
+                                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-all text-left ${
                                   isActive
                                     ? `${meta.bg || "bg-indigo-50"} ${meta.border || "border-indigo-200"} cursor-default`
                                     : isSwitching
@@ -457,17 +483,25 @@ export default function FilterBar({
                                     : "bg-slate-50 border-slate-100 hover:bg-white hover:border-slate-300 hover:shadow-sm active:scale-[0.98]"
                                 }`}
                               >
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive || isSwitching ? (meta.bg || "bg-indigo-100") : "bg-white border border-slate-200"}`}>
+                                <div className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 ${isActive || isSwitching ? (meta.bg || "bg-indigo-100") : "bg-white border border-slate-200"}`}>
                                   {isSwitching
-                                    ? <RefreshCw size={13} className={`animate-spin ${meta.color || "text-indigo-600"}`} />
-                                    : <MapPin size={13} className={isActive ? (meta.color || "text-indigo-600") : "text-slate-400"} />}
+                                    ? <RefreshCw size={12} className={`animate-spin ${meta.color || "text-indigo-600"}`} />
+                                    : <MapPin size={12} className={isActive ? (meta.color || "text-indigo-600") : "text-slate-400"} />}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className={`text-[11px] font-black leading-tight ${isActive || isSwitching ? (meta.color || "text-indigo-700") : "text-slate-700"}`}>
                                     {dept}
                                   </p>
                                 </div>
-                                {isActive    && !isSwitching && <CheckCircle2 size={13} className={meta.color || "text-indigo-500"} />}
+                                {(() => {
+                                  const c = roleCounts[`${switchCategory}::${dept}`] || 0;
+                                  return c > 0 ? (
+                                    <span className="flex-shrink-0 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-black leading-none">
+                                      {c > 99 ? "99+" : c}
+                                    </span>
+                                  ) : null;
+                                })()}
+                                {isActive    && !isSwitching && <CheckCircle2 size={12} className={meta.color || "text-indigo-500"} />}
                                 {isSwitching && <span className="text-[9px] font-black text-indigo-500">•••</span>}
                               </button>
                             );

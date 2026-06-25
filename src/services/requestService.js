@@ -23,6 +23,10 @@ export async function fetchFilterOptions() {
   return get("/requests/filters");
 }
 
+export async function fetchRoleCounts() {
+  return get("/requests/role-counts");
+}
+
 export async function fetchRequestById(id) {
   return get(`/requests/${id}`);
 }

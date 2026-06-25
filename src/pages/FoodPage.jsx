@@ -528,7 +528,7 @@ export default function FoodPage({ currentUser }) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {!status?.subscribed && !isReportRole && (
+                {!status?.subscribed && (
                   <button
                     onClick={() => setShowOptIn(true)}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-[12px] shadow-md transition-all active:scale-95"
