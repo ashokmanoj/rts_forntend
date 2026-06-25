@@ -87,13 +87,13 @@ export default function FoodPage({ currentUser }) {
       setLoadingStatus(true);
       const data = await getFoodStatus();
       setStatus(data);
-      if (isRequestor && !data.subscribed) setShowOptIn(true);
+      if (isRequestor && !isReportRole && !data.subscribed) setShowOptIn(true);
     } catch {
       setStatusMsg({ type: 'error', text: 'Failed to load food status.' });
     } finally {
       setLoadingStatus(false);
     }
-  }, [isRequestor]);
+  }, [isRequestor, isReportRole]);
 
   useEffect(() => { loadStatus(); }, [loadStatus]);
 
@@ -111,8 +111,8 @@ export default function FoodPage({ currentUser }) {
   }, []);
 
   useEffect(() => {
-    if (status !== null && isRequestor) loadCalendar(calMonth, calYear);
-  }, [calMonth, calYear, status, isRequestor, loadCalendar]);
+    if (status !== null && (isRequestor || isReportRole)) loadCalendar(calMonth, calYear);
+  }, [calMonth, calYear, status, isRequestor, isReportRole, loadCalendar]);
 
   // ── Opt In ────────────────────────────────────────────────────────────────
   const handleOptIn = async () => {
@@ -372,7 +372,7 @@ export default function FoodPage({ currentUser }) {
       {showGuide && <FoodGuideModal onClose={() => setShowGuide(false)} />}
 
       {/* Opt-In Modal */}
-      {showOptIn && isRequestor && (
+      {showOptIn && (
         <FoodOptInModal loading={optInLoading} onConfirm={handleOptIn} onDecline={() => setShowOptIn(false)} />
       )}
 
@@ -477,9 +477,9 @@ export default function FoodPage({ currentUser }) {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* REQUESTOR SECTION                                                   */}
+      {/* PERSONAL FOOD SUBSCRIPTION (all roles who eat food)                 */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {isRequestor && (
+      {(isRequestor || isReportRole) && (
         <>
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-5">
 
