@@ -339,7 +339,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
 
   useEscapeKey(onClose);
 
-  const ASSIGNABLE_ROLES = new Set(["RM", "HOD", "DeptHOD"]);
+  const ASSIGNABLE_ROLES = new Set(["RM", "HOD"]);
   const filterAssignable = (users) =>
     users.filter(u =>
       ASSIGNABLE_ROLES.has(u.role) ||
@@ -418,7 +418,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
     setCcLoadingDepts(prev => new Set(prev).add(dept));
     try {
       const data  = await get(`/requests/users-by-dept?depts=${encodeURIComponent(dept)}`);
-      const users = Array.isArray(data) ? data : (data?.data ?? []);
+      const users = filterAssignable(Array.isArray(data) ? data : (data?.data ?? []));
       setCcDeptUsers(prev => ({ ...prev, [dept]: users }));
     } catch {
       setCcDeptUsers(prev => ({ ...prev, [dept]: [] }));

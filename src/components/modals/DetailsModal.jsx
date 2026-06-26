@@ -134,7 +134,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     : onClose
   );
 
-  const ASSIGNABLE_ROLES = new Set(["RM", "HOD", "DeptHOD"]);
+  const ASSIGNABLE_ROLES = new Set(["RM", "HOD"]);
   const filterAssignable = (users) =>
     users.filter(u =>
       ASSIGNABLE_ROLES.has(u.role) ||
