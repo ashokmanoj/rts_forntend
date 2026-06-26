@@ -14,7 +14,7 @@
  */
 
 import { useRef, useEffect, useState } from "react";
-import { MessageSquare, Lock, Paperclip } from "lucide-react";
+import { MessageSquare, Lock, Paperclip, ChevronDown } from "lucide-react";
 import ApprovalCard      from "./ApprovalCard";
 import MessageBubble     from "./MessageBubble";
 import SystemMessage     from "./SystemMessage";
@@ -46,13 +46,27 @@ function groupLogs(logs) {
 
 export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isClosed, canChat, onRefreshChat, canAttachPostClose, onAttachPostClose }) {
   const chatEndRef         = useRef(null);
+  const chatContainerRef   = useRef(null);
+  const isFirstLoad        = useRef(true);
   const postCloseFileRef   = useRef(null);
   const [replyTo,              setReplyTo]            = useState(null);
   const [postCloseUploading,   setPostCloseUploading] = useState(false);
+  const [showScrollBtn,        setShowScrollBtn]      = useState(false);
+
+  const handleScroll = () => {
+    const c = chatContainerRef.current;
+    if (!c) return;
+    setShowScrollBtn(c.scrollHeight - c.scrollTop - c.clientHeight > 120);
+  };
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   // Mark chat as read when panel opens and refresh ticks every 8 s
   useEffect(() => {
     if (!reqId) return;
+    isFirstLoad.current = true;
     post(`/requests/${reqId}/chat/read`, {}).catch(() => {});
     const interval = setInterval(() => {
       onRefreshChat?.(reqId);
@@ -60,9 +74,23 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
     return () => clearInterval(interval);
   }, [reqId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-scroll to newest message
+  // Smart scroll: instant jump on first open; only auto-scroll on new messages when near bottom
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!logs.length) return;
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    if (isFirstLoad.current) {
+      container.scrollTop = container.scrollHeight;
+      isFirstLoad.current = false;
+      return;
+    }
+
+    // Only pull down if user is within 120px of the bottom (they haven't scrolled away)
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    if (distanceFromBottom < 120) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [logs]);
 
   const handleReply = (log) => {
@@ -192,16 +220,27 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
       </div>
 
       {/* Message list */}
-      <div className="flex-1 overflow-y-auto space-y-3 bg-slate-50 md:rounded-2xl p-3 md:border md:border-slate-100">
-        {logs.length === 0 && (
-          <p className="text-center text-slate-400 text-sm mt-10">No activity yet.</p>
+      <div className="relative flex-1 overflow-hidden">
+        <div ref={chatContainerRef} onScroll={handleScroll} className="h-full overflow-y-auto space-y-3 bg-slate-50 md:rounded-2xl p-3 md:border md:border-slate-100">
+          {logs.length === 0 && (
+            <p className="text-center text-slate-400 text-sm mt-10">No activity yet.</p>
+          )}
+          {groupLogs(logs).map((log) =>
+            log.type === "approval" ? <ApprovalCard  key={log.id} log={log} /> :
+            log.type === "system"   ? <SystemMessage key={log.id} log={log} /> :
+                                      <MessageBubble key={log.id} log={log} onReply={canChat ? handleReply : null} currentUser={currentUser} />
+          )}
+          <div ref={chatEndRef} />
+        </div>
+
+        {showScrollBtn && (
+          <button
+            onClick={scrollToBottom}
+            className="absolute bottom-3 right-3 z-10 w-8 h-8 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white rounded-full shadow-lg flex items-center justify-center transition-all"
+          >
+            <ChevronDown size={16} />
+          </button>
         )}
-        {groupLogs(logs).map((log) =>
-          log.type === "approval" ? <ApprovalCard  key={log.id} log={log} /> :
-          log.type === "system"   ? <SystemMessage key={log.id} log={log} /> :
-                                    <MessageBubble key={log.id} log={log} onReply={canChat ? handleReply : null} currentUser={currentUser} />
-        )}
-        <div ref={chatEndRef} />
       </div>
 
       {/* Input bar / closed notice */}
