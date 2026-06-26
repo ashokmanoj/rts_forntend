@@ -51,7 +51,7 @@ export default function AppLoader() {
         </div>
 
         <div className="text-center space-y-1">
-          <p className="text-xl font-black tracking-tight text-slate-800">RTS</p>
+          <p className="text-xl font-black tracking-tight text-slate-800">TELE-RTS</p>
           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Request Tracking System</p>
         </div>
       </div>
