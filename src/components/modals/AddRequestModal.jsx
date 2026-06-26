@@ -536,7 +536,6 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
       await onSubmit({
         purpose,
         assignedDept:        selectedDept,
-        assignedDepts:       selectedDept,
         description,
         files:               uploadedFiles.length > 0 ? uploadedFiles : null,
         dueDate:             dueDate || null,
