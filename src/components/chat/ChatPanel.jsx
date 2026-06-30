@@ -63,6 +63,8 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const visibleLogs = logs.filter(l => !(l.type === "system" && l.text?.includes("Request edited by")));
+
   // Mark chat as read when panel opens and refresh ticks every 8 s
   useEffect(() => {
     if (!reqId) return;
@@ -76,7 +78,7 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
 
   // Smart scroll: instant jump on first open; only auto-scroll on new messages when near bottom
   useEffect(() => {
-    if (!logs.length) return;
+    if (!visibleLogs.length) return;
     const container = chatContainerRef.current;
     if (!container) return;
 
@@ -91,7 +93,7 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
     if (distanceFromBottom < 120) {
       chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [logs]);
+  }, [visibleLogs]);
 
   const handleReply = (log) => {
     setReplyTo({
@@ -189,9 +191,9 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
       {/* Header — desktop only (mobile uses the "← Back" bar from DetailsModal) */}
       <p className="hidden md:flex text-[10px] text-slate-400 font-black uppercase tracking-widest items-center gap-1 flex-shrink-0">
         <MessageSquare size={11} /> Activity &amp; Chat
-        {logs.length > 0 && (
+        {visibleLogs.length > 0 && (
           <span className="bg-indigo-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black ml-1">
-            {logs.length}
+            {visibleLogs.length}
           </span>
         )}
         {isClosed && (
@@ -206,9 +208,9 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
         <div className="flex items-center gap-2">
           <MessageSquare size={14} className="text-indigo-500" />
           <span className="text-[13px] font-black text-slate-700">Activity &amp; Chat</span>
-          {logs.length > 0 && (
+          {visibleLogs.length > 0 && (
             <span className="bg-indigo-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black">
-              {logs.length}
+              {visibleLogs.length}
             </span>
           )}
         </div>
@@ -222,10 +224,10 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
       {/* Message list */}
       <div className="relative flex-1 overflow-hidden">
         <div ref={chatContainerRef} onScroll={handleScroll} className="h-full overflow-y-auto space-y-3 bg-slate-50 md:rounded-2xl p-3 md:border md:border-slate-100">
-          {logs.length === 0 && (
+          {visibleLogs.length === 0 && (
             <p className="text-center text-slate-400 text-sm mt-10">No activity yet.</p>
           )}
-          {groupLogs(logs).map((log) =>
+          {groupLogs(visibleLogs).map((log) =>
             log.type === "approval" ? <ApprovalCard  key={log.id} log={log} /> :
             log.type === "system"   ? <SystemMessage key={log.id} log={log} /> :
                                       <MessageBubble key={log.id} log={log} onReply={canChat ? handleReply : null} currentUser={currentUser} />
