@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LogOut, Zap, ClipboardList, ShieldCheck, ShieldOff, Users, UtensilsCrossed, BarChart2, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Pencil, Trash2, AlertTriangle, UserPlus, KeyRound, Search, X, Plus, MessageSquare } from "lucide-react";
+import { LogOut, Zap, ClipboardList, ShieldCheck, ShieldOff, Users, UtensilsCrossed, BarChart2, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Pencil, Trash2, AlertTriangle, UserPlus, KeyRound, Search, X, Plus, MessageSquare, Mail, Building2, Check, Upload, Paperclip, ChevronLeft } from "lucide-react";
 
 import { fetchRequests, fetchFilterOptions, createRequest, submitApproval, acknowledgeRequest, markRequestSeen, markRequestUnread, closeRequest, editRequest, deleteRequest } from "../services/requestService";
 import { fetchUserRoles, addUserRole, updateUserRole, toggleUserRole, deleteUserRole } from "../services/userRoleService";
 import { fetchHodPendingRequests, submitHodApproval } from "../services/managementService";
 import { fetchChat, sendText, sendFile, sendVoice } from "../services/chatService";
-import { post } from "../services/api";
+import { get, post } from "../services/api";
 import { adminGetFoodSubscriptions, adminSubscribeUser, adminToggleFoodUser, adminDeleteFoodUser } from "../services/foodService";
 
 import SearchableSelect   from "../components/ui/SearchableSelect";
@@ -24,40 +24,135 @@ const DEPARTMENTS = ["Academics-Assam","Academics-Karnataka","Academics-Mizoram"
 // Edit Request Modal
 // ─────────────────────────────────────────────────────────────────────────────
 function EditRequestModal({ req, onClose, onSave }) {
+  // ── Basic fields ─────────────────────────────────────────────────────────────
   const [form, setForm] = useState({
-    purpose:          req.purpose        || "",
-    description:      req.description    || "",
-    assignedDept:     req.assignedDept   || "",
-    dueDate:          req.dueDate        ? req.dueDate.slice(0, 10) : "",
+    purpose:             req.purpose             || "",
+    description:         req.description         || "",
+    assignedDept:        req.assignedDept        || "",
+    dueDate:             req.dueDateRaw ? new Date(req.dueDateRaw).toISOString().split("T")[0] : "",
     assignedPersonEmpId: req.assignedPersonEmpId || "",
     assignedPersonName:  req.assignedPersonName  || "",
   });
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  // ── CC state ──────────────────────────────────────────────────────────────────
+  const [ccDepts, setCcDepts] = useState(() =>
+    req.ccDepts ? req.ccDepts.split(",").map(s => s.trim()).filter(Boolean) : []
+  );
+  const [ccPersons, setCcPersons] = useState(() => {
+    if (!req.ccEmpIds) return [];
+    const ids   = req.ccEmpIds.split(",").map(s => s.trim()).filter(Boolean);
+    const names = (req.ccPersonNames || "").split(",").map(s => s.trim());
+    return ids.map((empId, i) => ({ empId, name: names[i] || empId, dept: null }));
+  });
+  const [ccPickerOpen,   setCcPickerOpen]   = useState(false);
+  const [ccDeptSearch,   setCcDeptSearch]   = useState("");
+  const [ccActiveDept,   setCcActiveDept]   = useState(null);
+  const [ccDeptUsers,    setCcDeptUsers]    = useState({});
+  const [ccLoading,      setCcLoading]      = useState(false);
+  const [ccPersonSearch, setCcPersonSearch] = useState("");
+  const ccPickerRef = useRef(null);
+
+  // ── File state ────────────────────────────────────────────────────────────────
+  const [newFiles,    setNewFiles]    = useState([]);
+  const fileInputRef = useRef(null);
+
+  // ── Saving / error ────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState("");
 
-  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  // ── CC picker outside click ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!ccPickerOpen) return;
+    const close = (e) => {
+      if (ccPickerRef.current && !ccPickerRef.current.contains(e.target)) {
+        setCcPickerOpen(false);
+        setCcActiveDept(null);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [ccPickerOpen]);
 
+  // ── CC helpers ────────────────────────────────────────────────────────────────
+  const addCcDept = (dept) => {
+    setCcDepts(prev => prev.includes(dept) ? prev : [...prev, dept]);
+    setCcPickerOpen(false);
+    setCcDeptSearch("");
+  };
+
+  const removeCcDept = (dept) => {
+    setCcDepts(prev => prev.filter(d => d !== dept));
+    setCcPersons(prev => prev.filter(p => p.dept !== dept));
+  };
+
+  const removeCcPerson = (empId) => setCcPersons(prev => prev.filter(p => p.empId !== empId));
+
+  const openCcPersonPicker = async (dept) => {
+    setCcActiveDept(dept);
+    setCcPersonSearch("");
+    if (ccDeptUsers[dept] !== undefined) return;
+    setCcLoading(true);
+    try {
+      const data  = await get(`/requests/users-by-dept?depts=${encodeURIComponent(dept)}`);
+      const users = Array.isArray(data) ? data : (data?.data ?? []);
+      setCcDeptUsers(prev => ({ ...prev, [dept]: users }));
+    } catch {
+      setCcDeptUsers(prev => ({ ...prev, [dept]: [] }));
+    } finally {
+      setCcLoading(false);
+    }
+  };
+
+  const toggleCcPerson = (user) => {
+    setCcPersons(prev => {
+      const exists = prev.find(p => p.empId === user.empId);
+      if (exists) return prev.filter(p => p.empId !== user.empId);
+      return [...prev, { empId: user.empId, name: user.name, dept: ccActiveDept }];
+    });
+  };
+
+  // ── Save ──────────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!form.purpose.trim()) { setError("Purpose is required."); return; }
     setSaving(true); setError("");
     try {
-      await onSave(req.id, {
-        purpose:          form.purpose.trim(),
-        description:      form.description.trim(),
-        assignedDept:     form.assignedDept,
-        dueDate:          form.dueDate || null,
-        assignedPersonEmpId: form.assignedPersonEmpId.trim() || null,
-        assignedPersonName:  form.assignedPersonName.trim()  || null,
-      });
+      const fd = new FormData();
+      fd.append("purpose",          form.purpose.trim());
+      fd.append("description",      form.description.trim());
+      fd.append("assignedDept",     form.assignedDept);
+      fd.append("dueDate",          form.dueDate || "");
+      fd.append("assignedPersonEmpId", form.assignedPersonEmpId.trim());
+      fd.append("assignedPersonName",  form.assignedPersonName.trim());
+
+      // CC: persons from a known dept suppress that dept from dept-level CC
+      const personDepts = new Set(ccPersons.map(p => p.dept).filter(Boolean));
+      const finalCcDepts = ccDepts.filter(d => !personDepts.has(d));
+      fd.append("ccDepts",       finalCcDepts.length ? finalCcDepts.join(",") : "");
+      fd.append("ccEmpIds",      ccPersons.length ? ccPersons.map(p => p.empId).join(",") : "");
+      fd.append("ccPersonNames", ccPersons.length ? ccPersons.map(p => p.name).join(",")  : "");
+
+      newFiles.forEach(f => fd.append("files", f));
+
+      await onSave(req.id, fd);
       onClose();
     } catch (e) { setError(e.message || "Failed to save."); }
     finally { setSaving(false); }
   };
 
+  // ── Derived ───────────────────────────────────────────────────────────────────
+  const existingFileUrls  = req.fileUrls  || (req.fileUrl  ? [req.fileUrl]  : []);
+  const existingFileNames = req.fileNames || (req.fileName ? [req.fileName] : []);
+  const filteredCcDepts   = DEPARTMENTS.filter(d =>
+    !ccDepts.includes(d) && d.toLowerCase().includes(ccDeptSearch.toLowerCase())
+  );
+
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden">
-        <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 px-6 py-4 flex items-center justify-between">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+
+        {/* Header */}
+        <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-white font-black text-sm">Edit Request #{req.id}</h2>
             <p className="text-indigo-200 text-[11px]">SuperUser edit — changes are logged in chat</p>
@@ -65,32 +160,31 @@ function EditRequestModal({ req, onClose, onSave }) {
           <button onClick={onClose} className="text-white/70 hover:text-white"><XCircle size={20} /></button>
         </div>
 
-        <div className="px-6 py-5 space-y-3">
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           {error && <p className="text-red-600 text-[11px] font-bold bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 
+          {/* Purpose */}
           <div>
             <label className="text-[10px] font-black text-slate-500 uppercase">Purpose *</label>
             <input value={form.purpose} onChange={e => set("purpose", e.target.value)}
               className="w-full mt-1 px-3 py-2 text-[12px] border border-slate-200 rounded-xl outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" />
           </div>
 
+          {/* Description */}
           <div>
             <label className="text-[10px] font-black text-slate-500 uppercase">Description</label>
             <textarea rows={3} value={form.description} onChange={e => set("description", e.target.value)}
               className="w-full mt-1 px-3 py-2 text-[12px] border border-slate-200 rounded-xl outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-none" />
           </div>
 
+          {/* Assigned Dept + Due Date */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] font-black text-slate-500 uppercase">Assigned Dept</label>
-              <SearchableSelect
-                value={form.assignedDept}
-                onChange={(val) => set("assignedDept", val)}
-                options={DEPARTMENTS}
-                placeholder="Select dept…"
-                className="mt-1"
-                triggerClassName="px-3 py-2 text-[12px] bg-white border border-slate-200 rounded-xl font-bold hover:border-indigo-300"
-              />
+              <SearchableSelect value={form.assignedDept} onChange={val => set("assignedDept", val)}
+                options={DEPARTMENTS} placeholder="Select dept…" className="mt-1"
+                triggerClassName="px-3 py-2 text-[12px] bg-white border border-slate-200 rounded-xl font-bold hover:border-indigo-300" />
             </div>
             <div>
               <label className="text-[10px] font-black text-slate-500 uppercase">Due Date</label>
@@ -99,6 +193,7 @@ function EditRequestModal({ req, onClose, onSave }) {
             </div>
           </div>
 
+          {/* Assigned Person */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] font-black text-slate-500 uppercase">Assigned Person EmpID</label>
@@ -111,9 +206,169 @@ function EditRequestModal({ req, onClose, onSave }) {
                 className="w-full mt-1 px-3 py-2 text-[12px] border border-slate-200 rounded-xl outline-none focus:border-indigo-400" />
             </div>
           </div>
+
+          {/* ── CC Section ────────────────────────────────────────────────────── */}
+          <div>
+            <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1">
+              <Mail size={10} /> Copy To (CC)
+              <span className="text-slate-300 font-medium normal-case tracking-normal ml-1">— optional</span>
+            </label>
+
+            {/* CC dept chips */}
+            {(ccDepts.length > 0 || ccPersons.length > 0) && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {ccDepts.map(dept => (
+                  <span key={dept} className="flex items-center gap-1 text-[11px] bg-amber-50 text-amber-700 border border-amber-200 rounded-lg px-2 py-1 font-bold">
+                    <Building2 size={10} /> {dept}
+                    <button type="button" onClick={() => removeCcDept(dept)} className="text-amber-400 hover:text-amber-600 ml-0.5">
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+                {ccPersons.map(p => (
+                  <span key={p.empId} className="flex items-center gap-1 text-[11px] bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-2 py-1 font-bold">
+                    <Users size={10} /> {p.name}
+                    <button type="button" onClick={() => removeCcPerson(p.empId)} className="text-blue-400 hover:text-blue-600 ml-0.5">
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* CC picker trigger + dropdown */}
+            <div className="relative mt-2" ref={ccPickerRef}>
+              <button type="button"
+                onClick={() => { setCcPickerOpen(p => !p); setCcActiveDept(null); setCcDeptSearch(""); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] border border-dashed border-slate-200 rounded-xl hover:border-amber-300 text-slate-400 font-medium">
+                <Plus size={12} /> Add CC department or person…
+              </button>
+
+              {ccPickerOpen && (
+                <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+                  {!ccActiveDept ? (
+                    // Dept list
+                    <div>
+                      <div className="p-2 border-b border-slate-100">
+                        <input autoFocus type="text" value={ccDeptSearch}
+                          onChange={e => setCcDeptSearch(e.target.value)}
+                          placeholder="Search departments…"
+                          className="w-full px-3 py-2 text-[12px] bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-amber-400" />
+                      </div>
+                      <div className="max-h-44 overflow-y-auto py-1">
+                        {filteredCcDepts.slice(0, 25).map(dept => (
+                          <div key={dept} className="flex items-center gap-1 px-3 py-2 hover:bg-slate-50 group">
+                            <button type="button" onClick={() => addCcDept(dept)}
+                              className="flex-1 text-left text-[12px] font-bold text-slate-700">{dept}</button>
+                            <button type="button" onClick={() => openCcPersonPicker(dept)}
+                              className="text-[10px] text-indigo-500 font-bold opacity-0 group-hover:opacity-100 px-2 py-0.5 bg-indigo-50 rounded-lg whitespace-nowrap">
+                              Pick persons →
+                            </button>
+                          </div>
+                        ))}
+                        {filteredCcDepts.length === 0 && (
+                          <p className="text-center text-slate-400 text-[11px] py-4">No depts match</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    // Person picker for selected dept
+                    <div>
+                      <div className="p-2 border-b border-slate-100 flex items-center gap-2">
+                        <button type="button" onClick={() => setCcActiveDept(null)} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
+                          <ChevronLeft size={14} />
+                        </button>
+                        <span className="text-[11px] font-black text-slate-700 truncate">{ccActiveDept}</span>
+                        <input type="text" value={ccPersonSearch}
+                          onChange={e => setCcPersonSearch(e.target.value)}
+                          placeholder="Search…"
+                          className="ml-auto w-28 px-2 py-1 text-[11px] bg-slate-50 border border-slate-200 rounded-lg outline-none" />
+                      </div>
+                      <div className="max-h-44 overflow-y-auto py-1">
+                        {ccLoading ? (
+                          <div className="flex justify-center py-4">
+                            <span className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                          </div>
+                        ) : (ccDeptUsers[ccActiveDept] || [])
+                            .filter(u => !ccPersonSearch || u.name.toLowerCase().includes(ccPersonSearch.toLowerCase()) || u.empId.toLowerCase().includes(ccPersonSearch.toLowerCase()))
+                            .map(user => {
+                              const selected = ccPersons.some(p => p.empId === user.empId);
+                              return (
+                                <button type="button" key={user.empId} onClick={() => toggleCcPerson(user)}
+                                  className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-50 transition-colors ${selected ? "bg-indigo-50" : ""}`}>
+                                  <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selected ? "bg-indigo-500 border-indigo-500" : "border-slate-300"}`}>
+                                    {selected && <Check size={9} className="text-white" />}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-[12px] font-bold text-slate-700 truncate">{user.name}</p>
+                                    <p className="text-[10px] text-slate-400">{user.empId} · {user.role}</p>
+                                  </div>
+                                </button>
+                              );
+                            })
+                        }
+                        {!ccLoading && (ccDeptUsers[ccActiveDept] || []).length === 0 && (
+                          <p className="text-center text-slate-400 text-[11px] py-4">No users in this dept</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Existing Attachments ──────────────────────────────────────────── */}
+          {existingFileUrls.length > 0 && (
+            <div>
+              <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1">
+                <Paperclip size={10} /> Existing Attachments
+              </label>
+              <div className="mt-1.5 space-y-1">
+                {existingFileUrls.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-[12px] text-indigo-600 hover:text-indigo-800 hover:underline truncate">
+                    <Paperclip size={11} className="text-slate-400 flex-shrink-0" />
+                    {existingFileNames[i] || `Attachment ${i + 1}`}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Add New Attachments ───────────────────────────────────────────── */}
+          <div>
+            <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1">
+              <Upload size={10} /> Add New Attachments
+            </label>
+            <input ref={fileInputRef} type="file" multiple className="hidden"
+              onChange={e => {
+                setNewFiles(prev => [...prev, ...Array.from(e.target.files || [])]);
+                e.target.value = "";
+              }} />
+            <button type="button" onClick={() => fileInputRef.current?.click()}
+              className="mt-1 w-full flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-slate-200 rounded-xl text-[12px] text-slate-400 hover:border-indigo-300 hover:text-indigo-500 transition-all">
+              <Upload size={14} /> Click to upload files
+            </button>
+            {newFiles.length > 0 && (
+              <div className="mt-1.5 space-y-1">
+                {newFiles.map((f, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[11px] bg-slate-50 px-3 py-1.5 rounded-lg">
+                    <Paperclip size={11} className="text-slate-400 flex-shrink-0" />
+                    <span className="text-slate-700 font-medium truncate flex-1">{f.name}</span>
+                    <button type="button" onClick={() => setNewFiles(prev => prev.filter((_, j) => j !== i))}
+                      className="text-slate-400 hover:text-red-500 flex-shrink-0">
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="px-6 pb-5 flex gap-3">
+        {/* Footer */}
+        <div className="px-6 py-4 flex gap-3 flex-shrink-0 border-t border-slate-100">
           <button onClick={onClose} disabled={saving}
             className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-black text-[12px] hover:bg-slate-50 transition-all disabled:opacity-50">
             Cancel

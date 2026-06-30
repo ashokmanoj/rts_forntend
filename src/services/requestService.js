@@ -75,6 +75,7 @@ export async function attachAfterClose(id, files = []) {
 }
 
 export async function editRequest(id, data) {
+  if (data instanceof FormData) return patchForm(`/requests/${id}/edit`, data);
   return patch(`/requests/${id}/edit`, data);
 }
 
