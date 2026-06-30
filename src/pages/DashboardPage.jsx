@@ -371,6 +371,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
             onShowInstructions={() => setShowInstructions(true)}
             onLogout={onLogout}
             onSwitchRole={onSwitchRole}
+            activeTab={activeTab}
           />
         )}
       </div>
@@ -620,14 +621,6 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
             {activeModal === "add" && (
               <AddRequestModal onClose={() => setActiveModal(null)} onSubmit={handleAddRequest} currentUser={currentUser} />
             )}
-            {showHelpModal && (
-              <AddRequestModal
-                onClose={() => setShowHelpModal(false)}
-                onSubmit={async (data) => { await handleAddRequest(data); setShowHelpModal(false); }}
-                currentUser={currentUser}
-                initialDept="RTS Help Desk"
-              />
-            )}
             {showInstructions && <InstructionsModal onClose={() => setShowInstructions(false)} />}
             {showBroadcast     && <BroadcastModal     onClose={() => setShowBroadcast(false)} />}
             {showBroadcastSend && <BroadcastSendModal onClose={() => setShowBroadcastSend(false)} />}
@@ -636,6 +629,16 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
         )}
 
       </div>
+
+      {/* ── RTS Help Desk modal — outside tab blocks so it works on any tab ── */}
+      {showHelpModal && (
+        <AddRequestModal
+          onClose={() => setShowHelpModal(false)}
+          onSubmit={async (data) => { await handleAddRequest(data); setShowHelpModal(false); }}
+          currentUser={currentUser}
+          initialDept="RTS Help Desk"
+        />
+      )}
 
       {/* ── RTS Help Desk Floating Button ───────────────────────────────────── */}
       {currentUser && (

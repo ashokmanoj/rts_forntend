@@ -277,7 +277,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                         (isSpecificallyAssigned && !isClosed && !isPendingAck && !isAdmin) ||
                         isFacilitiesRequestorClose) && !isCcUser && viewCloseTicketGate;
   const canChat              = !isAdmin && !isClosed;
-  const canAttachPostClose   = isClosed && req?.acknowledgement === "Resolved" && (isTeamMemberIncoming || isSpecificallyAssigned) && !isAdmin && !isCcUser;
+  const canAttachPostClose   = isClosed && req?.acknowledgement === "Resolved" && (isTeamMemberIncoming || isSpecificallyAssigned || isOwnRequest) && !isAdmin && !isCcUser;
   const isRequestorMode = roleLow === "requestor" || isOwnRequest;
 
   // Team members can click "Checking" on incoming requests from other departments

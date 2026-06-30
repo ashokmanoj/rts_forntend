@@ -36,6 +36,7 @@ export default function FilterBar({
   onShowInstructions,
   onLogout,
   onSwitchRole,
+  activeTab = "requests",
 }) {
   const [showProfile,    setShowProfile]    = useState(false);
   const [showFilters,    setShowFilters]    = useState(false);
@@ -89,6 +90,7 @@ export default function FilterBar({
   const isAdmin        = currentUser?.role === "Admin";
   const isApproverRole = ["RM", "HOD", "DeptHOD"].includes(currentUser?.role);
   const isInternsDept  = currentUser?.dept?.toLowerCase() === "interns";
+  const isFoodTab      = activeTab === "food";
 
   const { isSupported: pushSupported, isSecure, isChecked, isSubscribed, permission, loading: pushLoading, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications();
 
@@ -108,7 +110,7 @@ export default function FilterBar({
       <div className="flex flex-wrap items-end gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200">
 
         {/* ── Filter groups — hidden on mobile until toggle, always visible on sm+ ── */}
-        {!isInternsDept && (
+        {!isInternsDept && !isFoodTab && (
           <div className={`flex flex-wrap items-end gap-2 sm:gap-3 w-full sm:flex-1 ${showFilters ? "flex" : "hidden sm:flex"}`}>
 
             {/* Requestor Name */}
@@ -263,7 +265,7 @@ export default function FilterBar({
         <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto sm:ml-auto">
 
           {/* Filter toggle — mobile only */}
-          {!isInternsDept && (
+          {!isInternsDept && !isFoodTab && (
             <button
               onClick={() => setShowFilters(v => !v)}
               className={`sm:hidden flex items-center gap-1.5 h-9 px-3 rounded-xl border text-[11px] font-black transition-all active:scale-95 flex-shrink-0 ${
@@ -283,7 +285,7 @@ export default function FilterBar({
           )}
 
           {/* Search */}
-          {!isInternsDept && (
+          {!isInternsDept && !isFoodTab && (
             <div className="relative flex-1 sm:flex-none">
               <input
                 type="search"
@@ -297,7 +299,7 @@ export default function FilterBar({
           )}
 
           {/* Add Request */}
-          {!isAdmin && !isInternsDept && !isApproverRole && (
+          {!isAdmin && !isInternsDept && !isApproverRole && !isFoodTab && (
             <button
               onClick={onAddRequest}
               className="bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded-xl font-black flex items-center gap-1.5 shadow-md transition-all active:scale-95 text-[12px] whitespace-nowrap flex-shrink-0"
@@ -308,7 +310,7 @@ export default function FilterBar({
           )}
 
           {/* Notification Bell */}
-          {pushSupported && permission !== "denied" && (
+          {pushSupported && permission !== "denied" && !isFoodTab && (
             <button
               onClick={isSubscribed ? pushUnsubscribe : pushSubscribe}
               disabled={pushLoading}
@@ -529,7 +531,7 @@ export default function FilterBar({
       </div>
 
       {/* ── Sub-bar ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-1 sm:px-2">
+      {!isFoodTab && <div className="flex flex-wrap items-center justify-between gap-2 px-1 sm:px-2">
         <div className="flex items-center gap-2">
           <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[11px] font-black shadow-sm">
             {requestCount} {requestCount === 1 ? "REQUEST" : "REQUESTS"}
@@ -556,7 +558,7 @@ export default function FilterBar({
             <span className="hidden sm:inline">MANUAL / </span>INSTRUCTIONS
           </button>
         </div>
-      </div>
+      </div>}
 
     </div>
   );
