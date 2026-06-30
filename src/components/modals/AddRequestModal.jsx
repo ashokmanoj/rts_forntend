@@ -532,6 +532,14 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
     const ccAllUsers      = Object.values(ccDeptUsers).flat();
     const selectedCcUsers = ccAllUsers.filter(u => ccSelectedEmpIds.has(u.empId));
 
+    // Only keep a dept in ccDepts if NO specific person was selected from it.
+    // Depts where people were individually picked are covered by ccEmpIds — sending
+    // the whole dept would expose the ticket to every user in that dept.
+    const selectedCcDepts = ccDepts.filter(dept => {
+      const usersInDept = ccDeptUsers[dept] || [];
+      return !usersInDept.some(u => ccSelectedEmpIds.has(u.empId));
+    });
+
     try {
       await onSubmit({
         purpose,
@@ -541,9 +549,9 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
         dueDate:             dueDate || null,
         assignedPersonEmpId: selectedUsers.length ? selectedUsers.map(u => u.empId).join(",") : null,
         assignedPersonName:  selectedUsers.length ? selectedUsers.map(u => u.name).join(",")  : null,
-        ccDepts:      ccDepts.length        ? ccDepts.join(",")                                  : null,
-        ccEmpIds:     selectedCcUsers.length ? selectedCcUsers.map(u => u.empId).join(",")       : null,
-        ccPersonNames: selectedCcUsers.length ? selectedCcUsers.map(u => u.name).join(",")       : null,
+        ccDepts:      selectedCcDepts.length  ? selectedCcDepts.join(",")                          : null,
+        ccEmpIds:     selectedCcUsers.length  ? selectedCcUsers.map(u => u.empId).join(",")        : null,
+        ccPersonNames: selectedCcUsers.length ? selectedCcUsers.map(u => u.name).join(",")         : null,
         isRecurring:         recurringType === "recurring",
         recurringInterval:   recurringType === "recurring" ? recurringInterval : null,
       });
