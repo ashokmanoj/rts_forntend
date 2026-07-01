@@ -339,6 +339,10 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                       <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1 rounded-lg block whitespace-nowrap">
                         {row.assignedStatus}
                       </span>
+                    ) : isPendingAck ? (
+                      <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-2 py-1 rounded-lg block whitespace-nowrap">
+                        Ack. Pending
+                      </span>
                     ) : row.assignedStatus === "Checking" ? (
                       <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-1 rounded-lg block whitespace-nowrap">
                         Checking
