@@ -40,6 +40,7 @@ export default function FoodPage({ currentUser }) {
   const [testLoading, setTestLoading] = useState(false);
   const isReportRole = currentUser?.role === 'SuperUser' || (currentUser?.role === 'DeptHOD' && REPORT_DEPTS.includes(currentUser?.dept));
   const isRequestor  = ['Requestor', 'RM', 'HOD', 'HR', 'FoodCommittee', 'Intern'].includes(currentUser?.role);
+  const isFoodAdmin  = currentUser?.role === 'FoodCommittee' || (currentUser?.role === 'DeptHOD' && REPORT_DEPTS.includes(currentUser?.dept));
 
   const [showGuide, setShowGuide] = useState(false);
 
@@ -493,8 +494,8 @@ export default function FoodPage({ currentUser }) {
               </button>
             </div>
 
-            {/* Subscription info row */}
-            <div className="flex items-center justify-between flex-wrap gap-4">
+            {/* Subscription info row — hidden for FoodCommittee and HR/Food Committee DeptHOD */}
+            {!isFoodAdmin && <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   status?.subscribed
@@ -552,17 +553,17 @@ export default function FoodPage({ currentUser }) {
                   </button>
                 )}
               </div>
-            </div>
+            </div>}
 
             {/* Push error (e.g. HTTPS required) */}
-            {pushError && (
+            {!isFoodAdmin && pushError && (
               <p className="text-[10px] text-red-500 font-medium flex items-center gap-1">
                 <AlertCircle size={11} /> {pushError}
               </p>
             )}
 
             {/* Cancellation window notice */}
-            {status?.subscribed && (
+            {!isFoodAdmin && status?.subscribed && (
               <p className="text-[15px] text-slate-700 font-medium">
                 Any changes for next week can be made only before <span className="font-black text-slate-500">Saturday 6:30 PM</span> of the current week.
               </p>
