@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   UtensilsCrossed, Download, AlertCircle, CheckCircle2,
   RefreshCw, CalendarX, CalendarCheck, CalendarOff, CalendarRange, Lock,
-  Bell, BellOff, UserPlus, X,
+  Bell, BellOff, UserPlus, X, Trash2,
 } from 'lucide-react';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import {
@@ -21,6 +21,8 @@ import {
   triggerFoodReminder,
   getFoodUsers,
   addFoodManualEntry,
+  adminPreviewFoodCancelRange,
+  adminCancelFoodRange,
 } from '../services/foodService';
 import FoodOptInModal  from '../components/food/FoodOptInModal';
 import FoodCalendar    from '../components/food/FoodCalendar';
@@ -61,10 +63,12 @@ export default function FoodPage({ currentUser }) {
   const [showBtn2Confirm, setShowBtn2Confirm] = useState(false);
 
   // ── Calendar ──────────────────────────────────────────────────────────────
-  const [calMonth,   setCalMonth]   = useState(now.getMonth() + 1);
-  const [calYear,    setCalYear]    = useState(now.getFullYear());
-  const [calData,    setCalData]    = useState(null);
-  const [calLoading, setCalLoading] = useState(false);
+  const [calMonth,      setCalMonth]      = useState(now.getMonth() + 1);
+  const [calYear,       setCalYear]       = useState(now.getFullYear());
+  const [calData,       setCalData]       = useState(null);
+  const [calLoading,    setCalLoading]    = useState(false);
+  const [calViewEmpId,  setCalViewEmpId]  = useState(null); // null = own calendar
+  const [calViewName,   setCalViewName]   = useState(null); // display name for banner
 
   // ── Report ────────────────────────────────────────────────────────────────
   const [reportType,    setReportType]    = useState('month');
@@ -81,6 +85,17 @@ export default function FoodPage({ currentUser }) {
   const [allUsers,        setAllUsers]        = useState([]);
   const [usersLoading,    setUsersLoading]    = useState(false);
   const [addForm, setAddForm] = useState({ empId: '', weekDate: '', amount: '', note: '' });
+
+  // ── SuperUser: clear food votes ───────────────────────────────────────────
+  const [clearPeriod,      setClearPeriod]      = useState('prev-month');
+  const [clearEmpId,       setClearEmpId]       = useState('');
+  const [clearStart,       setClearStart]       = useState('');
+  const [clearEnd,         setClearEnd]         = useState('');
+  const [clearCount,       setClearCount]       = useState(null);
+  const [clearLoading,     setClearLoading]     = useState(false);
+  const [clearDeleting,    setClearDeleting]    = useState(false);
+  const [clearMsg,         setClearMsg]         = useState(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // ── Load status ───────────────────────────────────────────────────────────
   const loadStatus = useCallback(async () => {
@@ -99,10 +114,10 @@ export default function FoodPage({ currentUser }) {
   useEffect(() => { loadStatus(); }, [loadStatus]);
 
   // ── Load calendar ─────────────────────────────────────────────────────────
-  const loadCalendar = useCallback(async (month, year) => {
+  const loadCalendar = useCallback(async (month, year, empId) => {
     setCalLoading(true);
     try {
-      const data = await getFoodCalendar(month, year);
+      const data = await getFoodCalendar(month, year, empId || null);
       setCalData(data);
     } catch {
       setCalData(null);
@@ -112,8 +127,8 @@ export default function FoodPage({ currentUser }) {
   }, []);
 
   useEffect(() => {
-    if (status !== null && (isRequestor || isReportRole)) loadCalendar(calMonth, calYear);
-  }, [calMonth, calYear, status, isRequestor, isReportRole, loadCalendar]);
+    if (status !== null && (isRequestor || isReportRole)) loadCalendar(calMonth, calYear, calViewEmpId);
+  }, [calMonth, calYear, calViewEmpId, status, isRequestor, isReportRole, loadCalendar]);
 
   // ── Opt In ────────────────────────────────────────────────────────────────
   const handleOptIn = async () => {
@@ -132,7 +147,8 @@ export default function FoodPage({ currentUser }) {
 
   const refresh = async (msg) => {
     await loadStatus();
-    loadCalendar(calMonth, calYear);
+    setCalViewEmpId(null);
+    setCalViewName(null);
     if (msg) setStatusMsg({ type: 'success', text: msg });
   };
 
@@ -263,6 +279,65 @@ export default function FoodPage({ currentUser }) {
     } finally {
       setDlLoading(false);
     }
+  };
+
+  // ── SuperUser: clear food votes handlers ─────────────────────────────────
+  function getClearParams() {
+    const n = new Date();
+    let startDate = null, endDate = null;
+    if (clearPeriod === 'prev-month') {
+      startDate = new Date(n.getFullYear(), n.getMonth() - 1, 1).toISOString().split('T')[0];
+      endDate   = new Date(n.getFullYear(), n.getMonth(), 0).toISOString().split('T')[0];
+    } else if (clearPeriod === 'curr-month') {
+      startDate = new Date(n.getFullYear(), n.getMonth(), 1).toISOString().split('T')[0];
+      endDate   = new Date(n.getFullYear(), n.getMonth() + 1, 0).toISOString().split('T')[0];
+    } else if (clearPeriod === 'future') {
+      const d = new Date(n); const day = d.getDay();
+      d.setDate(d.getDate() + (day === 1 ? 7 : ((8 - day) % 7 || 7)));
+      startDate = d.toISOString().split('T')[0];
+    } else {
+      startDate = clearStart || null;
+      endDate   = clearEnd   || null;
+    }
+    const empId = (clearEmpId && clearEmpId !== '__pick__') ? clearEmpId : null;
+    return { empId, startDate, endDate };
+  }
+
+  const handleClearPreview = async () => {
+    setClearLoading(true); setClearMsg(null);
+    try {
+      const { weeks, users } = await adminPreviewFoodCancelRange(getClearParams());
+      setClearCount(weeks * users); setShowClearConfirm(false);
+    } catch { setClearMsg({ type: 'error', text: 'Failed to fetch count.' }); }
+    finally  { setClearLoading(false); }
+  };
+
+  const handleClearVotes = async () => {
+    setClearDeleting(true);
+    try {
+      const p = getClearParams();
+      const { created } = await adminCancelFoodRange(p);
+      setClearCount(null); setShowClearConfirm(false);
+      setClearMsg({ type: 'success', text: `Food removed for ${created} week-slot${created !== 1 ? 's' : ''} successfully.` });
+      // Switch calendar to the start month of the removed range so cancelled weeks are visible
+      const targetEmpId = p.empId || null;
+      if (p.startDate) {
+        const [sy, sm] = p.startDate.split('-').map(Number);
+        setCalMonth(sm);
+        setCalYear(sy);
+      }
+      if (targetEmpId) {
+        setCalViewEmpId(targetEmpId);
+        setCalViewName(allUsers.find(u => u.empId === targetEmpId)?.name || null);
+      } else {
+        loadCalendar(
+          p.startDate ? Number(p.startDate.split('-')[1]) : calMonth,
+          p.startDate ? Number(p.startDate.split('-')[0]) : calYear,
+          null
+        );
+      }
+    } catch { setClearMsg({ type: 'error', text: 'Failed to remove food.' }); }
+    finally  { setClearDeleting(false); }
   };
 
   // ── Calendar nav ──────────────────────────────────────────────────────────
@@ -709,17 +784,30 @@ export default function FoodPage({ currentUser }) {
           </div>
 
           {/* Calendar */}
-          {status?.subscribed && (
-            <FoodCalendar
-              calendarData={calData}
-              month={calMonth}
-              year={calYear}
-              onPrev={handlePrev}
-              onNext={handleNext}
-              loading={calLoading}
-              canGoPrev={canGoPrev}
-              canGoNext={canGoNext}
-            />
+          {(status?.subscribed || (currentUser?.role === 'SuperUser' && calViewEmpId)) && (
+            <>
+              {calViewName && (
+                <div className="mx-4 sm:mx-5 mt-3 flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px]">
+                  <span className="font-black text-indigo-700">Viewing {calViewName}'s calendar</span>
+                  <button
+                    onClick={() => { setCalViewEmpId(null); setCalViewName(null); }}
+                    className="ml-auto text-indigo-400 hover:text-indigo-600 font-black px-2 py-0.5 rounded-lg hover:bg-indigo-100 transition-all"
+                  >
+                    ✕ Back to my calendar
+                  </button>
+                </div>
+              )}
+              <FoodCalendar
+                calendarData={calData}
+                month={calMonth}
+                year={calYear}
+                onPrev={handlePrev}
+                onNext={handleNext}
+                loading={calLoading}
+                canGoPrev={canGoPrev}
+                canGoNext={canGoNext}
+              />
+            </>
           )}
         </>
       )}
@@ -949,6 +1037,172 @@ export default function FoodPage({ currentUser }) {
               </div>
             )
           )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* SUPERUSER: CLEAR FOOD VOTES                                          */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {currentUser?.role === 'SuperUser' && (
+        <div className="bg-white rounded-2xl border border-red-200 shadow-sm overflow-hidden">
+          <div className="px-4 sm:px-5 py-4 border-b border-red-100 bg-gradient-to-r from-red-50 to-white flex items-center gap-2">
+            <Trash2 size={16} className="text-red-500" />
+            <h3 className="font-black text-slate-800 text-[14px]">Remove Food for Date Range</h3>
+            <span className="ml-auto text-[10px] text-red-400 font-medium">SuperUser only</span>
+          </div>
+
+          <div className="px-5 py-5 space-y-5">
+            {/* Period selector */}
+            <div>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-tight mb-2">Select Period</p>
+              <div className="flex bg-slate-100 rounded-xl p-1 text-[11px] font-black flex-wrap gap-1">
+                {[
+                  { key: 'prev-month', label: 'Previous Month' },
+                  { key: 'curr-month', label: 'Current Month' },
+                  { key: 'future',     label: 'Future Weeks' },
+                  { key: 'custom',     label: 'Custom Range' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => { setClearPeriod(key); setClearCount(null); setShowClearConfirm(false); setClearMsg(null); }}
+                    className={`px-3 py-1.5 rounded-lg transition-all ${
+                      clearPeriod === key ? 'bg-white shadow text-red-600' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {clearPeriod === 'custom' && (
+                <div className="flex flex-wrap gap-3 mt-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1">From Date</label>
+                    <input
+                      type="date"
+                      value={clearStart}
+                      onChange={e => { setClearStart(e.target.value); setClearCount(null); }}
+                      className="bg-white border border-slate-200 py-1.5 px-3 rounded-lg text-[11px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1">To Date</label>
+                    <input
+                      type="date"
+                      value={clearEnd}
+                      onChange={e => { setClearEnd(e.target.value); setClearCount(null); }}
+                      min={clearStart}
+                      className="bg-white border border-slate-200 py-1.5 px-3 rounded-lg text-[11px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* User scope */}
+            <div>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-tight mb-2">Apply To</p>
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex bg-slate-100 rounded-xl p-1 text-[11px] font-black">
+                  {[{ key: '', label: 'All Users' }, { key: 'specific', label: 'Specific User' }].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        if (key === 'specific') {
+                          setClearEmpId(clearEmpId || '__pick__');
+                          if (allUsers.length === 0) {
+                            setUsersLoading(true);
+                            getFoodUsers().then(setAllUsers).catch(() => {}).finally(() => setUsersLoading(false));
+                          }
+                        } else {
+                          setClearEmpId('');
+                        }
+                        setClearCount(null);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg transition-all ${
+                        (key === '' ? !clearEmpId : !!clearEmpId) ? 'bg-white shadow text-red-600' : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {clearEmpId && (
+                  <SearchableSelect
+                    value={clearEmpId === '__pick__' ? '' : clearEmpId}
+                    onChange={val => { setClearEmpId(val); setClearCount(null); }}
+                    options={allUsers.map(u => ({ value: u.empId, label: `${u.name} — ${u.dept}` }))}
+                    placeholder={usersLoading ? 'Loading...' : 'Pick a user...'}
+                    triggerClassName="bg-white border border-slate-200 py-1.5 px-3 rounded-lg text-[11px] font-bold text-slate-700 hover:border-red-300 min-w-[220px]"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Status message */}
+            {clearMsg && (
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-black ${
+                clearMsg.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+              }`}>
+                {clearMsg.type === 'success' ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+                {clearMsg.text}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={handleClearPreview}
+                disabled={clearLoading || (clearPeriod === 'custom' && !clearStart)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[11px] transition-all disabled:opacity-50 active:scale-95"
+              >
+                <RefreshCw size={12} className={clearLoading ? 'animate-spin' : ''} />
+                {clearLoading ? 'Checking...' : 'Preview Count'}
+              </button>
+
+              {clearCount !== null && (
+                <span className={`text-[11px] font-black px-3 py-2 rounded-xl border ${
+                  clearCount === 0 ? 'bg-slate-50 text-slate-500 border-slate-200' : 'bg-orange-50 text-orange-700 border-orange-200'
+                }`}>
+                  {clearCount === 0 ? 'No active food weeks found for this period' : `${clearCount} week-slot${clearCount !== 1 ? 's' : ''} will be removed from food`}
+                </span>
+              )}
+
+              {clearCount > 0 && !showClearConfirm && (
+                <button
+                  onClick={() => setShowClearConfirm(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-black text-[11px] transition-all active:scale-95"
+                >
+                  <Trash2 size={12} />
+                  Remove Food for {clearCount} Week{clearCount !== 1 ? 's' : ''}
+                </button>
+              )}
+
+              {showClearConfirm && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl flex-wrap">
+                  <span className="text-[11px] font-black text-red-700">Confirm — this cannot be undone.</span>
+                  <button
+                    onClick={() => setShowClearConfirm(false)}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-black text-[10px] hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleClearVotes}
+                    disabled={clearDeleting}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-black text-[10px] transition-all disabled:opacity-60"
+                  >
+                    {clearDeleting && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                    Yes, Clear All
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <p className="text-[10px] text-slate-400 font-medium">
+              This marks the selected weeks as "not eating" for the chosen user(s). The weeks will be excluded from the food report and billing for that period.
+            </p>
+          </div>
         </div>
       )}
 

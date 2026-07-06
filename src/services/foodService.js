@@ -23,7 +23,7 @@ export const disableFoodYear        = ()            => post('/food/disable-year'
 
 export const triggerFoodReminder    = ()            => post('/push/trigger-reminder', {});
 
-export const getFoodCalendar        = (month, year) => get(`/food/calendar?month=${month}&year=${year}`);
+export const getFoodCalendar        = (month, year, empId) => get(`/food/calendar?month=${month}&year=${year}${empId ? `&empId=${empId}` : ''}`);
 export const getFoodReport          = (params)      => get(`/food/report?${new URLSearchParams(params)}`);
 
 // HR / FoodCommittee / SuperUser — manual entry
@@ -35,6 +35,20 @@ export const adminGetFoodSubscriptions = ()             => get('/food/admin/subs
 export const adminSubscribeUser        = (empId, period = 'permanent', periodDate = null) => post(`/food/admin/subscribe/${empId}`, { period, periodDate });
 export const adminToggleFoodUser       = (empId, isActive) => patch(`/food/admin/toggle/${empId}`, { isActive });
 export const adminDeleteFoodUser       = (empId)        => del(`/food/admin/unsubscribe/${empId}`);
+
+// SuperUser: add cancellations for a date range (remove food for those weeks)
+function buildQuery(params) {
+  const q = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== ''))
+  ).toString();
+  return q ? `?${q}` : '';
+}
+export const adminPreviewFoodCancelRange  = (params) => get(`/food/admin/cancel-range/count${buildQuery(params)}`);
+export const adminCancelFoodRange         = (params) => post('/food/admin/cancel-range', params);
+
+// SuperUser: restore food (delete cancellations)
+export const adminCountFoodCancellations  = (params) => get(`/food/admin/cancellations/count${buildQuery(params)}`);
+export const adminDeleteFoodCancellations = (params) => del(`/food/admin/cancellations${buildQuery(params)}`);
 
 export async function downloadFoodReport(params) {
   const token = localStorage.getItem('rts_token');
