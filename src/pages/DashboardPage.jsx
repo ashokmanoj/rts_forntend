@@ -89,6 +89,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   const [showBroadcast,     setShowBroadcast]     = useState(false);
   const [showBroadcastSend, setShowBroadcastSend] = useState(false);
   const [showHelpModal,    setShowHelpModal]    = useState(false);
+  const [foodRefreshKey,   setFoodRefreshKey]   = useState(0);
   const [loadingReqs,      setLoadingReqs]      = useState(true);
   const [isFiltering,      setIsFiltering]      = useState(false); // For subtle loading state
   const [fetchError,       setFetchError]       = useState("");
@@ -528,12 +529,15 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
 
         {/* Refresh button */}
         <button
-          onClick={() => loadRequests(currentPage, filters, true)}
-          disabled={isFiltering || loadingReqs}
+          onClick={() => activeTab === "food"
+            ? setFoodRefreshKey(k => k + 1)
+            : loadRequests(currentPage, filters, true)
+          }
+          disabled={activeTab !== "food" && (isFiltering || loadingReqs)}
           title="Refresh"
           className="flex items-center gap-1.5 h-9 px-3 bg-sky-50 border border-sky-200 rounded-xl text-[11px] font-black text-sky-600 hover:bg-sky-100 hover:border-sky-300 transition-all active:scale-95 shadow-sm disabled:opacity-50 flex-shrink-0"
         >
-          <RefreshCw size={13} className={isFiltering || loadingReqs ? "animate-spin" : ""} />
+          <RefreshCw size={13} className={(activeTab !== "food" && (isFiltering || loadingReqs)) ? "animate-spin" : ""} />
           <span className="hidden sm:inline">Refresh</span>
         </button>
       </div>
@@ -558,7 +562,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
         {/* Food Tab */}
         {activeTab === "food" && (
           <div className="h-full overflow-y-auto">
-            <FoodPage currentUser={currentUser} />
+            <FoodPage currentUser={currentUser} refreshKey={foodRefreshKey} />
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   UtensilsCrossed, Download, AlertCircle, CheckCircle2,
   RefreshCw, CalendarX, CalendarCheck, CalendarOff, CalendarRange, Lock,
@@ -36,7 +36,7 @@ const MONTHS = [
   'July','August','September','October','November','December',
 ];
 
-export default function FoodPage({ currentUser }) {
+export default function FoodPage({ currentUser, refreshKey = 0 }) {
   const now          = new Date();
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, loading: pushLoading, error: pushError, subscribe: enablePush, unsubscribe: disablePush } = usePushNotifications();
   const [testLoading, setTestLoading] = useState(false);
@@ -112,6 +112,15 @@ export default function FoodPage({ currentUser }) {
   }, [isRequestor, isReportRole]);
 
   useEffect(() => { loadStatus(); }, [loadStatus]);
+
+  // ── External refresh trigger (from parent Refresh button) ─────────────────
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    loadStatus();
+    setCalViewEmpId(null);
+    setCalViewName(null);
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load calendar ─────────────────────────────────────────────────────────
   const loadCalendar = useCallback(async (month, year, empId) => {
