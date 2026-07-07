@@ -3,8 +3,10 @@ import {
   Send, Paperclip, Mic, Square, X,
   Play, Pause, FileText, FileSpreadsheet, FileImage,
   Film, Music, Archive, File, Upload,
+  Bold, Underline, Highlighter, List,
 } from "lucide-react";
 import { formatDuration } from "../../utils/dateTime";
+import { stripHtml } from "../../utils/sanitize";
 
 // ─── helpers ────────────────────────────────────────────────
 
@@ -60,13 +62,14 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
 
   const [pendingVoice,   setPendingVoice]   = useState(null); // { blob, url, duration }
   const [voicePlaying,   setVoicePlaying]   = useState(false);
-  const [message,        setMessage]        = useState("");
+  const [editorEmpty,    setEditorEmpty]    = useState(true);
   const [isRecording,    setIsRecording]    = useState(false);
   const [recordingTime,  setRecordingTime]  = useState(0);
   const [isDragging,     setIsDragging]     = useState(false);
   const [fileError,      setFileError]      = useState(null);
 
   const fileInputRef         = useRef(null);
+  const editorRef            = useRef(null);
   const mediaRecorderRef     = useRef(null);
   const recordingIntervalRef = useRef(null);
   const chunksRef            = useRef([]);
@@ -74,7 +77,7 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
   const dragCounterRef       = useRef(0);
 
   const hasFiles  = pendingFiles.length > 0;
-  const canSend   = hasFiles || !!pendingVoice || message.trim().length > 0;
+  const canSend   = hasFiles || !!pendingVoice || !editorEmpty;
 
   // ── add files (multi) ──────────────────────────────────────
   const addFiles = useCallback((newFiles) => {
@@ -194,16 +197,50 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
     else              { voiceAudioRef.current.play();  setVoicePlaying(true);  }
   };
 
+  // ── formatting ─────────────────────────────────────────────
+  const execHighlight = () => {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount || sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+    const anchor = range.commonAncestorContainer;
+    const existing = (anchor.nodeType === 1 ? anchor : anchor.parentElement)?.closest("mark");
+    if (existing) {
+      const parent = existing.parentNode;
+      while (existing.firstChild) parent.insertBefore(existing.firstChild, existing);
+      existing.remove();
+    } else {
+      try {
+        const mark = document.createElement("mark");
+        mark.className = "bg-yellow-200 rounded-sm";
+        range.surroundContents(mark);
+      } catch {
+        document.execCommand("backColor", false, "#fef08a");
+      }
+    }
+  };
+
+  const fmtChat = (type) => {
+    editorRef.current?.focus();
+    if      (type === "bold")      document.execCommand("bold",                false, null);
+    else if (type === "underline") document.execCommand("underline",           false, null);
+    else if (type === "highlight") execHighlight();
+    else if (type === "bullet")    document.execCommand("insertUnorderedList", false, null);
+    setEditorEmpty(!(editorRef.current?.textContent?.trim()));
+  };
+
   // ── send ───────────────────────────────────────────────────
   const handleSend = () => {
     if (!canSend) return;
+    const html = editorRef.current?.innerHTML || "";
+    const hasText = !!editorRef.current?.textContent?.trim();
     onSend({
-      text:          message.trim(),
+      text:          hasText ? html : "",
       files:         pendingFiles.length > 0 ? [...pendingFiles] : null,
       voiceBlob:     pendingVoice?.blob     || null,
       voiceDuration: pendingVoice?.duration || null,
     });
-    setMessage("");
+    if (editorRef.current) editorRef.current.innerHTML = "";
+    setEditorEmpty(true);
     removeAllFiles();
     setPendingVoice(null);
     setVoicePlaying(false);
@@ -233,7 +270,7 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
             <p className="text-[9px] font-black text-indigo-600 truncate">{replyTo.author}</p>
             <p className="text-[10px] text-slate-500 truncate leading-snug">
               {replyTo.text
-                ? replyTo.text.replace(/\n+/g, " ").slice(0, 70) + (replyTo.text.length > 70 ? "…" : "")
+                ? (() => { const t = stripHtml(replyTo.text).replace(/\n+/g, " "); return t.slice(0, 70) + (t.length > 70 ? "…" : ""); })()
                 : replyTo.fileName ? `📎 ${replyTo.fileName}`
                 : replyTo.isVoice  ? "🎤 Voice message"
                 : ""}
@@ -328,66 +365,94 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
         </div>
       )}
 
-      {/* ── Main input row ── */}
-      <div className={`flex items-end gap-2 border-2 rounded-2xl overflow-hidden transition-all bg-white ${canSend ? "border-indigo-300 focus-within:border-indigo-500" : "border-slate-200 focus-within:border-indigo-400"}`}>
-        {/* Paperclip */}
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className={`flex-shrink-0 p-3 transition-colors ${hasFiles ? "text-indigo-500" : "text-slate-400 hover:text-indigo-600"}`}
-          title="Attach files"
-        >
-          <Paperclip size={18} />
-        </button>
-        <input type="file" accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.csv,.xlsx,.xls,.zip,.rar,.7z,.tar,.gz" multiple ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+      {/* ── Main input area ── */}
+      <div className={`flex flex-col border-2 rounded-2xl overflow-hidden transition-all bg-white ${canSend ? "border-indigo-300 focus-within:border-indigo-500" : "border-slate-200 focus-within:border-indigo-400"}`}>
 
-        {/* Text input — textarea so Shift+Enter inserts newline */}
-        <textarea
-          rows={1}
-          className="flex-1 py-3 outline-none text-[12px] bg-transparent placeholder:text-slate-400 resize-none overflow-hidden leading-5"
-          style={{ maxHeight: "120px", overflowY: "auto" }}
-          placeholder={
-            hasFiles       ? `Caption for ${pendingFiles.length} file${pendingFiles.length !== 1 ? "s" : ""} (optional)…`
-            : pendingVoice ? "Add a caption (optional)…"
-            : isRecording  ? "Recording in progress…"
-            :                "Type your message… (drag, paste or attach files)"
-          }
-          disabled={isRecording}
-          value={message}
-          onChange={(e) => {
-            setMessage(e.target.value);
-            e.target.style.height = "auto";
-            e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !isRecording) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-        />
+        {/* Formatting toolbar */}
+        <div className="flex items-center gap-0.5 px-2 pt-1.5 pb-1 bg-slate-50 border-b border-slate-100">
+          {[
+            { type: "bold",      Icon: Bold,        title: "Bold (Ctrl+B)",   bolder: true },
+            { type: "underline", Icon: Underline,   title: "Underline (Ctrl+U)"              },
+            { type: "highlight", Icon: Highlighter, title: "Highlight"                        },
+            { type: "bullet",    Icon: List,        title: "Bullet list"                      },
+          ].map(({ type, Icon, title, bolder }) => (
+            <button
+              key={type}
+              type="button"
+              title={title}
+              disabled={isRecording}
+              onMouseDown={(e) => { e.preventDefault(); fmtChat(type); }}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <Icon size={13} strokeWidth={bolder ? 3 : 2} />
+            </button>
+          ))}
+          <span className="ml-auto text-[9px] text-slate-300 pr-1 select-none">Ctrl+B · U</span>
+        </div>
 
-        {/* Mic */}
-        <button
-          onClick={isRecording ? stopRecording : startRecording}
-          disabled={!!pendingVoice && !isRecording}
-          title={isRecording ? "Stop recording" : "Record voice message"}
-          className={`flex-shrink-0 p-3 transition-colors ${
-            isRecording  ? "text-red-500 animate-pulse"
-            : pendingVoice ? "text-slate-200 cursor-not-allowed"
-            :                "text-slate-400 hover:text-red-500"
-          }`}
-        >
-          <Mic size={18} />
-        </button>
+        {/* Input row: paperclip | editor | mic | send */}
+        <div className="flex items-end gap-2">
+          {/* Paperclip */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className={`flex-shrink-0 p-3 transition-colors ${hasFiles ? "text-indigo-500" : "text-slate-400 hover:text-indigo-600"}`}
+            title="Attach files"
+          >
+            <Paperclip size={18} />
+          </button>
+          <input type="file" accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.csv,.xlsx,.xls,.zip,.rar,.7z,.tar,.gz" multiple ref={fileInputRef} className="hidden" onChange={handleFileChange} />
 
-        {/* Send */}
-        <button
-          onClick={handleSend}
-          disabled={!canSend}
-          className={`flex-shrink-0 p-3 transition-all ${canSend ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-slate-100 text-slate-300 cursor-not-allowed"}`}
-        >
-          <Send size={16} />
-        </button>
+          {/* Contenteditable editor */}
+          <div className="relative flex-1 py-1">
+            {editorEmpty && (
+              <span className="absolute top-1/2 -translate-y-1/2 text-[12px] text-slate-400 pointer-events-none select-none">
+                {hasFiles        ? `Caption for ${pendingFiles.length} file${pendingFiles.length !== 1 ? "s" : ""} (optional)…`
+                 : pendingVoice  ? "Add a caption (optional)…"
+                 : isRecording   ? "Recording in progress…"
+                 :                 "Type a message… (drag, paste or attach files)"}
+              </span>
+            )}
+            <div
+              ref={editorRef}
+              contentEditable={!isRecording}
+              suppressContentEditableWarning
+              onInput={() => setEditorEmpty(!(editorRef.current?.textContent?.trim()))}
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === "b") { e.preventDefault(); fmtChat("bold"); }
+                if ((e.ctrlKey || e.metaKey) && e.key === "u") { e.preventDefault(); fmtChat("underline"); }
+                if (e.key === "Enter" && !e.shiftKey && !isRecording) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              className="outline-none text-[12px] text-slate-800 leading-relaxed py-2 [&_ul]:list-disc [&_ul]:list-inside [&_mark]:bg-yellow-200 [&_mark]:rounded-sm"
+              style={{ minHeight: 28, maxHeight: 120, overflowY: "auto" }}
+            />
+          </div>
+
+          {/* Mic */}
+          <button
+            onClick={isRecording ? stopRecording : startRecording}
+            disabled={!!pendingVoice && !isRecording}
+            title={isRecording ? "Stop recording" : "Record voice message"}
+            className={`flex-shrink-0 p-3 transition-colors ${
+              isRecording    ? "text-red-500 animate-pulse"
+              : pendingVoice ? "text-slate-200 cursor-not-allowed"
+              :                "text-slate-400 hover:text-red-500"
+            }`}
+          >
+            <Mic size={18} />
+          </button>
+
+          {/* Send */}
+          <button
+            onClick={handleSend}
+            disabled={!canSend}
+            className={`flex-shrink-0 p-3 transition-all ${canSend ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-slate-100 text-slate-300 cursor-not-allowed"}`}
+          >
+            <Send size={16} />
+          </button>
+        </div>
       </div>
 
       {fileError && (

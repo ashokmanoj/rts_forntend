@@ -3,7 +3,10 @@ import { createPortal } from "react-dom";
 import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye, MessageSquare, Download, Users, ChevronRight, Search, RefreshCw, StopCircle, Check, Paperclip } from "lucide-react";
 import { get, patch } from "../../services/api";
 import { attachAfterClose } from "../../services/requestService";
-import { renderWithLinks, LinkPreview } from "../../utils/linkUtils";
+import { renderRichText } from "../../utils/richText";
+import { sanitizeHtml, isHtmlContent } from "../../utils/sanitize";
+import { LinkPreview } from "../../utils/linkUtils";
+import RichTextArea from "../ui/RichTextArea";
 
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { getNowTime, getNowDate, getNowDateTime } from "../../utils/dateTime";
@@ -453,12 +456,11 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reason / Plan</label>
-              <textarea
-                rows={3}
-                placeholder="e.g. Waiting for vendor quote, will complete by selected date..."
+              <RichTextArea
                 value={checkingReason}
                 onChange={e => setCheckingReason(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-[12px] font-medium outline-none focus:ring-2 focus:ring-amber-400 resize-none transition-all"
+                placeholder="e.g. Waiting for vendor quote, will complete by selected date..."
+                rows={3}
               />
               <LinkPreview text={checkingReason} />
             </div>
@@ -1071,7 +1073,13 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
 
               <div>
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 ml-0.5">Request Description</p>
-                <div className="w-full bg-slate-50 p-3 rounded-xl text-slate-600 border border-slate-200 leading-relaxed text-[12px] whitespace-pre-wrap break-words">{renderWithLinks(req?.description) || "No description provided."}</div>
+                <div className="w-full bg-slate-50 p-3 rounded-xl text-slate-600 border border-slate-200 leading-relaxed text-[12px] break-words [&_ul]:list-disc [&_ul]:list-inside [&_ul]:my-0.5 [&_mark]:bg-yellow-200 [&_mark]:rounded-sm [&_b]:font-bold [&_strong]:font-bold [&_u]:underline whitespace-pre-wrap">
+                  {req?.description
+                    ? isHtmlContent(req.description)
+                      ? <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(req.description) }} />
+                      : renderRichText(req.description)
+                    : "No description provided."}
+                </div>
               </div>
 
               <div>
@@ -1160,10 +1168,13 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                           </div>
                         ))}
                       </div>
-                      <textarea value={approvalComment} onChange={(e) => setApprovalComment(e.target.value)}
-                        className="w-full border-2 border-slate-100 p-3 rounded-xl h-16 outline-none focus:border-indigo-400 bg-slate-50 transition-all font-medium text-[12px] resize-none"
+                      <RichTextArea
+                        value={approvalComment}
+                        onChange={(e) => setApprovalComment(e.target.value)}
                         placeholder="Add your official comments here..."
-                        disabled={approvalLoading}/>
+                        rows={2}
+                        disabled={approvalLoading}
+                      />
                       <LinkPreview text={approvalComment} />
                       {(() => {
                         const isActedApproved = myApprovalStatus === "Approved" || myApprovalStatus === "Forwarded";
@@ -1373,7 +1384,9 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                    <p className="text-[10px] text-emerald-700 font-black uppercase tracking-widest flex items-center gap-1"><ShieldCheck size={12}/> Closure Details</p>
                    <div className="space-y-1">
                       <p className="text-[11px] text-slate-700 font-bold leading-relaxed whitespace-pre-wrap break-words">
-                        {renderWithLinks(req.closeData.description)}
+                        {isHtmlContent(req.closeData.description)
+                          ? <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(req.closeData.description) }} />
+                          : renderRichText(req.closeData.description)}
                       </p>
                       <p className="text-[9px] text-slate-400 font-medium">Closed on {req.closeData.closedDate}</p>
                    </div>

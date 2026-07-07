@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react";
 
-/** Splits text on URLs and renders each URL as a clickable <a> tag. */
+/** Splits plain text on URLs and renders each URL as a clickable <a> tag. */
 export function renderWithLinks(text) {
   if (!text) return null;
   const parts = text.split(/(https?:\/\/[^\s]+)/g);
@@ -19,18 +19,7 @@ export function hasLinks(text) {
   return /https?:\/\/[^\s]+/.test(text || "");
 }
 
-/**
- * Drop-in live "Link Preview" panel shown below a textarea.
- * Renders nothing when no URLs are present.
- */
-export function LinkPreview({ text }) {
-  if (!hasLinks(text)) return null;
-  return (
-    <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
-      <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest mb-1">Link Preview</p>
-      <p className="text-[11px] text-slate-600 leading-relaxed whitespace-pre-wrap break-words">
-        {renderWithLinks(text)}
-      </p>
-    </div>
-  );
+/** No-op preview — kept for import compat; WYSIWYG editor shows formatting inline. */
+export function LinkPreview() {
+  return null;
 }

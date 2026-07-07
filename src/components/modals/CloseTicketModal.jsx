@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { X, Upload, Paperclip, FileText, FileSpreadsheet, FileImage, Film, Music, Archive, File, Download, ZoomIn } from "lucide-react";
-import { renderWithLinks, hasLinks } from "../../utils/linkUtils";
+import { sanitizeHtml } from "../../utils/sanitize";
+import { hasLinks } from "../../utils/linkUtils";
+import RichTextArea from "../ui/RichTextArea";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import Spinner from "../ui/Spinner";
 
@@ -136,17 +138,20 @@ export default function CloseTicketModal({ req, onClose, onConfirmClose }) {
             {/* Resolution note */}
             <div className="space-y-1.5">
               <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Resolution Note</p>
-              <textarea
+              <RichTextArea
                 value={note}
                 onChange={e => setNote(e.target.value)}
-                className="w-full border-2 border-slate-100 p-3 rounded-xl h-28 outline-none focus:border-indigo-400 bg-slate-50 transition-all font-medium text-[12px] resize-none"
-                placeholder="Describe how the ticket was resolved… (URLs are auto-linked)"
+                placeholder="Describe how the ticket was resolved…"
+                rows={4}
               />
-              {/* Live URL preview */}
-              {hasLinks(note) && (
+              {/* Live preview */}
+              {note.trim() && (
                 <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
-                  <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest mb-1">Link Preview</p>
-                  <p className="text-[11px] text-slate-600 leading-relaxed whitespace-pre-wrap break-words">{renderWithLinks(note)}</p>
+                  <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest mb-1">Preview</p>
+                  <div
+                    className="text-[11px] text-slate-600 leading-relaxed break-words [&_ul]:list-disc [&_ul]:list-inside [&_mark]:bg-yellow-200 [&_mark]:rounded-sm [&_b]:font-bold [&_strong]:font-bold [&_u]:underline"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(note) }}
+                  />
                 </div>
               )}
             </div>

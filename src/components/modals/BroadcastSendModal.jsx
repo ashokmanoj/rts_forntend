@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { X, Send, Users, MapPin, Building2, ChevronDown, ChevronUp, Search, CheckCircle, Radio, Upload, FileText, FileSpreadsheet, FileImage, Film, Music, Archive, File, ZoomIn } from "lucide-react";
 import { get, postForm } from "../../services/api";
+import RichTextArea from "../ui/RichTextArea";
 
 const ALLOWED_EXTENSIONS = [".jpg",".jpeg",".png",".gif",".webp",".bmp",".svg",".mp4",".mov",".avi",".mkv",".mp3",".wav",".ogg",".pdf",".doc",".docx",".csv",".xlsx",".xls",".zip",".rar",".7z",".tar",".gz"];
 const MAX_FILES       = 10;
@@ -228,12 +229,11 @@ export default function BroadcastSendModal({ onClose }) {
             {/* Description */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Description (optional)</label>
-              <textarea
+              <RichTextArea
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Add more details about this broadcast ticket..."
                 rows={3}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[12px] font-medium text-slate-700 outline-none focus:ring-2 focus:ring-indigo-400 resize-none transition-all placeholder:text-slate-300"
               />
             </div>
 

@@ -11,6 +11,7 @@ import Spinner from "../ui/Spinner";
 import SearchableSelect from "../ui/SearchableSelect";
 import { get } from "../../services/api";
 import { LinkPreview } from "../../utils/linkUtils";
+import RichTextArea from "../ui/RichTextArea";
 
 const DEPARTMENTS = [
   "Academics-Assam","Academics-Karnataka","Academics-Mizoram","Academics-Telangana","Academics-Tripura","Academics-Uttarakhand",
@@ -1078,11 +1079,12 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
               <MessageSquare size={10} /> Description <span className="text-slate-300 font-medium normal-case tracking-normal">— optional</span>
             </label>
-            <textarea
-              className="w-full bg-slate-50 border-2 border-slate-200 hover:border-slate-300 focus:border-indigo-400 focus:bg-white px-5 py-3.5 rounded-2xl text-left h-28 resize-none font-medium outline-none text-[14px] text-slate-800 placeholder:text-slate-300 transition-all"
-              placeholder="Describe your request in detail…"
+            <RichTextArea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe your request in detail…"
+              rows={4}
+              innerClassName="text-[14px]"
             />
             <LinkPreview text={description} />
           </div>

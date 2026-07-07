@@ -4,7 +4,8 @@ import {
   Film, Music, Archive, File, ZoomIn, Eye, Reply, Download, Images,
   Check, CheckCheck,
 } from "lucide-react";
-import { renderWithLinks } from "../../utils/linkUtils";
+import { renderRichText } from "../../utils/richText";
+import { sanitizeHtml, stripHtml, isHtmlContent } from "../../utils/sanitize";
 import VoiceMessageBubble      from "./VoiceMessageBubble";
 import SpreadsheetPreviewModal from "../modals/SpreadsheetPreviewModal";
 import GalleryLightbox         from "../modals/GalleryLightbox";
@@ -137,7 +138,7 @@ export default function MessageBubble({ log, onReply, currentUser }) {
 
   // Build a short label for the replied-to message
   const replyPreviewText = log.replyTo?.text
-    ? log.replyTo.text.replace(/\n+/g, " ").slice(0, 60) + (log.replyTo.text.length > 60 ? "…" : "")
+    ? (() => { const t = stripHtml(log.replyTo.text).replace(/\n+/g, " "); return t.slice(0, 60) + (t.length > 60 ? "…" : ""); })()
     : log.replyTo?.fileName
     ? `📎 ${log.replyTo.fileName}`
     : log.replyTo?.isVoice
@@ -268,7 +269,12 @@ export default function MessageBubble({ log, onReply, currentUser }) {
 
             {/* ── Text / caption ── */}
             {hasText && (
-              <p className="text-slate-600 text-[11px] leading-relaxed break-words whitespace-pre-wrap">{renderWithLinks(log.text)}</p>
+              isHtmlContent(log.text)
+                ? <div
+                    className="text-slate-600 text-[11px] leading-relaxed break-words [&_ul]:list-disc [&_ul]:list-inside [&_ul]:my-0.5 [&_mark]:bg-yellow-200 [&_mark]:rounded-sm [&_a]:text-blue-500 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_u]:underline"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(log.text) }}
+                  />
+                : <p className="text-slate-600 text-[11px] leading-relaxed break-words whitespace-pre-wrap">{renderRichText(log.text)}</p>
             )}
           </div>
         </div>
