@@ -6,7 +6,7 @@ import {
   Bold, Underline, Highlighter, List,
 } from "lucide-react";
 import { formatDuration } from "../../utils/dateTime";
-import { stripHtml } from "../../utils/sanitize";
+import { stripHtml, sanitizePaste } from "../../utils/sanitize";
 
 // ─── helpers ────────────────────────────────────────────────
 
@@ -417,6 +417,17 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
               contentEditable={!isRecording}
               suppressContentEditableWarning
               onInput={() => setEditorEmpty(!(editorRef.current?.textContent?.trim()))}
+              onPaste={(e) => {
+                // File paste is handled by the window listener — skip here
+                const hasFiles = Array.from(e.clipboardData?.items || []).some(i => i.kind === "file");
+                if (hasFiles) return;
+                const html = e.clipboardData?.getData("text/html");
+                if (html) {
+                  e.preventDefault();
+                  document.execCommand("insertHTML", false, sanitizePaste(html));
+                  setEditorEmpty(!(editorRef.current?.textContent?.trim()));
+                }
+              }}
               onKeyDown={(e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === "b") { e.preventDefault(); fmtChat("bold"); }
                 if ((e.ctrlKey || e.metaKey) && e.key === "u") { e.preventDefault(); fmtChat("underline"); }

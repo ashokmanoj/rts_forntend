@@ -1,4 +1,5 @@
 import { CheckCircle, XCircle, Clock, Forward } from "lucide-react";
+import { sanitizeHtml, isHtmlContent } from "../../utils/sanitize";
 // import { getRoleBadgeClass } from "../../utils/roleStyles";
 
 const STATUS_ICON = {
@@ -72,7 +73,12 @@ export default function ApprovalCard({ log }) {
         </p>
       )}
 
-      <p className="text-slate-600 pl-4">{log.text}</p>
+      {isHtmlContent(log.text)
+        ? <div
+            className="text-slate-600 pl-4 [&_ul]:list-disc [&_ul]:list-inside [&_mark]:bg-yellow-200 [&_b]:font-bold [&_u]:underline"
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(log.text) }}
+          />
+        : <p className="text-slate-600 pl-4">{log.text}</p>}
     </div>
   );
 }

@@ -57,3 +57,33 @@ export function stripHtml(html) {
 export function isHtmlContent(text) {
   return /<[a-z][\s\S]*>/i.test(text || "");
 }
+
+/**
+ * Paste sanitizer — like sanitizeHtml but strips ALL attributes.
+ * Use this on paste events to discard Gmail/Google Docs metadata attributes
+ * (jsslot, data-path-to-node, style, class, etc.) while keeping safe tags.
+ */
+export function sanitizePaste(html) {
+  if (!html) return "";
+  const wrap = document.createElement("div");
+  wrap.innerHTML = html;
+  cleanPasteNode(wrap);
+  return wrap.innerHTML;
+}
+
+function cleanPasteNode(node) {
+  for (const child of [...node.childNodes]) {
+    if (child.nodeType === 8) { child.remove(); continue; } // strip comments
+    if (child.nodeType !== 1) continue;                     // leave text nodes
+
+    const tag = child.tagName.toLowerCase();
+    if (!SAFE_TAGS.has(tag)) {
+      while (child.firstChild) node.insertBefore(child.firstChild, child);
+      child.remove();
+      continue;
+    }
+    // Strip every attribute — no class, no style, no Gmail-specific attrs
+    for (const attr of [...child.attributes]) child.removeAttribute(attr.name);
+    cleanPasteNode(child);
+  }
+}

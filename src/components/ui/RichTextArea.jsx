@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { Bold, Underline, Highlighter, List } from "lucide-react";
+import { sanitizePaste } from "../../utils/sanitize";
 
 /**
  * WYSIWYG rich-text editor using contenteditable.
@@ -87,6 +88,17 @@ export default function RichTextArea({
     if ((e.ctrlKey || e.metaKey) && e.key === "u") { e.preventDefault(); fmt("underline"); }
   };
 
+  const handlePaste = (e) => {
+    const html = e.clipboardData?.getData("text/html");
+    if (html) {
+      e.preventDefault();
+      const clean = sanitizePaste(html);
+      document.execCommand("insertHTML", false, clean);
+      emit();
+    }
+    // Plain text paste — let browser handle it
+  };
+
   const minH = minRows * 24;
 
   return (
@@ -128,6 +140,7 @@ export default function RichTextArea({
           suppressContentEditableWarning
           onInput={emit}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           className="outline-none px-4 py-3 text-[13px] text-slate-800 font-medium leading-relaxed [&_ul]:list-disc [&_ul]:list-inside [&_ul]:my-0.5 [&_mark]:bg-yellow-200 [&_mark]:rounded-sm"
           style={{ minHeight: minH, maxHeight: 200, overflowY: "auto" }}
         />
