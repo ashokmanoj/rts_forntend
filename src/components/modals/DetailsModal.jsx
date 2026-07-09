@@ -371,6 +371,19 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     }
   };
 
+  const handleDeptHodApproveOnly = async () => {
+    if (approvalLoading) return;
+    setApprovalLoading(true);
+    try {
+      await onApproval(req.id, "Approved", getNowDateTime(), currentUser, approvalComment, selectedDept, null, null, {});
+      setApprovalComment("");
+      closeDeptHodModal();
+    } finally {
+      setApprovalLoading(false);
+      setPendingDecision(null);
+    }
+  };
+
   const handleDeptHodApproveConfirm = async () => {
     if (approvalLoading || !deptHodMode) return;
     if (deptHodMode === "internal" && deptHodSelectedPersons.length === 0) return;
@@ -676,8 +689,26 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
             {!deptHodMode && (
               <div className="p-4 space-y-2">
                 <button
+                  onClick={handleDeptHodApproveOnly}
+                  disabled={approvalLoading}
+                  className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all text-left group disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-200 transition-colors">
+                    {approvalLoading
+                      ? <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"/>
+                      : <CheckCircle size={17} className="text-emerald-600"/>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-black text-slate-800">Approve Only</p>
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">Approve without assigning or forwarding</p>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300 flex-shrink-0 group-hover:text-emerald-400 transition-colors"/>
+                </button>
+
+                <button
                   onClick={handleSelectInternalMode}
-                  className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-200 hover:border-teal-300 hover:bg-teal-50/50 transition-all text-left group"
+                  disabled={approvalLoading}
+                  className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-200 hover:border-teal-300 hover:bg-teal-50/50 transition-all text-left group disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <div className="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-teal-200 transition-colors">
                     <Users size={17} className="text-teal-600"/>
@@ -691,7 +722,8 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
 
                 <button
                   onClick={() => setDeptHodMode("forward")}
-                  className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all text-left group"
+                  disabled={approvalLoading}
+                  className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all text-left group disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-blue-200 transition-colors">
                     <Forward size={17} className="text-blue-600"/>
@@ -703,7 +735,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                   <ChevronRight size={16} className="text-slate-300 flex-shrink-0 group-hover:text-blue-400 transition-colors"/>
                 </button>
 
-                <button onClick={closeDeptHodModal} className="w-full py-2.5 text-slate-400 font-black text-[12px] hover:text-slate-600 transition-colors">
+                <button onClick={closeDeptHodModal} disabled={approvalLoading} className="w-full py-2.5 text-slate-400 font-black text-[12px] hover:text-slate-600 transition-colors disabled:opacity-50">
                   Cancel
                 </button>
               </div>
