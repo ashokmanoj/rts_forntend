@@ -651,14 +651,14 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
             {closeTicketReq && (
               <CloseTicketModal req={closeTicketReq} onClose={() => setCloseTicketReq(null)} onConfirmClose={handleConfirmCloseTicket} />
             )}
-            {/* {activeModal === "add" && (
+            {activeModal === "add" && (
               <AddRequestModal
                 onClose={() => { setActiveModal(null); setThreadParentId(null); returnAfterThreadRef.current = null; }}
                 onSubmit={handleAddRequest}
                 currentUser={currentUser}
                 threadParentId={threadParentId}
               />
-            )} */}
+            )}
             {showInstructions && <InstructionsModal onClose={() => setShowInstructions(false)} />}
             {showBroadcast     && <BroadcastModal     onClose={() => setShowBroadcast(false)} />}
             {showBroadcastSend && <BroadcastSendModal onClose={() => setShowBroadcastSend(false)} />}

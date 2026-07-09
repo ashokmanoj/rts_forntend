@@ -31,8 +31,10 @@ function isImageFile(f) {
   return f.type.startsWith("image/");
 }
 
+const RTS_HELPDESK_DEFAULT_NOTE = "The issue has been resolved, Kindly check and acknowledge by selecting resolved. In case the problem persists please feel free to raise new ticket.";
+
 export default function CloseTicketModal({ req, onClose, onConfirmClose }) {
-  const [note,        setNote]        = useState("");
+  const [note,        setNote]        = useState(req?.assignedDept === "RTS Help Desk" ? RTS_HELPDESK_DEFAULT_NOTE : "");
   const [files,       setFiles]       = useState([]);
   const [previews,    setPreviews]    = useState({}); // { name: objectUrl }
   const [fileError,   setFileError]   = useState(null);
