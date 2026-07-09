@@ -85,6 +85,9 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   const [selectedReq,      setSelectedReq]      = useState(null);
   const [activeModal,      setActiveModal]      = useState(null);
   const [closeTicketReq,   setCloseTicketReq]   = useState(null);
+  const [threadParentId,   setThreadParentId]   = useState(null);   // set when opening AddRequestModal from a thread
+  const [detailsKey,       setDetailsKey]       = useState(0);      // increment to force DetailsModal remount
+  const returnAfterThreadRef = useRef(null);                        // req to reopen after thread add
   const [showInstructions, setShowInstructions] = useState(false);
   const [showBroadcast,     setShowBroadcast]     = useState(false);
   const [showBroadcastSend, setShowBroadcastSend] = useState(false);
@@ -314,12 +317,35 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
     toastTimerRef.current = setTimeout(() => setToast(null), 4000);
   };
 
+  // ── Thread handlers ──────────────────────────────────────────────────────────
+  const handleAddToThread = (parentReqId) => {
+    returnAfterThreadRef.current = selectedReq;
+    setThreadParentId(parentReqId);
+    setActiveModal("add");
+  };
+
+  const handleOpenRequest = (memberReq) => {
+    setSelectedReq(memberReq);
+    setChatLogs(prev => ({ ...prev, [memberReq.id]: memberReq.chatMessages ?? [] }));
+    setDetailsKey(k => k + 1);
+    markRequestSeen(memberReq.id).catch(() => {});
+  };
+
   const handleAddRequest = async (data) => {
     // No try/catch — errors propagate to AddRequestModal which shows them inline
     const saved = await createRequest(data);
     setRequests((prev) => [saved, ...prev]);
     setActiveModal(null);
+    setThreadParentId(null);
     showToast("success", "Request added successfully.");
+    // If this was added as a thread reply, re-open the parent request's DetailsModal
+    if (returnAfterThreadRef.current) {
+      const parent = returnAfterThreadRef.current;
+      returnAfterThreadRef.current = null;
+      setSelectedReq(parent);
+      setDetailsKey(k => k + 1);
+      setActiveModal("details");
+    }
   };
 
   const handleConfirmCloseTicket = async (reqId, note, files) => {
@@ -611,20 +637,28 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
             {/* Modals — fixed position, no layout impact */}
             {activeModal === "details" && selectedReq && (
               <DetailsModal
+                key={`${selectedReq.id}-${detailsKey}`}
                 req={selectedReq} chatLogs={chatLogs} currentUser={currentUser}
                 onClose={() => { setActiveModal(null); setSelectedReq(null); }}
                 onSendMessage={handleSendMessage} onApproval={handleApproval}
                 onAcknowledge={handleAcknowledge}
                 onOpenCloseTicket={(req) => { setCloseTicketReq(req); setActiveModal(null); setSelectedReq(null); }}
                 onRefreshChat={handleRefreshChat}
+                onAddToThread={handleAddToThread}
+                onOpenRequest={handleOpenRequest}
               />
             )}
             {closeTicketReq && (
               <CloseTicketModal req={closeTicketReq} onClose={() => setCloseTicketReq(null)} onConfirmClose={handleConfirmCloseTicket} />
             )}
-            {activeModal === "add" && (
-              <AddRequestModal onClose={() => setActiveModal(null)} onSubmit={handleAddRequest} currentUser={currentUser} />
-            )}
+            {/* {activeModal === "add" && (
+              <AddRequestModal
+                onClose={() => { setActiveModal(null); setThreadParentId(null); returnAfterThreadRef.current = null; }}
+                onSubmit={handleAddRequest}
+                currentUser={currentUser}
+                threadParentId={threadParentId}
+              />
+            )} */}
             {showInstructions && <InstructionsModal onClose={() => setShowInstructions(false)} />}
             {showBroadcast     && <BroadcastModal     onClose={() => setShowBroadcast(false)} />}
             {showBroadcastSend && <BroadcastSendModal onClose={() => setShowBroadcastSend(false)} />}

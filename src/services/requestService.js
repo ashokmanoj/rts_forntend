@@ -31,7 +31,7 @@ export async function fetchRequestById(id) {
   return get(`/requests/${id}`);
 }
 
-export async function createRequest({ purpose, assignedDept, assignedDepts, description, files, dueDate, assignedPersonEmpId, assignedPersonName, ccDepts, ccEmpIds, ccPersonNames, isRecurring, recurringInterval }) {
+export async function createRequest({ purpose, assignedDept, assignedDepts, description, files, dueDate, assignedPersonEmpId, assignedPersonName, ccDepts, ccEmpIds, ccPersonNames, isRecurring, recurringInterval, threadParentId }) {
   const fd = new FormData();
   fd.append("purpose", purpose);
   if (assignedDept)  fd.append("assignedDept",  assignedDept);
@@ -46,7 +46,12 @@ export async function createRequest({ purpose, assignedDept, assignedDepts, desc
   if (ccPersonNames) fd.append("ccPersonNames", ccPersonNames);
   if (isRecurring)   fd.append("isRecurring",  isRecurring);
   if (recurringInterval) fd.append("recurringInterval", recurringInterval);
+  if (threadParentId) fd.append("threadParentId", threadParentId);
   return postForm("/requests", fd);
+}
+
+export async function fetchRequestThread(id) {
+  return get(`/requests/${id}/thread`);
 }
 
 export async function submitApproval(id, decision, comment = "", newDept = "", checkingDeadline = null, checkingReason = null, extras = {}) {

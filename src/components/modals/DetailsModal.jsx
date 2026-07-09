@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye, MessageSquare, Download, Users, ChevronRight, Search, RefreshCw, StopCircle, Check, Paperclip } from "lucide-react";
+import { X, User, ChevronDown, CheckCircle, XCircle, Clock, Forward, ImageOff, ZoomIn, Bell, Send, ShieldCheck, Calendar, AlertTriangle, ThumbsUp, ThumbsDown, FileSpreadsheet, Eye, MessageSquare, Download, Users, ChevronRight, Search, RefreshCw, StopCircle, Check, Paperclip, Link2, Plus } from "lucide-react";
 import { get, patch } from "../../services/api";
-import { attachAfterClose } from "../../services/requestService";
+import { attachAfterClose, fetchRequestThread } from "../../services/requestService";
 import { renderRichText } from "../../utils/richText";
 import { sanitizeHtml, isHtmlContent } from "../../utils/sanitize";
 import { LinkPreview } from "../../utils/linkUtils";
@@ -93,7 +93,7 @@ function ApprovalProgress({ rmStatus, hodStatus, assignedRmStatus, assignedHodSt
   );
 }
 
-export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSendMessage, onApproval, onOpenCloseTicket, onAcknowledge, onRefreshChat }) {
+export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSendMessage, onApproval, onOpenCloseTicket, onAcknowledge, onRefreshChat, onAddToThread, onOpenRequest }) {
   const [selectedDept,            setSelectedDept]            = useState(req?.assignedDept || "");
   const [approvalComment,         setApprovalComment]         = useState("");
   const [lightboxData,            setLightboxData]            = useState(null); // { urls, names, index }
@@ -129,6 +129,23 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const [fwdPickerRect,  setFwdPickerRect]  = useState(null);
   const fwdPickerRef      = useRef(null);
   const fwdPickerPanelRef = useRef(null);
+
+  // ── Thread state ────────────────────────────────────────────────────────────
+  const [threadMembers,  setThreadMembers]  = useState([]);
+  const [threadRootId,   setThreadRootId]   = useState(null);
+  const [threadLoading,  setThreadLoading]  = useState(false);
+
+  useEffect(() => {
+    if (!req?.id) return;
+    setThreadLoading(true);
+    fetchRequestThread(req.id)
+      .then(data => {
+        setThreadMembers(data?.members ?? []);
+        setThreadRootId(data?.rootId ?? null);
+      })
+      .catch(() => {})
+      .finally(() => setThreadLoading(false));
+  }, [req?.id]);
 
   useEscapeKey(
     lightboxData        ? () => setLightboxData(null)
@@ -828,8 +845,9 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${roleBadgeCls}`}>{currentUser?.dept}department</span>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
-              <button onClick={() => setShowChat(true)} className="md:hidden p-2 hover:bg-indigo-50 text-indigo-500 rounded-full transition-colors">
-                <MessageSquare size={18}/>
+              <button onClick={() => setShowChat(true)} className="md:hidden flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-full text-[11px] font-black transition-colors">
+                <MessageSquare size={13}/>
+                Activity
               </button>
               <button onClick={onClose} className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors"><X size={20}/></button>
             </div>
@@ -1081,6 +1099,70 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                     : "No description provided."}
                 </div>
               </div>
+
+              {/* ── Thread / Linked Requests ──────────────────────────────── */}
+              {/* {req?.requestorRole !== "broadcast" && (
+                <div>
+                  <div className="flex items-center justify-between mb-2 ml-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <Link2 size={11} className="text-teal-500" />
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                        Linked Requests
+                        {threadMembers.length > 0 && (
+                          <span className="ml-1 text-teal-500 normal-case font-black">({threadMembers.length})</span>
+                        )}
+                      </p>
+                    </div>
+                    {onAddToThread && (
+                      <button
+                        onClick={() => onAddToThread(req.id)}
+                        className="flex items-center gap-1 text-[10px] font-black text-teal-600 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2 py-1 rounded-lg transition-all active:scale-95"
+                      >
+                        <Plus size={10} /> Add to Thread
+                      </button>
+                    )}
+                  </div>
+
+                  {req?.threadParentId != null && (
+                    <p className="text-[10px] text-teal-600 font-bold mb-1.5 ml-0.5">
+                      ↳ Reply in thread #{threadRootId}
+                    </p>
+                  )}
+
+                  {threadLoading ? (
+                    <p className="text-[11px] text-slate-400 italic px-1">Loading…</p>
+                  ) : threadMembers.length === 0 ? (
+                    <p className="text-[11px] text-slate-400 italic px-1">No linked requests yet.</p>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      {threadMembers.map(m => (
+                        <button
+                          key={m.id}
+                          onClick={() => onOpenRequest?.(m)}
+                          className="w-full text-left flex items-center justify-between bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl px-3 py-2 transition-all active:scale-[0.99]"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {m.id === threadRootId && (
+                              <span className="flex-shrink-0 text-[9px] font-black text-teal-700 bg-teal-200 px-1.5 py-0.5 rounded-full">ROOT</span>
+                            )}
+                            <span className="text-[10px] font-black text-teal-700 flex-shrink-0">#{m.id}</span>
+                            <span className="text-[11px] font-bold text-slate-700 truncate">{m.purpose}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${
+                              m.isClosed ? "bg-slate-100 text-slate-500" :
+                              m.assignedStatus === "Open" ? "bg-blue-100 text-blue-600" :
+                              m.assignedStatus?.includes("Pending") ? "bg-amber-100 text-amber-600" :
+                              "bg-green-100 text-green-600"
+                            }`}>{m.assignedStatus}</span>
+                            <ChevronRight size={11} className="text-teal-400" />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )} */}
 
               <div>
                 <div className="flex items-center justify-between mb-1 ml-0.5">

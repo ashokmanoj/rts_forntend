@@ -228,7 +228,7 @@ function CalendarPicker({ value, onChange, minDateStr }) {
   );
 }
 
-export default function AddRequestModal({ onClose, onSubmit, currentUser, initialDept }) {
+export default function AddRequestModal({ onClose, onSubmit, currentUser, initialDept, threadParentId = null }) {
   // ── Core fields ──────────────────────────────────────────────────────────────
   const [purpose,       setPurpose]      = useState("");
   const [description,   setDescription] = useState("");
@@ -555,6 +555,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
         ccPersonNames: selectedCcUsers.length ? selectedCcUsers.map(u => u.name).join(",")         : null,
         isRecurring:         recurringType === "recurring",
         recurringInterval:   recurringType === "recurring" ? recurringInterval : null,
+        threadParentId:      threadParentId || null,
       });
       // Clear draft only on successful submit
       try { localStorage.removeItem(DRAFT_KEY); } catch {}

@@ -53,9 +53,10 @@ export function stripHtml(html) {
   return d.textContent || d.innerText || "";
 }
 
-/** True if the string looks like rich HTML (has any element tag). */
+/** True if the string contains HTML tags or encoded HTML entities. */
 export function isHtmlContent(text) {
-  return /<[a-z][\s\S]*>/i.test(text || "");
+  if (!text) return false;
+  return /<[a-z][\s\S]*>/i.test(text) || /&(nbsp|amp|lt|gt|quot|apos);/.test(text);
 }
 
 /**

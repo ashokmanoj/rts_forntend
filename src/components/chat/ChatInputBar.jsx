@@ -233,8 +233,10 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
     if (!canSend) return;
     const html = editorRef.current?.innerHTML || "";
     const hasText = !!editorRef.current?.textContent?.trim();
+    const hasFormatting = /<(?!br[\s/>])[a-z]/i.test(html);
+    const textToSend = hasText ? (hasFormatting ? html : (editorRef.current?.innerText?.trim() || html)) : "";
     onSend({
-      text:          hasText ? html : "",
+      text:          textToSend,
       files:         pendingFiles.length > 0 ? [...pendingFiles] : null,
       voiceBlob:     pendingVoice?.blob     || null,
       voiceDuration: pendingVoice?.duration || null,
