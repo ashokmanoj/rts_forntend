@@ -306,6 +306,9 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   // Facilities dept team members can forward incoming requests to another department
   const canUserForward = currentUser?.dept === "Facilities" && isTeamMemberIncoming && !isClosed && !isPendingAck && !isAdmin && !canApprove && !isForwardedAway;
 
+  // Directly-assigned persons get Forward + Checking + Close buttons
+  const canAssignedPersonActions = isSpecificallyAssigned && !isClosed && !isPendingAck && !isAdmin && !isForwardedAway && !isCcUser && viewCloseTicketGate;
+
   const isImageUrl       = (url) => url && /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
   const isSpreadsheetUrl = (url) => url && /\.(csv|xlsx|xls)(\?.*)?$/i.test(url);
 
@@ -920,10 +923,10 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               <div>
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 ml-0.5">
                   Assigned Department
-                  {deptChanged && (canChangeDept || canUserForward) && <span className="ml-1 text-blue-600 normal-case font-bold text-[9px]">(<span className="line-through text-slate-400">{req?.assignedDept}</span> → <b>{selectedDept}</b>)</span>}
+                  {deptChanged && (canChangeDept || canUserForward || canAssignedPersonActions) && <span className="ml-1 text-blue-600 normal-case font-bold text-[9px]">(<span className="line-through text-slate-400">{req?.assignedDept}</span> → <b>{selectedDept}</b>)</span>}
                 </p>
 
-                {(canChangeDept || canUserForward) ? (() => {
+                {(canChangeDept || canUserForward || canAssignedPersonActions) ? (() => {
                   const selCount = fwdPersons.size;
                   const users    = fwdDeptUsers[selectedDept] || [];
                   const filteredDepts   = DEPARTMENTS.filter(d => d.toLowerCase().includes(fwdDeptSearch.toLowerCase()));
@@ -1255,9 +1258,9 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               </div>
 
               {/* Approval action — hidden when isClosed */}
-              {(canApprove || canUserCheck || canUserForward) && (
+              {(canApprove || canUserCheck || canUserForward || canAssignedPersonActions) && (
                 <div className="border-t border-slate-100 pt-3 space-y-2">
-                  <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{canApprove ? actionLabel : canUserForward ? "Forward Request" : "Team Action"}</p>
+                  <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{canApprove ? actionLabel : (canUserForward || canAssignedPersonActions) ? "Forward Request" : "Team Action"}</p>
 
                   {canApprove ? (
                     <>
@@ -1363,6 +1366,30 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                         {pendingDecision === "Checking" ? <Spinner size={13}/> : <Clock size={13}/>} Checking
                       </button>
                       <button onClick={() => onOpenCloseTicket(req)} className="bg-red-500 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-red-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5">
+                        🔒 Close
+                      </button>
+                    </div>
+                  ) : canAssignedPersonActions ? (
+                    /* Directly-assigned person — Forward + Checking + Close */
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => {
+                          const selUsers = (fwdDeptUsers[selectedDept] || []).filter(u => fwdPersons.has(u.empId));
+                          const extras = selUsers.length
+                            ? { assignedPersonEmpId: selUsers.map(u => u.empId).join(","), assignedPersonName: selUsers.map(u => u.name).join(",") }
+                            : {};
+                          handleApproval("Forwarded", null, null, extras);
+                        }}
+                        disabled={approvalLoading || !deptChanged}
+                        className="bg-blue-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-blue-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                        title={!deptChanged ? "Select a different department above to forward" : "Forward to selected department"}
+                      >
+                        {pendingDecision === "Forwarded" ? <Spinner size={13}/> : <Forward size={13}/>} Forward
+                      </button>
+                      <button onClick={() => setShowCheckingModal(true)} disabled={approvalLoading} className="bg-amber-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-amber-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5">
+                        {pendingDecision === "Checking" ? <Spinner size={13}/> : <Clock size={13}/>} Checking
+                      </button>
+                      <button onClick={() => onOpenCloseTicket(req)} disabled={approvalLoading} className="bg-red-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-red-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5">
                         🔒 Close
                       </button>
                     </div>
@@ -1555,7 +1582,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               )}
 
               {/* Close Ticket button — only show at bottom if NOT already in the action section above */}
-              {canClose && !canUserCheck && (
+              {canClose && !canUserCheck && !canAssignedPersonActions && (
                 <div className="mt-2">
                   <button onClick={() => onOpenCloseTicket(req)} className="w-full py-3 rounded-2xl font-black text-[12px] transition-all shadow-md bg-red-500 text-white hover:bg-red-600 active:scale-95">
                     🔒 Close Ticket
