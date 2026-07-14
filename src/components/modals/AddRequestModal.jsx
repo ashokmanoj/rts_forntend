@@ -16,6 +16,7 @@ import RichTextArea from "../ui/RichTextArea";
 const DEPARTMENTS = [
   "Academics-Assam","Academics-Karnataka","Academics-Mizoram","Academics-Telangana","Academics-Tripura","Academics-Uttarakhand",
   "Accounts-A","Accounts-G","Animation",
+
   "Broadcasting-Assam","Broadcasting-Karnataka","Broadcasting-Mizoram","Broadcasting-Telangana","Broadcasting-Tripura","Broadcasting-Uttarakhand",
   "Business Development","Corporate Communications","Documentation",
   "Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing",
@@ -24,6 +25,8 @@ const DEPARTMENTS = [
   "System Admin-Assam","System Admin-Karnataka","System Admin-Uttarakhand",
   "TA Committee","Technical Support",
 ];
+
+const NO_USER_DEPTS = new Set(["Accounts-G"]);
 
 const RECURRING_OPTIONS = [
   { value: "1m",  label: "1 Month"   },
@@ -346,6 +349,12 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
       ASSIGNABLE_ROLES.has(u.role) ||
       (u.roles || []).some(r => ASSIGNABLE_ROLES.has(r.role))
     );
+  const CC_ROLES = new Set(["RM", "HOD", "DeptHOD"]);
+  const filterCcRoles = (users) =>
+    users.filter(u =>
+      CC_ROLES.has(u.role) ||
+      (u.roles || []).some(r => CC_ROLES.has(r.role))
+    );
 
   // Auto-load users when dept changes
   useEffect(() => {
@@ -353,6 +362,10 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
     setSelectedEmpIds(new Set());
     if (!selectedDept) { setDeptUsers({}); return; }
     if (deptUsers[selectedDept] !== undefined) return;
+    if (NO_USER_DEPTS.has(selectedDept)) {
+      setDeptUsers(prev => ({ ...prev, [selectedDept]: [] }));
+      return;
+    }
     setLoadingDept(true);
     get(`/requests/users-by-dept?depts=${encodeURIComponent(selectedDept)}`)
       .then(data => {
@@ -416,10 +429,14 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
   // ── CC helpers ───────────────────────────────────────────────────────────────
   const loadUsersForCcDept = useCallback(async (dept) => {
     if (ccDeptUsers[dept] !== undefined) return;
+    if (NO_USER_DEPTS.has(dept)) {
+      setCcDeptUsers(prev => ({ ...prev, [dept]: [] }));
+      return;
+    }
     setCcLoadingDepts(prev => new Set(prev).add(dept));
     try {
       const data  = await get(`/requests/users-by-dept?depts=${encodeURIComponent(dept)}`);
-      const users = filterAssignable(Array.isArray(data) ? data : (data?.data ?? []));
+      const users = filterCcRoles(Array.isArray(data) ? data : (data?.data ?? []));
       setCcDeptUsers(prev => ({ ...prev, [dept]: users }));
     } catch {
       setCcDeptUsers(prev => ({ ...prev, [dept]: [] }));

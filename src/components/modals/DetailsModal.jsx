@@ -19,6 +19,7 @@ import Spinner                 from "../ui/Spinner";
 import SearchableSelect        from "../ui/SearchableSelect";
 
 const DEPARTMENTS = ["Academics-Assam","Academics-Karnataka","Academics-Mizoram","Academics-Tripura","Academics-Uttarakhand","Accounts-A","Accounts-G","Animation","Broadcasting-Assam","Broadcasting-Karnataka","Broadcasting-Mizoram","Broadcasting-Tripura","Broadcasting-Uttarakhand","Business Development","Corporate Communications","Documentation","Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing","Operations-Assam","Operations-Bihar","Operations-Karnataka","Operations-Maharashtra","Operations-Mizoram","Operations-Nagaland","Operations-Tripura","Operations-Uttarakhand","Purchase","RTS Help Desk","Software","Stores-Assam","Stores-Karnataka","Stores-Mizoram","Stores-Tripura","System Admin-Assam","System Admin-Karnataka","System Admin-Uttarakhand","TA Committee","Technical Support"];
+const NO_USER_DEPTS = new Set(["Accounts-A", "Accounts-G"]);
 
 function StatusDot({ status, label, index }) {
   const cls =
@@ -166,6 +167,11 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     setFwdPersons(new Set());
     setFwdPersonSearch("");
     if (fwdDeptUsersRef.current[dept] !== undefined) return; // already cached
+    if (NO_USER_DEPTS.has(dept)) {
+      fwdDeptUsersRef.current = { ...fwdDeptUsersRef.current, [dept]: [] };
+      setFwdDeptUsers(fwdDeptUsersRef.current);
+      return;
+    }
     setFwdLoadingDept(true);
     try {
       const data  = await get(`/requests/users-by-dept?depts=${encodeURIComponent(dept)}`);
@@ -1370,19 +1376,13 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                       </button>
                     </div>
                   ) : canAssignedPersonActions ? (
-                    /* Directly-assigned person — Forward + Checking + Close */
+                    /* Directly-assigned person — Forward (to own dept flow) + Checking + Close */
                     <div className="grid grid-cols-3 gap-2">
                       <button
-                        onClick={() => {
-                          const selUsers = (fwdDeptUsers[selectedDept] || []).filter(u => fwdPersons.has(u.empId));
-                          const extras = selUsers.length
-                            ? { assignedPersonEmpId: selUsers.map(u => u.empId).join(","), assignedPersonName: selUsers.map(u => u.name).join(",") }
-                            : {};
-                          handleApproval("Forwarded", null, null, extras);
-                        }}
-                        disabled={approvalLoading || !deptChanged}
+                        onClick={() => handleApproval("Forwarded", null, null, {})}
+                        disabled={approvalLoading}
                         className="bg-blue-500 disabled:opacity-50 text-white py-2.5 rounded-xl font-black text-[11px] hover:bg-blue-600 shadow-md uppercase transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                        title={!deptChanged ? "Select a different department above to forward" : "Forward to selected department"}
+                        title="Release to your department's RM → HOD → DeptHOD approval flow"
                       >
                         {pendingDecision === "Forwarded" ? <Spinner size={13}/> : <Forward size={13}/>} Forward
                       </button>

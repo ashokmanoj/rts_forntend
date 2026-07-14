@@ -14,13 +14,14 @@
  */
 
 import { useRef, useEffect, useState } from "react";
-import { MessageSquare, Lock, Paperclip, ChevronDown } from "lucide-react";
+import { MessageSquare, Lock, Paperclip, ChevronDown, Download } from "lucide-react";
 import ApprovalCard      from "./ApprovalCard";
 import MessageBubble     from "./MessageBubble";
 import SystemMessage     from "./SystemMessage";
 import ChatInputBar      from "./ChatInputBar";
 import { getNowTime, getNowDate } from "../../utils/dateTime";
 import { post } from "../../services/api";
+import { resolveFileUrl } from "../../utils/security";
 
 /** Group consecutive image messages from the same author+time into one entry */
 function groupLogs(logs) {
@@ -52,6 +53,7 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
   const [replyTo,              setReplyTo]            = useState(null);
   const [postCloseUploading,   setPostCloseUploading] = useState(false);
   const [showScrollBtn,        setShowScrollBtn]      = useState(false);
+  const [bulkDownloading,      setBulkDownloading]    = useState(false);
 
   const handleScroll = () => {
     const c = chatContainerRef.current;
@@ -185,23 +187,72 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
     setReplyTo(null);
   };
 
+  const chatFiles = visibleLogs.filter(l =>
+    l.fileUrl && l.type !== "voice" && l.type !== "approval" && l.type !== "system" && l.type !== "message"
+  );
+
+  const handleDownloadAllFiles = async () => {
+    if (!chatFiles.length || bulkDownloading) return;
+    setBulkDownloading(true);
+    try {
+      const { default: JSZip } = await import("jszip");
+      const zip = new JSZip();
+      await Promise.all(
+        chatFiles.map(async (log, idx) => {
+          const resolved = resolveFileUrl(log.fileUrl);
+          if (!resolved) return;
+          const fileName = log.fileName || `file-${idx + 1}`;
+          const res  = await fetch(resolved);
+          const blob = await res.blob();
+          zip.file(fileName, blob);
+        })
+      );
+      const content = await zip.generateAsync({ type: "blob" });
+      const link    = document.createElement("a");
+      link.href     = URL.createObjectURL(content);
+      link.download = `chat-files-${reqId}.zip`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      console.error("Chat bulk download failed:", err);
+    } finally {
+      setBulkDownloading(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden md:p-5 md:gap-3">
 
       {/* Header — desktop only (mobile uses the "← Back" bar from DetailsModal) */}
-      <p className="hidden md:flex text-[10px] text-slate-400 font-black uppercase tracking-widest items-center gap-1 flex-shrink-0">
-        <MessageSquare size={11} /> Activity &amp; Chat
-        {visibleLogs.length > 0 && (
-          <span className="bg-indigo-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black ml-1">
-            {visibleLogs.length}
-          </span>
-        )}
-        {isClosed && (
-          <span className="ml-auto flex items-center gap-1 bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-[9px] font-black">
-            <Lock size={9} /> Chat Closed
-          </span>
-        )}
-      </p>
+      <div className="hidden md:flex items-center gap-1 flex-shrink-0">
+        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest flex items-center gap-1">
+          <MessageSquare size={11} /> Activity &amp; Chat
+          {visibleLogs.length > 0 && (
+            <span className="bg-indigo-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black ml-1">
+              {visibleLogs.length}
+            </span>
+          )}
+        </p>
+        <div className="ml-auto flex items-center gap-1.5">
+          {chatFiles.length > 0 && (
+            <button
+              onClick={handleDownloadAllFiles}
+              disabled={bulkDownloading}
+              className="flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg font-black text-[10px] transition-all active:scale-95 disabled:opacity-60"
+            >
+              {bulkDownloading
+                ? <div className="w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/>
+                : <Download size={11}/>}
+              {bulkDownloading ? "Zipping…" : `Download All (${chatFiles.length})`}
+            </button>
+          )}
+          {isClosed && (
+            <span className="flex items-center gap-1 bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-[9px] font-black">
+              <Lock size={9} /> Chat Closed
+            </span>
+          )}
+        </div>
+      </div>
 
       {/* Mobile chat header bar */}
       <div className="md:hidden flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-white flex-shrink-0">
@@ -214,11 +265,25 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
             </span>
           )}
         </div>
-        {isClosed && (
-          <span className="flex items-center gap-1 bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-[9px] font-black">
-            <Lock size={9} /> Closed
-          </span>
-        )}
+        <div className="flex items-center gap-1.5">
+          {chatFiles.length > 0 && (
+            <button
+              onClick={handleDownloadAllFiles}
+              disabled={bulkDownloading}
+              className="flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg font-black text-[10px] transition-all active:scale-95 disabled:opacity-60"
+            >
+              {bulkDownloading
+                ? <div className="w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/>
+                : <Download size={11}/>}
+              {bulkDownloading ? "Zipping…" : `Download All (${chatFiles.length})`}
+            </button>
+          )}
+          {isClosed && (
+            <span className="flex items-center gap-1 bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-[9px] font-black">
+              <Lock size={9} /> Closed
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Message list */}
