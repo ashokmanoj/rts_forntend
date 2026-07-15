@@ -231,6 +231,49 @@ function CalendarPicker({ value, onChange, minDateStr }) {
   );
 }
 
+// ── IndexedDB helpers for draft file persistence ──────────────────────────────
+function openDraftFileDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("rts_draft_files", 1);
+    req.onupgradeneeded = (e) => e.target.result.createObjectStore("files");
+    req.onsuccess       = (e) => resolve(e.target.result);
+    req.onerror         = ()  => reject(req.error);
+  });
+}
+async function idbSaveFiles(key, files) {
+  try {
+    const db = await openDraftFileDB();
+    await new Promise((res, rej) => {
+      const tx = db.transaction("files", "readwrite");
+      tx.objectStore("files").put(files, key);
+      tx.oncomplete = res;
+      tx.onerror    = () => rej(tx.error);
+    });
+  } catch {}
+}
+async function idbLoadFiles(key) {
+  try {
+    const db = await openDraftFileDB();
+    return await new Promise((res) => {
+      const tx  = db.transaction("files", "readonly");
+      const req = tx.objectStore("files").get(key);
+      req.onsuccess = () => res(req.result ?? []);
+      req.onerror   = () => res([]);
+    });
+  } catch { return []; }
+}
+async function idbDeleteFiles(key) {
+  try {
+    const db = await openDraftFileDB();
+    await new Promise((res) => {
+      const tx = db.transaction("files", "readwrite");
+      tx.objectStore("files").delete(key);
+      tx.oncomplete = res;
+      tx.onerror    = res;
+    });
+  } catch {}
+}
+
 export default function AddRequestModal({ onClose, onSubmit, currentUser, initialDept, threadParentId = null }) {
   // ── Core fields ──────────────────────────────────────────────────────────────
   const [purpose,       setPurpose]      = useState("");
@@ -312,6 +355,14 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
         } catch {}
       });
     }
+    // Restore file attachments from IndexedDB
+    idbLoadFiles(DRAFT_KEY).then(files => {
+      if (files && files.length) {
+        setUploadedFiles(files);
+        setImagePreviews(files.map(f => f.type.startsWith("image/") ? URL.createObjectURL(f) : null));
+        setDraftBanner(true);
+      }
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-save draft to localStorage (debounced 600 ms)
@@ -336,8 +387,16 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
     return () => clearTimeout(saveTimerRef.current);
   }, [purpose, description, dueDate, recurringType, recurringInterval, selectedDept, selectedEmpIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Persist file attachments to IndexedDB whenever they change
+  useEffect(() => {
+    if (!currentUser?.empId) return;
+    idbSaveFiles(DRAFT_KEY, uploadedFiles);
+  }, [uploadedFiles]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const clearDraft = () => {
     try { localStorage.removeItem(DRAFT_KEY); } catch {}
+    idbDeleteFiles(DRAFT_KEY);
+    handleRemoveAll();
     setDraftBanner(false);
   };
 
@@ -576,6 +635,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
       });
       // Clear draft only on successful submit
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
+      idbDeleteFiles(DRAFT_KEY);
     } catch (err) {
       setSubmitError(err?.response?.data?.error || err?.message || "Failed to submit. Please try again.");
     } finally {
@@ -613,7 +673,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
         {draftBanner && (
           <div className="flex items-center justify-between gap-2 bg-amber-50 border-b border-amber-200 px-5 py-2.5 flex-shrink-0">
             <p className="text-[13px] font-bold text-amber-700">
-              Draft restored — attachments need to be re-added.
+              Draft restored.
             </p>
             <div className="flex items-center gap-3">
               <button onClick={clearDraft} className="text-[13px] font-black text-amber-600 hover:text-red-600 transition-colors underline underline-offset-2 whitespace-nowrap">

@@ -34,11 +34,17 @@ export default function RichTextArea({
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When parent resets value to "" (e.g. after form submit), clear the editor
+  // Sync editor when parent changes value:
+  //   "" → clears (after submit)
+  //   "" → non-empty: restores (draft restore)
   useEffect(() => {
+    if (!editorRef.current) return;
     if (value === "" && prevVal.current !== "") {
-      if (editorRef.current) editorRef.current.innerHTML = "";
+      editorRef.current.innerHTML = "";
       setEmpty(true);
+    } else if (value && !prevVal.current) {
+      editorRef.current.innerHTML = value;
+      setEmpty(!editorRef.current.textContent.trim());
     }
     prevVal.current = value;
   }, [value]);
