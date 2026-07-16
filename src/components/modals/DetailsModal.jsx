@@ -248,6 +248,8 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const deptChanged = selectedDept !== req?.assignedDept;
   const isClosed    = req?.isClosed || false;
   const isPendingAck = req?.assignedStatus === "Pending Acknowledgement";
+  // Ticket closed directly (rejected/admin) — requestor can still choose to reopen
+  const isDirectlyClosed = isClosed && !isPendingAck && !req?.acknowledgement;
   const role        = currentUser?.role || "";
   const roleLow     = role.toLowerCase();
 
@@ -1465,7 +1467,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
 
               {/* Acknowledgement — shown when pending (requestor action) or already done */}
               {(isPendingAck || isClosed) && isOwnRequest && (
-                <div className={`border rounded-2xl p-4 space-y-2 ${isPendingAck ? "border-amber-200 bg-amber-50/40" : "border-slate-200"}`}>
+                <div className={`border rounded-2xl p-4 space-y-2 ${isPendingAck || isDirectlyClosed ? "border-amber-200 bg-amber-50/40" : "border-slate-200"}`}>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
                     <ThumbsUp size={12} /> Acknowledgement
                   </p>
@@ -1558,8 +1560,8 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                 </div>
               )}
 
-              {/* Closed notice — all roles */}
-              {isClosed && !req.closeData && (
+              {/* Closed notice — all roles (hidden for own requestor who can still acknowledge) */}
+              {isClosed && !req.closeData && !(isOwnRequest && isDirectlyClosed) && (
                 <div className="border border-slate-200 bg-slate-50 rounded-xl p-3 text-center">
                   <p className="text-slate-500 font-black text-[11px] uppercase tracking-wider">🔒 Ticket Closed — All actions disabled</p>
                 </div>

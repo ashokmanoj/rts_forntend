@@ -360,7 +360,7 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                   <td className="border-b border-r border-black p-1 text-center whitespace-nowrap">
                     {(row.acknowledgement === "Resolved" || row.acknowledgement === "Received") ? (
                       <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg block">Resolved</span>
-                    ) : isPendingAck && isOwnRow && onAcknowledge ? (
+                    ) : (isPendingAck || (isClosed && !row.acknowledgement)) && isOwnRow && onAcknowledge ? (
                       <div className="flex flex-col gap-1 items-center">
                         {/* Resolved */}
                         {(() => {
@@ -405,7 +405,7 @@ export default function RequestTable({ requests, sortMode, currentUser, onOpenDe
                           );
                         })()}
                       </div>
-                    ) : isPendingAck ? (
+                    ) : isPendingAck || (isClosed && !row.acknowledgement) ? (
                       <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-lg block">⏳ Pending</span>
                     ) : isClosed ? (
                       <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg block">—</span>
