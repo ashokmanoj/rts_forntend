@@ -99,6 +99,7 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
 
   const handleReply = (log) => {
     setReplyTo({
+      id:       log.id,
       author:   log.author,
       text:     log.text    || null,
       fileName: log.fileName || null,
@@ -106,6 +107,24 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
       fileUrl:  log.fileUrl  || null,
       isVoice:  log.type === "voice",
     });
+  };
+
+  const scrollToMessage = (msgId) => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    // Flash highlight after scroll reaches the element (~300 ms head-start)
+    setTimeout(() => {
+      el.style.transition = "background-color 0.15s ease-in";
+      el.style.backgroundColor = "#e0e7ff"; // indigo-100
+      el.style.borderRadius = "10px";
+      // Hold for 1.5 s then fade out over 0.5 s
+      setTimeout(() => {
+        el.style.transition = "background-color 0.5s ease-out";
+        el.style.backgroundColor = "transparent";
+        setTimeout(() => { el.style.cssText = ""; }, 500);
+      }, 1500);
+    }, 300);
   };
 
   const handleSend = ({ text, files, voiceBlob, voiceDuration }) => {
@@ -295,7 +314,7 @@ export default function ChatPanel({ reqId, logs, currentUser, onSendMessage, isC
           {groupLogs(visibleLogs).map((log) =>
             log.type === "approval" ? <ApprovalCard  key={log.id} log={log} /> :
             log.type === "system"   ? <SystemMessage key={log.id} log={log} /> :
-                                      <MessageBubble key={log.id} log={log} onReply={canChat ? handleReply : null} currentUser={currentUser} />
+                                      <MessageBubble key={log.id} log={log} onReply={canChat ? handleReply : null} onScrollToMessage={scrollToMessage} currentUser={currentUser} />
           )}
           <div ref={chatEndRef} />
         </div>

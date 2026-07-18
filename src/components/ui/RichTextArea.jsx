@@ -42,7 +42,8 @@ export default function RichTextArea({
     if (value === "" && prevVal.current !== "") {
       editorRef.current.innerHTML = "";
       setEmpty(true);
-    } else if (value && !prevVal.current) {
+    } else if (value && !prevVal.current && document.activeElement !== editorRef.current) {
+      // Only restore draft when not focused — prevents cursor reset while user is typing
       editorRef.current.innerHTML = value;
       setEmpty(!editorRef.current.textContent.trim());
     }

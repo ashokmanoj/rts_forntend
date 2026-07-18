@@ -397,7 +397,19 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
     try { localStorage.removeItem(DRAFT_KEY); } catch {}
     idbDeleteFiles(DRAFT_KEY);
     handleRemoveAll();
+    setPurpose("");
+    setDescription("");
+    setDueDate("");
+    if (!initialDept) setSelectedDept("");
+    setSelectedEmpIds(new Set());
+    setCcDepts([]);
+    setCcSelectedEmpIds(new Set());
+    setCcDeptUsers({});
+    setCcExpandedDepts(new Set());
+    setRecurringType("one-time");
+    setRecurringInterval("1m");
     setDraftBanner(false);
+    onClose();
   };
 
   useEscapeKey(onClose);

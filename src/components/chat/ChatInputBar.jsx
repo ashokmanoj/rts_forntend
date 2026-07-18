@@ -434,6 +434,19 @@ export default function ChatInputBar({ onSend, replyTo, onCancelReply }) {
                 if ((e.ctrlKey || e.metaKey) && e.key === "b") { e.preventDefault(); fmtChat("bold"); }
                 if ((e.ctrlKey || e.metaKey) && e.key === "u") { e.preventDefault(); fmtChat("underline"); }
                 if (e.key === "Enter" && !e.shiftKey && !isRecording) {
+                  // If cursor is inside a non-empty list item, let the browser
+                  // create the next bullet point instead of sending
+                  const sel = window.getSelection();
+                  if (sel?.rangeCount) {
+                    let node = sel.getRangeAt(0).startContainer;
+                    while (node && node !== editorRef.current) {
+                      if (node.nodeName === "LI") {
+                        if (node.textContent.trim()) return; // non-empty bullet → new bullet
+                        break; // empty bullet → fall through and send
+                      }
+                      node = node.parentNode;
+                    }
+                  }
                   e.preventDefault();
                   handleSend();
                 }

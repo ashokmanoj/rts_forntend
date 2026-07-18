@@ -118,7 +118,7 @@ function TickMark({ status }) {
 // ── MessageBubble ─────────────────────────────────────────────────
 const isSpreadsheetFile = (name = "") => /\.(csv|xlsx|xls)$/i.test(name);
 
-export default function MessageBubble({ log, onReply, currentUser }) {
+export default function MessageBubble({ log, onReply, onScrollToMessage, currentUser }) {
   const [lightboxIdx,     setLightboxIdx]     = useState(-1);
   const [spreadsheetOpen, setSpreadsheetOpen] = useState(false);
   const [hovered,         setHovered]         = useState(false);
@@ -155,6 +155,7 @@ export default function MessageBubble({ log, onReply, currentUser }) {
       )}
 
       <div
+        id={`msg-${log.id}`}
         className="flex gap-2 items-start group"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -190,9 +191,12 @@ export default function MessageBubble({ log, onReply, currentUser }) {
             );
           })()}
 
-          {/* Replied-to quote */}
+          {/* Replied-to quote — click to jump to original message */}
           {log.replyTo && (
-            <div className="flex items-stretch gap-1.5 mb-1.5 max-w-[280px]">
+            <div
+              className={`flex items-stretch gap-1.5 mb-1.5 max-w-[280px] rounded-lg transition-opacity ${log.replyTo.id ? "cursor-pointer hover:opacity-75 active:opacity-60" : ""}`}
+              onClick={() => log.replyTo.id && onScrollToMessage?.(log.replyTo.id)}
+            >
               <div className="w-0.5 rounded-full bg-indigo-400 flex-shrink-0" />
               <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1 min-w-0">
                 <p className="text-[9px] font-black text-indigo-600 truncate">{log.replyTo.author}</p>
