@@ -602,6 +602,10 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
   const handleRemoveAll   = ()    => { imagePreviews.forEach(p => p && URL.revokeObjectURL(p)); setUploadedFiles([]); setImagePreviews([]); setFileError(null); };
 
   const handlePaste = useCallback((e) => {
+    // Skip when paste happens inside a contenteditable (the RichTextArea) —
+    // that component handles its own clipboard (e.g. HTML tables from Excel
+    // also carry an image/png, which we must not intercept as a file attachment)
+    if (e.target?.isContentEditable || e.target?.closest?.("[contenteditable]")) return;
     const files = Array.from(e.clipboardData?.items || []).filter(i => i.kind === "file").map(i => i.getAsFile()).filter(Boolean);
     if (files.length) addFiles(files);
   }, [addFiles]);

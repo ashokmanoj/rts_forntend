@@ -7,7 +7,11 @@
 const SAFE_TAGS = new Set([
   "b", "strong", "i", "em", "u", "mark",
   "ul", "ol", "li", "br", "p", "div", "span", "a",
+  // Table tags
+  "table", "thead", "tbody", "tfoot", "tr", "th", "td", "caption", "colgroup", "col",
 ]);
+
+const TABLE_CELL_TAGS = new Set(["td", "th"]);
 
 export function sanitizeHtml(html) {
   if (!html) return "";
@@ -31,7 +35,7 @@ function cleanNode(node) {
       continue;
     }
 
-    // Strip event-handler attributes
+    // Strip event-handler attributes only
     for (const attr of [...child.attributes]) {
       if (/^on/i.test(attr.name)) child.removeAttribute(attr.name);
     }
@@ -90,9 +94,9 @@ export function isHtmlContent(text) {
 }
 
 /**
- * Paste sanitizer — like sanitizeHtml but strips ALL attributes.
- * Use this on paste events to discard Gmail/Google Docs metadata attributes
- * (jsslot, data-path-to-node, style, class, etc.) while keeping safe tags.
+ * Paste sanitizer — like sanitizeHtml but strips most attributes.
+ * Preserves colspan/rowspan on table cells; strips everything else
+ * (Gmail/Google Docs metadata: jsslot, data-path-to-node, style, class, etc.)
  */
 export function sanitizePaste(html) {
   if (!html) return "";
@@ -102,19 +106,73 @@ export function sanitizePaste(html) {
   return wrap.innerHTML;
 }
 
+// Tags whose entire subtree must be dropped (not unwrapped) on paste.
+// <style>/<script> contain text that would leak as visible content if unwrapped.
+// <img>/<svg>/<object>/<embed> embed media we don't want in form fields.
+const REMOVE_ENTIRELY = new Set([
+  "style", "script", "link", "meta", "title", "head",
+  "img", "svg", "picture", "video", "audio", "object", "embed", "iframe",
+]);
+
 function cleanPasteNode(node) {
   for (const child of [...node.childNodes]) {
     if (child.nodeType === 8) { child.remove(); continue; } // strip comments
     if (child.nodeType !== 1) continue;                     // leave text nodes
 
     const tag = child.tagName.toLowerCase();
+
+    // Remove the element AND all its children — no content salvaged
+    if (REMOVE_ENTIRELY.has(tag)) {
+      child.remove();
+      continue;
+    }
+
     if (!SAFE_TAGS.has(tag)) {
+      // Unwrap — lift content out, discard the tag
       while (child.firstChild) node.insertBefore(child.firstChild, child);
       child.remove();
       continue;
     }
-    // Strip every attribute — no class, no style, no Gmail-specific attrs
-    for (const attr of [...child.attributes]) child.removeAttribute(attr.name);
+    // Strip every attribute except colspan/rowspan on table cells
+    for (const attr of [...child.attributes]) {
+      if (TABLE_CELL_TAGS.has(tag) && (attr.name === "colspan" || attr.name === "rowspan")) continue;
+      child.removeAttribute(attr.name);
+    }
+    // Restore safe anchor attributes
+    if (tag === "a") {
+      const href = child.getAttribute("href") || "";
+      if (!/^https?:\/\//i.test(href)) child.removeAttribute("href");
+      else {
+        child.setAttribute("target", "_blank");
+        child.setAttribute("rel", "noopener noreferrer");
+      }
+    }
     cleanPasteNode(child);
   }
+}
+
+/**
+ * Convert tab-separated-value text to an HTML table string.
+ * Returns null if the text doesn't look like tabular data
+ * (needs ≥2 rows and ≥2 columns).
+ */
+export function tsvToHtmlTable(text) {
+  if (!text) return null;
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim() !== "");
+  if (lines.length < 2) return null;
+
+  const rows = lines.map(l => l.split("\t"));
+  const maxCols = Math.max(...rows.map(r => r.length));
+  if (maxCols < 2) return null;
+
+  const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const [headerRow, ...bodyRows] = rows;
+  const ths = headerRow.map(c => `<th>${esc(c.trim())}</th>`).join("");
+  const trs = bodyRows.map(row => {
+    const tds = Array.from({ length: maxCols }, (_, i) => `<td>${esc((row[i] ?? "").trim())}</td>`).join("");
+    return `<tr>${tds}</tr>`;
+  }).join("");
+
+  return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
 }

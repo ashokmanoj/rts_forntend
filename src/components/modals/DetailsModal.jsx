@@ -885,7 +885,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               {req?.isRecurring && <span className="flex items-center gap-1 px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full text-[10px] font-black">🔁 Recurring</span>}
               {isOwnRequest && !isRequestorMode && <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black">Your Request</span>}
               {isCcUser && <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black">📋 CC Viewer</span>}
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${roleBadgeCls}`}>{currentUser?.dept}department</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${roleBadgeCls}`}>{currentUser?.dept} Department</span>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               <button onClick={() => setShowChat(true)} className="md:hidden flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-full text-[11px] font-black transition-colors">
@@ -1134,7 +1134,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
 
               <div>
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 ml-0.5">Request Description</p>
-                <div className="w-full bg-slate-50 p-3 rounded-xl text-slate-600 border border-slate-200 leading-relaxed text-[12px] break-words [&_ul]:list-disc [&_ul]:list-inside [&_ul]:my-0.5 [&_mark]:bg-yellow-200 [&_mark]:rounded-sm [&_b]:font-bold [&_strong]:font-bold [&_u]:underline [&_a]:text-blue-500 [&_a]:underline [&_a]:break-all [&_a:hover]:text-blue-700 whitespace-pre-wrap">
+                <div className="w-full bg-slate-50 p-3 rounded-xl text-slate-600 border border-slate-200 leading-relaxed text-[12px] break-words [&_ul]:list-disc [&_ul]:list-inside [&_ul]:my-0.5 [&_mark]:bg-yellow-200 [&_mark]:rounded-sm [&_b]:font-bold [&_strong]:font-bold [&_u]:underline [&_a]:text-blue-500 [&_a]:underline [&_a]:break-all [&_a:hover]:text-blue-700 [&_table]:w-full [&_table]:border-collapse [&_table]:my-2 [&_table]:text-[11px] [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-100 [&_th]:px-2 [&_th]:py-1.5 [&_th]:font-bold [&_th]:text-left [&_th]:whitespace-normal [&_td]:border [&_td]:border-slate-300 [&_td]:px-2 [&_td]:py-1.5 [&_td]:whitespace-normal whitespace-pre-wrap">
                   {req?.description
                     ? isHtmlContent(req.description)
                       ? <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(req.description) }} />

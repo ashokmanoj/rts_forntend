@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { Bold, Underline, Highlighter, List } from "lucide-react";
-import { sanitizePaste } from "../../utils/sanitize";
+import { sanitizePaste, tsvToHtmlTable } from "../../utils/sanitize";
 
 /**
  * WYSIWYG rich-text editor using contenteditable.
@@ -96,14 +96,36 @@ export default function RichTextArea({
   };
 
   const handlePaste = (e) => {
-    const html = e.clipboardData?.getData("text/html");
+    const html  = e.clipboardData?.getData("text/html");
+    const plain = e.clipboardData?.getData("text/plain");
+
+    // HTML clipboard with a <table> — sanitize preserving table structure
+    if (html && /<table/i.test(html)) {
+      e.preventDefault();
+      document.execCommand("insertHTML", false, sanitizePaste(html));
+      emit();
+      return;
+    }
+
+    // Plain text that looks like TSV (from Excel / Google Sheets copy) — convert to table
+    if (plain) {
+      const tableHtml = tsvToHtmlTable(plain);
+      if (tableHtml) {
+        e.preventDefault();
+        document.execCommand("insertHTML", false, tableHtml);
+        emit();
+        return;
+      }
+    }
+
+    // Regular HTML (no table) — sanitize normally
     if (html) {
       e.preventDefault();
-      const clean = sanitizePaste(html);
-      document.execCommand("insertHTML", false, clean);
+      document.execCommand("insertHTML", false, sanitizePaste(html));
       emit();
+      return;
     }
-    // Plain text paste — let browser handle it
+    // Plain text without table structure — let browser handle it
   };
 
   const minH = minRows * 24;
@@ -148,7 +170,7 @@ export default function RichTextArea({
           onInput={emit}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          className="outline-none px-4 py-3 text-[13px] text-slate-800 font-medium leading-relaxed [&_ul]:list-disc [&_ul]:list-inside [&_ul]:my-0.5 [&_mark]:bg-yellow-200 [&_mark]:rounded-sm"
+          className="outline-none px-4 py-3 text-[13px] text-slate-800 font-medium leading-relaxed [&_ul]:list-disc [&_ul]:list-inside [&_ul]:my-0.5 [&_mark]:bg-yellow-200 [&_mark]:rounded-sm [&_table]:w-full [&_table]:border-collapse [&_table]:my-2 [&_table]:text-[12px] [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-100 [&_th]:px-2 [&_th]:py-1 [&_th]:font-bold [&_th]:text-left [&_th]:whitespace-normal [&_td]:border [&_td]:border-slate-300 [&_td]:px-2 [&_td]:py-1 [&_td]:whitespace-normal"
           style={{ minHeight: minH, maxHeight: 200, overflowY: "auto" }}
         />
       </div>
