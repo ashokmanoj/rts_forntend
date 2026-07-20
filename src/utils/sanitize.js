@@ -14,6 +14,7 @@ export function sanitizeHtml(html) {
   const wrap = document.createElement("div");
   wrap.innerHTML = html;
   cleanNode(wrap);
+  linkifyTextNodes(wrap);
   return wrap.innerHTML;
 }
 
@@ -42,6 +43,35 @@ function cleanNode(node) {
       child.setAttribute("rel", "noopener noreferrer");
     }
     cleanNode(child);
+  }
+}
+
+/** Walk text nodes and wrap bare URLs in <a> tags (skips existing <a> elements). */
+function linkifyTextNodes(node) {
+  const URL_RE = /(https?:\/\/[^\s<>"']+)/g;
+  for (const child of [...node.childNodes]) {
+    if (child.nodeType === 3) {
+      const text = child.textContent;
+      URL_RE.lastIndex = 0;
+      if (!URL_RE.test(text)) continue;
+      URL_RE.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let last = 0, m;
+      while ((m = URL_RE.exec(text)) !== null) {
+        if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        const a = document.createElement("a");
+        a.href = m[0];
+        a.textContent = m[0];
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        frag.appendChild(a);
+        last = m.index + m[0].length;
+      }
+      if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+      node.replaceChild(frag, child);
+    } else if (child.nodeType === 1 && child.tagName.toLowerCase() !== "a") {
+      linkifyTextNodes(child);
+    }
   }
 }
 

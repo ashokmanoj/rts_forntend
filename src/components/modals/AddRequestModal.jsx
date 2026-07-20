@@ -294,6 +294,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
   const [loadingDept,        setLoadingDept]        = useState(false);
   const [selectedEmpIds,     setSelectedEmpIds]     = useState(new Set());
   const [deptPersonOpen,     setDeptPersonOpen]     = useState(false);
+  const [personPanelOpen,    setPersonPanelOpen]    = useState(false);
   const [deptSearch,         setDeptSearch]         = useState("");
   const [personSearch,       setPersonSearch]       = useState("");
   const [deptPickerRect,     setDeptPickerRect]     = useState(null);
@@ -454,7 +455,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
       if (
         deptPickerRef.current   && !deptPickerRef.current.contains(e.target) &&
         deptPickerPanelRef.current && !deptPickerPanelRef.current.contains(e.target)
-      ) { setDeptPersonOpen(false); setDeptSearch(""); setPersonSearch(""); }
+      ) { setDeptPersonOpen(false); setPersonPanelOpen(false); setDeptSearch(""); setPersonSearch(""); }
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
@@ -782,13 +783,14 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
                     </span>
                   </button>
 
-                  {/* Portal: two-column panel */}
+                  {/* Portal: dept list + on-demand person panel */}
                   {deptPersonOpen && deptPickerRect && createPortal(
                     (() => {
                       const spaceBelow = window.innerHeight - deptPickerRect.bottom;
                       const panelH = 310;
                       const top = spaceBelow >= panelH ? deptPickerRect.bottom + 4 : deptPickerRect.top - panelH - 4;
-                      const panelStyle = { position: "fixed", top, left: deptPickerRect.left, width: Math.max(deptPickerRect.width, 480), zIndex: 9999 };
+                      const panelWidth = personPanelOpen ? Math.max(deptPickerRect.width, 480) : Math.max(deptPickerRect.width, 240);
+                      const panelStyle = { position: "fixed", top, left: deptPickerRect.left, width: panelWidth, zIndex: 9999 };
 
                       const users           = deptUsers[selectedDept] || [];
                       const selectable      = users.filter(u => u.empId !== currentUser?.empId);
@@ -801,8 +803,8 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
                       return (
                         <div ref={deptPickerPanelRef} style={panelStyle} className="bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex">
 
-                          {/* ── Left: dept list ── */}
-                          <div className="w-52 border-r border-slate-100 flex flex-col">
+                          {/* ── Left: dept list (single column; expands when no person panel) ── */}
+                          <div className={`flex flex-col ${personPanelOpen ? "w-52 border-r border-slate-100" : "flex-1"}`}>
                             <div className="p-2 border-b border-slate-100">
                               <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 focus-within:border-indigo-400 transition-colors">
                                 <Search size={13} className="shrink-0 text-slate-400" />
@@ -822,92 +824,122 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
                                 ? <p className="text-[11px] text-slate-400 text-center py-4">No results</p>
                                 : filteredDepts.map(dept => {
                                   const isSel = selectedDept === dept;
+                                  const hasUsers = !NO_USER_DEPTS.has(dept);
                                   return (
-                                    <button
-                                      key={dept}
-                                      type="button"
-                                      onClick={() => { setSelectedDept(dept); setPersonSearch(""); }}
-                                      className={`w-full flex items-center gap-2 text-left px-3 py-2.5 text-[12px] transition-colors ${isSel ? "bg-indigo-50 text-indigo-700 font-black" : "text-slate-700 font-medium hover:bg-slate-50 hover:text-indigo-700"}`}
-                                    >
-                                      <span className="truncate flex-1">{dept}</span>
-                                      {isSel && <Check size={13} className="shrink-0 text-indigo-600" strokeWidth={3} />}
-                                    </button>
+                                    <div key={dept} className={`flex items-center transition-colors ${isSel ? "bg-indigo-50/60" : "hover:bg-slate-50"}`}>
+                                      <button
+                                        type="button"
+                                        onClick={() => { setSelectedDept(dept); setPersonSearch(""); setPersonPanelOpen(false); }}
+                                        className={`flex items-center gap-2 text-left px-3 py-2.5 text-[12px] flex-1 min-w-0 transition-colors ${isSel ? "text-indigo-700 font-black" : "text-slate-700 font-medium hover:text-indigo-700"}`}
+                                      >
+                                        <span className="truncate flex-1">{dept}</span>
+                                        {isSel && <Check size={13} className="shrink-0 text-indigo-600" strokeWidth={3} />}
+                                      </button>
+                                      {isSel && hasUsers && (
+                                        <button
+                                          type="button"
+                                          onClick={e => { e.stopPropagation(); setPersonPanelOpen(p => !p); }}
+                                          title="Select person"
+                                          className={`flex items-center gap-1 mr-2 px-2 py-1 rounded-lg text-[11px] font-black transition-all border flex-shrink-0 ${personPanelOpen ? "bg-indigo-100 text-indigo-700 border-indigo-300" : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"}`}
+                                        >
+                                          <Users size={12} />
+                                          <span>Person</span>
+                                          {loadingDept ? <Spinner size={10} /> : <ChevronRight size={11} className={personPanelOpen ? "text-indigo-500" : ""} />}
+                                        </button>
+                                      )}
+                                    </div>
                                   );
                                 })
                               }
                             </div>
+                            <div className="p-2 border-t border-slate-100 flex items-center justify-end">
+                              <button
+                                type="button"
+                                onClick={() => { setDeptPersonOpen(false); setPersonPanelOpen(false); setDeptSearch(""); setPersonSearch(""); }}
+                                className="py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-[12px] font-black rounded-xl transition-colors"
+                              >
+                                Done
+                              </button>
+                            </div>
                           </div>
 
-                          {/* ── Right: person list ── */}
-                          <div className="flex-1 flex flex-col min-w-0">
-                            {!selectedDept ? (
-                              <div className="flex-1 flex items-center justify-center p-6">
-                                <p className="text-[11px] text-slate-300 italic text-center">Select a department<br/>to assign persons</p>
-                              </div>
-                            ) : (
-                              <>
-                                <div className="p-2 border-b border-slate-100">
-                                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 focus-within:border-indigo-400 transition-colors">
-                                    <Search size={13} className="shrink-0 text-slate-400" />
-                                    <input
-                                      type="text"
-                                      value={personSearch}
-                                      onChange={e => setPersonSearch(e.target.value)}
-                                      placeholder="Search person…"
-                                      className="flex-1 text-[12px] font-medium bg-transparent outline-none text-slate-700 placeholder-slate-400 min-w-0"
-                                    />
-                                    {personSearch && <button type="button" onClick={() => setPersonSearch("")}><X size={11} className="text-slate-400 hover:text-slate-600" /></button>}
-                                  </div>
+                          {/* ── Right: person panel (shown when Person button clicked) ── */}
+                          {personPanelOpen && selectedDept && (
+                            <div className="flex-1 flex flex-col min-w-0">
+                              <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between">
+                                <div className="min-w-0">
+                                  <p className="text-[11px] font-black text-indigo-700 truncate">{selectedDept}</p>
+                                  <p className="text-[10px] text-slate-400 font-medium">
+                                    {loadingDept ? "Loading…" : `${selCount} of ${selectable.length} selected`}
+                                  </p>
                                 </div>
-                                {selCount > 0 && (
-                                  <div className="flex items-center justify-between px-3 py-1.5 bg-indigo-50 border-b border-indigo-100">
-                                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-wide">{selCount} selected</span>
-                                    <button type="button" onClick={() => setSelectedEmpIds(new Set())} className="text-[10px] font-black text-red-500 hover:text-red-700">Clear all</button>
-                                  </div>
-                                )}
-                                <div className="overflow-y-auto flex-1 max-h-52 py-1">
-                                  {loadingDept ? (
-                                    <div className="flex items-center gap-2 px-4 py-3 text-[11px] text-slate-400"><Spinner size={13} /> Loading…</div>
-                                  ) : filteredPersons.length === 0 ? (
-                                    <p className="text-[11px] text-slate-400 text-center py-4 italic">{personSearch ? "No results" : "No active RM/HOD users found."}</p>
-                                  ) : filteredPersons.map(u => {
-                                    const isChecked = selectedEmpIds.has(u.empId);
-                                    return (
-                                      <button
-                                        key={u.empId}
-                                        type="button"
-                                        onClick={() => toggleUser(u.empId)}
-                                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${isChecked ? "bg-indigo-50 text-indigo-700" : "text-slate-700 hover:bg-slate-50"}`}
-                                      >
-                                        <span className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isChecked ? "bg-indigo-600 border-indigo-600" : "border-slate-300"}`}>
-                                          {isChecked && <Check size={9} className="text-white" strokeWidth={3} />}
-                                        </span>
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-[12px] font-semibold truncate">{u.name}</p>
-                                          <div className="flex items-center gap-1 flex-wrap mt-0.5">
-                                            {(u.roles?.length ? [...new Set(u.roles.map(r => r.role))] : [u.role]).map(r => (
-                                              <span key={r} className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${roleColor(r)}`}>{r}</span>
-                                            ))}
-                                            {u.designation && <span className="text-[9px] text-slate-400 truncate">{u.designation}</span>}
-                                          </div>
-                                        </div>
-                                        <span className="text-[9px] text-slate-300 flex-shrink-0">{u.empId}</span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                                <div className="p-2 border-t border-slate-100">
-                                  <button
-                                    type="button"
-                                    onClick={() => { setDeptPersonOpen(false); setDeptSearch(""); setPersonSearch(""); }}
-                                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[12px] font-black rounded-xl transition-colors"
-                                  >
-                                    Done
+                                {!loadingDept && selectable.length > 0 && (
+                                  <button type="button" onClick={toggleAllInDept} className="text-[10px] font-black text-indigo-500 hover:text-indigo-700 transition-colors flex-shrink-0 ml-2">
+                                    {selectable.every(u => selectedEmpIds.has(u.empId)) ? "Deselect All" : "Select All"}
                                   </button>
+                                )}
+                              </div>
+                              <div className="p-2 border-b border-slate-100">
+                                <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 focus-within:border-indigo-400 transition-colors">
+                                  <Search size={13} className="shrink-0 text-slate-400" />
+                                  <input
+                                    type="text"
+                                    value={personSearch}
+                                    onChange={e => setPersonSearch(e.target.value)}
+                                    placeholder="Search person…"
+                                    className="flex-1 text-[12px] font-medium bg-transparent outline-none text-slate-700 placeholder-slate-400 min-w-0"
+                                  />
+                                  {personSearch && <button type="button" onClick={() => setPersonSearch("")}><X size={11} className="text-slate-400 hover:text-slate-600" /></button>}
                                 </div>
-                              </>
-                            )}
-                          </div>
+                              </div>
+                              {selCount > 0 && (
+                                <div className="flex items-center justify-between px-3 py-1.5 bg-indigo-50 border-b border-indigo-100">
+                                  <span className="text-[10px] font-black text-indigo-600 uppercase tracking-wide">{selCount} selected</span>
+                                  <button type="button" onClick={() => setSelectedEmpIds(new Set())} className="text-[10px] font-black text-red-500 hover:text-red-700">Clear all</button>
+                                </div>
+                              )}
+                              <div className="overflow-y-auto flex-1 max-h-52 py-1">
+                                {loadingDept ? (
+                                  <div className="flex items-center gap-2 px-4 py-3 text-[11px] text-slate-400"><Spinner size={13} /> Loading…</div>
+                                ) : filteredPersons.length === 0 ? (
+                                  <p className="text-[11px] text-slate-400 text-center py-4 italic">{personSearch ? "No results" : "No active RM/HOD users found."}</p>
+                                ) : filteredPersons.map(u => {
+                                  const isChecked = selectedEmpIds.has(u.empId);
+                                  return (
+                                    <button
+                                      key={u.empId}
+                                      type="button"
+                                      onClick={() => toggleUser(u.empId)}
+                                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${isChecked ? "bg-indigo-50 text-indigo-700" : "text-slate-700 hover:bg-slate-50"}`}
+                                    >
+                                      <span className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isChecked ? "bg-indigo-600 border-indigo-600" : "border-slate-300"}`}>
+                                        {isChecked && <Check size={9} className="text-white" strokeWidth={3} />}
+                                      </span>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-[12px] font-semibold truncate">{u.name}</p>
+                                        <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                          {(u.roles?.length ? [...new Set(u.roles.map(r => r.role))] : [u.role]).map(r => (
+                                            <span key={r} className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${roleColor(r)}`}>{r}</span>
+                                          ))}
+                                          {u.designation && <span className="text-[9px] text-slate-400 truncate">{u.designation}</span>}
+                                        </div>
+                                      </div>
+                                      <span className="text-[9px] text-slate-300 flex-shrink-0">{u.empId}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <div className="p-2 border-t border-slate-100">
+                                <button
+                                  type="button"
+                                  onClick={() => { setDeptPersonOpen(false); setPersonPanelOpen(false); setDeptSearch(""); setPersonSearch(""); }}
+                                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[12px] font-black rounded-xl transition-colors"
+                                >
+                                  Done
+                                </button>
+                              </div>
+                            </div>
+                          )}
 
                         </div>
                       );

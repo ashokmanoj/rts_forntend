@@ -1134,7 +1134,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
 
               <div>
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 ml-0.5">Request Description</p>
-                <div className="w-full bg-slate-50 p-3 rounded-xl text-slate-600 border border-slate-200 leading-relaxed text-[12px] break-words [&_ul]:list-disc [&_ul]:list-inside [&_ul]:my-0.5 [&_mark]:bg-yellow-200 [&_mark]:rounded-sm [&_b]:font-bold [&_strong]:font-bold [&_u]:underline whitespace-pre-wrap">
+                <div className="w-full bg-slate-50 p-3 rounded-xl text-slate-600 border border-slate-200 leading-relaxed text-[12px] break-words [&_ul]:list-disc [&_ul]:list-inside [&_ul]:my-0.5 [&_mark]:bg-yellow-200 [&_mark]:rounded-sm [&_b]:font-bold [&_strong]:font-bold [&_u]:underline [&_a]:text-blue-500 [&_a]:underline [&_a]:break-all [&_a:hover]:text-blue-700 whitespace-pre-wrap">
                   {req?.description
                     ? isHtmlContent(req.description)
                       ? <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(req.description) }} />
@@ -1144,7 +1144,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
               </div>
 
               {/* ── Thread / Linked Requests ──────────────────────────────── */}
-              {/* {req?.requestorRole !== "broadcast" && (
+              {req?.requestorRole !== "broadcast" && (
                 <div>
                   <div className="flex items-center justify-between mb-2 ml-0.5">
                     <div className="flex items-center gap-1.5">
@@ -1205,7 +1205,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                     </div>
                   )}
                 </div>
-              )} */}
+              )}
 
               <div>
                 <div className="flex items-center justify-between mb-1 ml-0.5">
