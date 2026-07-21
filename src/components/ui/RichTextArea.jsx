@@ -99,10 +99,13 @@ export default function RichTextArea({
     const html  = e.clipboardData?.getData("text/html");
     const plain = e.clipboardData?.getData("text/plain");
 
+    // After inserting a table, add an empty paragraph so the cursor can sit below it
+    const AFTER_TABLE = "<p><br></p>";
+
     // HTML clipboard with a <table> — sanitize preserving table structure
     if (html && /<table/i.test(html)) {
       e.preventDefault();
-      document.execCommand("insertHTML", false, sanitizePaste(html));
+      document.execCommand("insertHTML", false, sanitizePaste(html) + AFTER_TABLE);
       emit();
       return;
     }
@@ -112,7 +115,7 @@ export default function RichTextArea({
       const tableHtml = tsvToHtmlTable(plain);
       if (tableHtml) {
         e.preventDefault();
-        document.execCommand("insertHTML", false, tableHtml);
+        document.execCommand("insertHTML", false, tableHtml + AFTER_TABLE);
         emit();
         return;
       }
