@@ -208,6 +208,7 @@ export default function UserManagementPage({ currentUser }) {
     name: "",
     email: "",
     phone: "",
+    altPhone: "",
     role: "Requestor",
     dept: "HR",
     designation: "",
@@ -222,6 +223,7 @@ export default function UserManagementPage({ currentUser }) {
     name: "",
     email: "",
     phone: "",
+    altPhone: "",
     role: "",
     dept: "",
     designation: "",
@@ -301,6 +303,7 @@ export default function UserManagementPage({ currentUser }) {
       name: user.name,
       email: user.email,
       phone: user.phone === "N/A" ? "" : user.phone,
+      altPhone: user.altPhone || "",
       role: user.role,
       dept: user.dept,
       designation: user.designation || "",
@@ -857,6 +860,16 @@ export default function UserManagementPage({ currentUser }) {
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none"
                   />
                 </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Alternative Phone</label>
+                  <input
+                    type="text"
+                    value={formData.altPhone}
+                    onChange={(e) => setFormData({ ...formData, altPhone: e.target.value })}
+                    placeholder="Optional"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none placeholder:text-slate-300"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1122,6 +1135,16 @@ export default function UserManagementPage({ currentUser }) {
                     value={editFormData.phone}
                     onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black text-slate-500 uppercase ml-1">Alternative Phone</label>
+                  <input
+                    type="text"
+                    value={editFormData.altPhone}
+                    onChange={(e) => setEditFormData({ ...editFormData, altPhone: e.target.value })}
+                    placeholder="Optional"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-400 focus:outline-none placeholder:text-slate-300"
                   />
                 </div>
               </div>
