@@ -47,7 +47,7 @@ export async function createRequest({ purpose, assignedDept, assignedDepts, desc
   if (isRecurring)   fd.append("isRecurring",  isRecurring);
   if (recurringInterval) fd.append("recurringInterval", recurringInterval);
   if (threadParentId) fd.append("threadParentId", threadParentId);
-  return postForm("/requests", fd);
+  return postForm(threadParentId ? "/requests/trailingreq" : "/requests", fd);
 }
 
 export async function fetchRequestThread(id) {

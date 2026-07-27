@@ -20,7 +20,7 @@ const DEPARTMENTS = [
   "Broadcasting-Assam","Broadcasting-Karnataka","Broadcasting-Mizoram","Broadcasting-Telangana","Broadcasting-Tripura","Broadcasting-Uttarakhand",
   "Business Development","Corporate Communications","Documentation",
   "Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing",
-  "Operations-Assam","Operations-Bihar","Operations-Karnataka","Operations-Maharashtra","Operations-Mizoram","Operations-Nagaland","Operations-Tripura","Operations-Uttarakhand",
+  "Operations-Assam","Operations-Bihar","Operations-Karnataka","Operations-Maharashtra","Operations-Mizoram","Operations-Nagaland","Operations-Sundargarh Odisha","Operations-Tripura","Operations-Uttarakhand",
   "Purchase","RTS Help Desk","Software","Stores-Assam","Stores-Karnataka","Stores-Mizoram","Stores-Tripura","Stores-Uttarakhand",
   "System Admin-Assam","System Admin-Karnataka","System Admin-Uttarakhand",
   "TA Committee","Technical Support",
