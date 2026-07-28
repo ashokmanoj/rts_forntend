@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LogOut, Zap, ClipboardList, ShieldCheck, ShieldOff, Users, UtensilsCrossed, BarChart2, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Pencil, Trash2, AlertTriangle, UserPlus, KeyRound, Search, X, Plus, MessageSquare, Mail, Building2, Check, Upload, Paperclip, ChevronLeft, MapPin } from "lucide-react";
+import { LogOut, Zap, ClipboardList, ShieldCheck, ShieldOff, Users, UtensilsCrossed, BarChart2, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Pencil, Trash2, AlertTriangle, UserPlus, KeyRound, Search, X, Plus, MessageSquare, Mail, Building2, Check, Upload, Paperclip, ChevronLeft, MapPin, Smartphone } from "lucide-react";
 
 import { fetchRequests, fetchFilterOptions, createRequest, submitApproval, acknowledgeRequest, markRequestSeen, markRequestUnread, closeRequest, editRequest, deleteRequest } from "../services/requestService";
 import { fetchUserRoles, addUserRole, updateUserRole, toggleUserRole, deleteUserRole } from "../services/userRoleService";
@@ -1384,6 +1384,144 @@ function UserRolesTab() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Mobile Users Tab
+// ─────────────────────────────────────────────────────────────────────────────
+function MobileUsersTab() {
+  const [users,   setUsers]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search,  setSearch]  = useState("");
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await get("/admin/mobile-users");
+      setUsers(data);
+      setLastUpdated(new Date());
+    } catch { /* silent */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const id = setInterval(load, 30_000);
+    return () => clearInterval(id);
+  }, [load]);
+
+  const filtered = users.filter(u => {
+    const q = search.toLowerCase();
+    return !q || u.name?.toLowerCase().includes(q) || u.empId?.toLowerCase().includes(q) || u.dept?.toLowerCase().includes(q) || u.location?.toLowerCase().includes(q);
+  });
+
+  const onlineCount = users.filter(u => u.isOnline).length;
+
+  const timeAgo = (d) => {
+    if (!d) return "—";
+    const diff = Date.now() - new Date(d).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1)  return "just now";
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 bg-gradient-to-r from-green-50 to-white border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-xl"><Smartphone size={18} className="text-green-600"/></div>
+            <div>
+              <h2 className="font-black text-slate-800 text-[15px] leading-none">Mobile Users</h2>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Users with app installed</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Stats */}
+            <div className="flex items-center gap-2">
+              <div className="px-3 py-1.5 bg-green-100 rounded-xl text-[12px] font-black text-green-700 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block"/>
+                {onlineCount} Online
+              </div>
+              <div className="px-3 py-1.5 bg-slate-100 rounded-xl text-[12px] font-black text-slate-600">
+                {users.length} Total
+              </div>
+            </div>
+            {/* Search */}
+            <div className="relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search name, ID, dept…"
+                className="pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-[12px] bg-slate-50 focus:outline-none focus:border-green-400 w-52"/>
+            </div>
+            <button onClick={load} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all" title="Refresh">
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""}/>
+            </button>
+          </div>
+        </div>
+
+        {lastUpdated && (
+          <div className="px-5 py-2 bg-slate-50 border-b border-slate-100 text-[10px] text-slate-400 font-bold">
+            Last updated: {lastUpdated.toLocaleTimeString()} · Auto-refreshes every 30s
+          </div>
+        )}
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-[12px]">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-4 py-3 text-left font-black text-slate-400 uppercase tracking-wider text-[10px]">#</th>
+                <th className="px-4 py-3 text-left font-black text-slate-400 uppercase tracking-wider text-[10px]">Status</th>
+                <th className="px-4 py-3 text-left font-black text-slate-400 uppercase tracking-wider text-[10px]">Name</th>
+                <th className="px-4 py-3 text-left font-black text-slate-400 uppercase tracking-wider text-[10px]">Emp ID</th>
+                <th className="px-4 py-3 text-left font-black text-slate-400 uppercase tracking-wider text-[10px]">Department</th>
+                <th className="px-4 py-3 text-left font-black text-slate-400 uppercase tracking-wider text-[10px]">Location</th>
+                <th className="px-4 py-3 text-left font-black text-slate-400 uppercase tracking-wider text-[10px]">Role</th>
+                <th className="px-4 py-3 text-left font-black text-slate-400 uppercase tracking-wider text-[10px]">Last Seen</th>
+                <th className="px-4 py-3 text-left font-black text-slate-400 uppercase tracking-wider text-[10px]">App Installed</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                <tr><td colSpan={9} className="text-center py-14 text-slate-400 font-bold">Loading…</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={9} className="text-center py-14 text-slate-400 font-bold">No mobile users found.</td></tr>
+              ) : filtered.map((u, i) => (
+                <tr key={u.empId} className={`hover:bg-slate-50 transition-colors ${!u.isActive ? "opacity-50" : ""}`}>
+                  <td className="px-4 py-3 text-slate-400 font-bold">{i + 1}</td>
+                  <td className="px-4 py-3">
+                    {u.isOnline ? (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-black">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"/>Active Now
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-slate-100 text-slate-500 rounded-full text-[10px] font-black">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400"/>Offline
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 font-black text-slate-800">{u.name}</td>
+                  <td className="px-4 py-3 font-mono font-bold text-indigo-600">{u.empId}</td>
+                  <td className="px-4 py-3 text-slate-600 font-medium">{u.dept}</td>
+                  <td className="px-4 py-3 text-slate-500 font-medium">{u.location || "—"}</td>
+                  <td className="px-4 py-3">
+                    <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full text-[10px] font-black">{u.role}</span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-500 font-medium">{timeAgo(u.lastSeen)}</td>
+                  <td className="px-4 py-3 text-slate-400 font-medium">{timeAgo(u.appInstalledAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Org Setup Tab — Departments & Locations management
 // ─────────────────────────────────────────────────────────────────────────────
 function OrgSetupTab() {
@@ -1722,6 +1860,7 @@ const TABS = [
   { key: "roles",      label: "Roles",             icon: <KeyRound size={14} /> },
   { key: "food",       label: "Food",              icon: <UtensilsCrossed size={14} /> },
   { key: "report",     label: "Admin Report",      icon: <BarChart2 size={14} /> },
+  { key: "mobile",     label: "Mobile Users",      icon: <Smartphone size={14} /> },
   { key: "orgsetup",   label: "Org Setup",         icon: <Building2 size={14} /> },
 ];
 
@@ -1799,6 +1938,13 @@ export default function SuperUserHome({ currentUser, onLogout, onSwitchRole }) {
         {activeTab === "report" && (
           <div className="flex-1 min-h-0 overflow-y-auto bg-[#f8fafc]">
             <AdminReportPage />
+          </div>
+        )}
+
+        {/* Mobile Users */}
+        {activeTab === "mobile" && (
+          <div className="flex-1 min-h-0 overflow-y-auto bg-[#f8fafc] p-4 sm:p-6">
+            <MobileUsersTab />
           </div>
         )}
 
