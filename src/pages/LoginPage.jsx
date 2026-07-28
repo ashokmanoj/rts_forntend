@@ -42,7 +42,7 @@ export default function LoginPage({ onLogin }) {
         setPending(result);
         setSelectedCategory(null);
       } else {
-        onLogin(result);
+        window.location.replace("/");
       }
     } catch (err) {
       setError(err.response?.data?.error || "Login failed. Check your credentials.");
@@ -55,8 +55,8 @@ export default function LoginPage({ onLogin }) {
     setError("");
     setSelecting(true);
     try {
-      const user = await selectRole(pending.tempToken, role, dept);
-      onLogin(user);
+      await selectRole(pending.tempToken, role, dept);
+      window.location.replace("/");
     } catch (err) {
       setError(err.response?.data?.error || "Role selection failed. Please try again.");
       setPending(null);
