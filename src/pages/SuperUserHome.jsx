@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LogOut, Zap, ClipboardList, ShieldCheck, ShieldOff, Users, UtensilsCrossed, BarChart2, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Pencil, Trash2, AlertTriangle, UserPlus, KeyRound, Search, X, Plus, MessageSquare, Mail, Building2, Check, Upload, Paperclip, ChevronLeft } from "lucide-react";
+import { LogOut, Zap, ClipboardList, ShieldCheck, ShieldOff, Users, UtensilsCrossed, BarChart2, RefreshCw, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Pencil, Trash2, AlertTriangle, UserPlus, KeyRound, Search, X, Plus, MessageSquare, Mail, Building2, Check, Upload, Paperclip, ChevronLeft, MapPin } from "lucide-react";
 
 import { fetchRequests, fetchFilterOptions, createRequest, submitApproval, acknowledgeRequest, markRequestSeen, markRequestUnread, closeRequest, editRequest, deleteRequest } from "../services/requestService";
 import { fetchUserRoles, addUserRole, updateUserRole, toggleUserRole, deleteUserRole } from "../services/userRoleService";
 import { fetchHodPendingRequests, submitHodApproval } from "../services/managementService";
 import { fetchChat, sendText, sendFile, sendVoice } from "../services/chatService";
-import { get, post } from "../services/api";
+import { get, post, patch, del } from "../services/api";
 import { adminGetFoodSubscriptions, adminSubscribeUser, adminToggleFoodUser, adminDeleteFoodUser } from "../services/foodService";
 
 import SearchableSelect   from "../components/ui/SearchableSelect";
@@ -1384,6 +1384,321 @@ function UserRolesTab() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Org Setup Tab — Departments & Locations management
+// ─────────────────────────────────────────────────────────────────────────────
+function OrgSetupTab() {
+  const [depts,        setDepts]        = useState([]);
+  const [locs,         setLocs]         = useState([]);
+  const [loadingDepts, setLoadingDepts] = useState(true);
+  const [loadingLocs,  setLoadingLocs]  = useState(true);
+
+  const [deptShowAdd,  setDeptShowAdd]  = useState(false);
+  const [deptAddName,  setDeptAddName]  = useState("");
+  const [deptAdding,   setDeptAdding]   = useState(false);
+  const [deptEdit,     setDeptEdit]     = useState(null);
+  const [deptEditName, setDeptEditName] = useState("");
+  const [deptDelId,    setDeptDelId]    = useState(null);
+  const [deptDeleting, setDeptDeleting] = useState(false);
+
+  const [locShowAdd,   setLocShowAdd]   = useState(false);
+  const [locAddName,   setLocAddName]   = useState("");
+  const [locAdding,    setLocAdding]    = useState(false);
+  const [locEdit,      setLocEdit]      = useState(null);
+  const [locEditName,  setLocEditName]  = useState("");
+  const [locDelId,     setLocDelId]     = useState(null);
+  const [locDeleting,  setLocDeleting]  = useState(false);
+
+  const [toast, setToast] = useState(null);
+  const showToast = (type, msg) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const loadDepts = useCallback(async () => {
+    setLoadingDepts(true);
+    try { const data = await get("/admin/departments"); setDepts(data); }
+    catch { showToast("error", "Failed to load departments."); }
+    finally { setLoadingDepts(false); }
+  }, []);
+
+  const loadLocs = useCallback(async () => {
+    setLoadingLocs(true);
+    try { const data = await get("/admin/locations"); setLocs(data); }
+    catch { showToast("error", "Failed to load locations."); }
+    finally { setLoadingLocs(false); }
+  }, []);
+
+  useEffect(() => { loadDepts(); loadLocs(); }, [loadDepts, loadLocs]);
+
+  // ── Dept actions ────────────────────────────────────────────────────────────
+  const handleDeptAdd = async () => {
+    if (!deptAddName.trim()) return;
+    setDeptAdding(true);
+    try {
+      await post("/admin/departments", { name: deptAddName.trim() });
+      showToast("success", "Department added.");
+      setDeptAddName(""); setDeptShowAdd(false); loadDepts();
+    } catch (e) { showToast("error", e?.response?.data?.error || "Failed to add."); }
+    finally { setDeptAdding(false); }
+  };
+
+  const handleDeptSaveEdit = async () => {
+    if (!deptEditName.trim() || !deptEdit) return;
+    try {
+      await patch(`/admin/departments/${deptEdit.id}`, { name: deptEditName.trim() });
+      showToast("success", "Department updated.");
+      setDeptEdit(null); loadDepts();
+    } catch (e) { showToast("error", e?.response?.data?.error || "Failed to update."); }
+  };
+
+  const handleDeptToggle = async (d) => {
+    try {
+      await patch(`/admin/departments/${d.id}`, { isActive: !d.isActive });
+      setDepts(prev => prev.map(x => x.id === d.id ? { ...x, isActive: !x.isActive } : x));
+    } catch { showToast("error", "Failed to update status."); }
+  };
+
+  const handleDeptDelete = async () => {
+    setDeptDeleting(true);
+    try {
+      await del(`/admin/departments/${deptDelId}`);
+      showToast("success", "Department deleted.");
+      setDeptDelId(null); loadDepts();
+    } catch (e) { showToast("error", e?.response?.data?.error || "Failed to delete."); }
+    finally { setDeptDeleting(false); }
+  };
+
+  // ── Loc actions ─────────────────────────────────────────────────────────────
+  const handleLocAdd = async () => {
+    if (!locAddName.trim()) return;
+    setLocAdding(true);
+    try {
+      await post("/admin/locations", { name: locAddName.trim() });
+      showToast("success", "Location added.");
+      setLocAddName(""); setLocShowAdd(false); loadLocs();
+    } catch (e) { showToast("error", e?.response?.data?.error || "Failed to add."); }
+    finally { setLocAdding(false); }
+  };
+
+  const handleLocSaveEdit = async () => {
+    if (!locEditName.trim() || !locEdit) return;
+    try {
+      await patch(`/admin/locations/${locEdit.id}`, { name: locEditName.trim() });
+      showToast("success", "Location updated.");
+      setLocEdit(null); loadLocs();
+    } catch (e) { showToast("error", e?.response?.data?.error || "Failed to update."); }
+  };
+
+  const handleLocToggle = async (l) => {
+    try {
+      await patch(`/admin/locations/${l.id}`, { isActive: !l.isActive });
+      setLocs(prev => prev.map(x => x.id === l.id ? { ...x, isActive: !x.isActive } : x));
+    } catch { showToast("error", "Failed to update status."); }
+  };
+
+  const handleLocDelete = async () => {
+    setLocDeleting(true);
+    try {
+      await del(`/admin/locations/${locDelId}`);
+      showToast("success", "Location deleted.");
+      setLocDelId(null); loadLocs();
+    } catch (e) { showToast("error", e?.response?.data?.error || "Failed to delete."); }
+    finally { setLocDeleting(false); }
+  };
+
+  const EntryRow = ({ item, onEdit, onToggle, onDelete, accentColor }) => (
+    <div className={`flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors ${!item.isActive ? "opacity-50" : ""}`}>
+      <span className="flex-1 text-[12px] font-bold text-slate-700 truncate">{item.name}</span>
+      {!item.isActive && <span className="text-[10px] font-black text-red-400 uppercase">Inactive</span>}
+      <button onClick={() => onEdit(item)} className={`p-1.5 rounded-lg transition-all text-${accentColor}-500 hover:bg-${accentColor}-50`} title="Edit"><Pencil size={12}/></button>
+      <button onClick={() => onToggle(item)} className={`p-1.5 rounded-lg transition-all ${item.isActive ? "text-amber-500 hover:bg-amber-50" : "text-green-500 hover:bg-green-50"}`} title={item.isActive ? "Deactivate" : "Activate"}>
+        {item.isActive ? <ShieldOff size={12}/> : <ShieldCheck size={12}/>}
+      </button>
+      <button onClick={() => onDelete(item.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete"><Trash2 size={12}/></button>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      {toast && (
+        <div className={`px-4 py-3 rounded-xl text-[12px] font-bold border ${toast.type === "success" ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+          {toast.msg}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        {/* ── Departments ─────────────────────────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white">
+            <div className="flex items-center gap-2">
+              <Building2 size={16} className="text-indigo-500"/>
+              <h3 className="font-black text-slate-800 text-[14px]">Departments</h3>
+              <span className="text-[11px] text-slate-400 font-bold">({depts.length})</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={loadDepts} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all">
+                <RefreshCw size={13} className={loadingDepts ? "animate-spin" : ""}/>
+              </button>
+              <button onClick={() => { setDeptShowAdd(v => !v); setDeptAddName(""); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-[12px] transition-all active:scale-95 shadow-sm">
+                <Plus size={13}/> Add
+              </button>
+            </div>
+          </div>
+
+          {deptShowAdd && (
+            <div className="px-4 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center gap-2">
+              <input autoFocus value={deptAddName} onChange={e => setDeptAddName(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleDeptAdd()}
+                placeholder="New department name…"
+                className="flex-1 px-3 py-2 border border-indigo-200 rounded-xl text-[12px] bg-white focus:outline-none focus:border-indigo-400"/>
+              <button onClick={handleDeptAdd} disabled={deptAdding || !deptAddName.trim()}
+                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-black text-[12px] transition-all">
+                {deptAdding ? "…" : <Check size={14}/>}
+              </button>
+              <button onClick={() => setDeptShowAdd(false)} className="px-3 py-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all"><X size={14}/></button>
+            </div>
+          )}
+
+          <div className="overflow-y-auto max-h-[440px] divide-y divide-slate-50">
+            {loadingDepts ? (
+              <div className="text-center py-10 text-slate-400 font-bold text-[12px]">Loading…</div>
+            ) : depts.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 font-bold text-[12px]">No departments yet.</div>
+            ) : depts.map(d => (
+              <div key={d.id} className={`flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors ${!d.isActive ? "opacity-50" : ""}`}>
+                {deptEdit?.id === d.id ? (
+                  <>
+                    <input autoFocus value={deptEditName} onChange={e => setDeptEditName(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && handleDeptSaveEdit()}
+                      className="flex-1 px-2 py-1 border border-indigo-300 rounded-lg text-[12px] focus:outline-none focus:border-indigo-500"/>
+                    <button onClick={handleDeptSaveEdit} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"><Check size={13}/></button>
+                    <button onClick={() => setDeptEdit(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><X size={13}/></button>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1 text-[12px] font-bold text-slate-700 truncate">{d.name}</span>
+                    {!d.isActive && <span className="text-[10px] font-black text-red-400 uppercase">Inactive</span>}
+                    <button onClick={() => { setDeptEdit(d); setDeptEditName(d.name); }} className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-all" title="Edit"><Pencil size={12}/></button>
+                    <button onClick={() => handleDeptToggle(d)} className={`p-1.5 rounded-lg transition-all ${d.isActive ? "text-amber-500 hover:bg-amber-50" : "text-green-500 hover:bg-green-50"}`} title={d.isActive ? "Deactivate" : "Activate"}>
+                      {d.isActive ? <ShieldOff size={12}/> : <ShieldCheck size={12}/>}
+                    </button>
+                    <button onClick={() => setDeptDelId(d.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete"><Trash2 size={12}/></button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Locations ───────────────────────────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white">
+            <div className="flex items-center gap-2">
+              <MapPin size={16} className="text-emerald-600"/>
+              <h3 className="font-black text-slate-800 text-[14px]">Locations</h3>
+              <span className="text-[11px] text-slate-400 font-bold">({locs.length})</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={loadLocs} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all">
+                <RefreshCw size={13} className={loadingLocs ? "animate-spin" : ""}/>
+              </button>
+              <button onClick={() => { setLocShowAdd(v => !v); setLocAddName(""); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[12px] transition-all active:scale-95 shadow-sm">
+                <Plus size={13}/> Add
+              </button>
+            </div>
+          </div>
+
+          {locShowAdd && (
+            <div className="px-4 py-3 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2">
+              <input autoFocus value={locAddName} onChange={e => setLocAddName(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleLocAdd()}
+                placeholder="New location name…"
+                className="flex-1 px-3 py-2 border border-emerald-200 rounded-xl text-[12px] bg-white focus:outline-none focus:border-emerald-400"/>
+              <button onClick={handleLocAdd} disabled={locAdding || !locAddName.trim()}
+                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black text-[12px] transition-all">
+                {locAdding ? "…" : <Check size={14}/>}
+              </button>
+              <button onClick={() => setLocShowAdd(false)} className="px-3 py-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all"><X size={14}/></button>
+            </div>
+          )}
+
+          <div className="overflow-y-auto max-h-[440px] divide-y divide-slate-50">
+            {loadingLocs ? (
+              <div className="text-center py-10 text-slate-400 font-bold text-[12px]">Loading…</div>
+            ) : locs.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 font-bold text-[12px]">No locations yet.</div>
+            ) : locs.map(l => (
+              <div key={l.id} className={`flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors ${!l.isActive ? "opacity-50" : ""}`}>
+                {locEdit?.id === l.id ? (
+                  <>
+                    <input autoFocus value={locEditName} onChange={e => setLocEditName(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && handleLocSaveEdit()}
+                      className="flex-1 px-2 py-1 border border-emerald-300 rounded-lg text-[12px] focus:outline-none focus:border-emerald-500"/>
+                    <button onClick={handleLocSaveEdit} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Check size={13}/></button>
+                    <button onClick={() => setLocEdit(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><X size={13}/></button>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1 text-[12px] font-bold text-slate-700 truncate">{l.name}</span>
+                    {!l.isActive && <span className="text-[10px] font-black text-red-400 uppercase">Inactive</span>}
+                    <button onClick={() => { setLocEdit(l); setLocEditName(l.name); }} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Edit"><Pencil size={12}/></button>
+                    <button onClick={() => handleLocToggle(l)} className={`p-1.5 rounded-lg transition-all ${l.isActive ? "text-amber-500 hover:bg-amber-50" : "text-green-500 hover:bg-green-50"}`} title={l.isActive ? "Deactivate" : "Activate"}>
+                      {l.isActive ? <ShieldOff size={12}/> : <ShieldCheck size={12}/>}
+                    </button>
+                    <button onClick={() => setLocDelId(l.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete"><Trash2 size={12}/></button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Delete confirm — Dept */}
+      {deptDelId && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 space-y-4">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3"><Trash2 size={22} className="text-red-600"/></div>
+              <h3 className="font-black text-slate-800">Delete Department?</h3>
+              <p className="text-[12px] text-slate-500 mt-1"><span className="font-bold">{depts.find(d => d.id === deptDelId)?.name}</span> will be permanently removed.</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setDeptDelId(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-black text-[12px] hover:bg-slate-50 transition-all">Cancel</button>
+              <button onClick={handleDeptDelete} disabled={deptDeleting} className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-black text-[12px] transition-all active:scale-95">
+                {deptDeleting ? "Deleting…" : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirm — Loc */}
+      {locDelId && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 space-y-4">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3"><Trash2 size={22} className="text-red-600"/></div>
+              <h3 className="font-black text-slate-800">Delete Location?</h3>
+              <p className="text-[12px] text-slate-500 mt-1"><span className="font-bold">{locs.find(l => l.id === locDelId)?.name}</span> will be permanently removed.</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setLocDelId(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-black text-[12px] hover:bg-slate-50 transition-all">Cancel</button>
+              <button onClick={handleLocDelete} disabled={locDeleting} className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-black text-[12px] transition-all active:scale-95">
+                {locDeleting ? "Deleting…" : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tab bar button
 // ─────────────────────────────────────────────────────────────────────────────
 function TabBtn({ label, icon, active, onClick }) {
@@ -1407,6 +1722,7 @@ const TABS = [
   { key: "roles",      label: "Roles",             icon: <KeyRound size={14} /> },
   { key: "food",       label: "Food",              icon: <UtensilsCrossed size={14} /> },
   { key: "report",     label: "Admin Report",      icon: <BarChart2 size={14} /> },
+  { key: "orgsetup",   label: "Org Setup",         icon: <Building2 size={14} /> },
 ];
 
 export default function SuperUserHome({ currentUser, onLogout, onSwitchRole }) {
@@ -1483,6 +1799,13 @@ export default function SuperUserHome({ currentUser, onLogout, onSwitchRole }) {
         {activeTab === "report" && (
           <div className="flex-1 min-h-0 overflow-y-auto bg-[#f8fafc]">
             <AdminReportPage />
+          </div>
+        )}
+
+        {/* Org Setup — Departments & Locations management */}
+        {activeTab === "orgsetup" && (
+          <div className="flex-1 min-h-0 overflow-y-auto bg-[#f8fafc] p-4 sm:p-6">
+            <OrgSetupTab />
           </div>
         )}
       </main>

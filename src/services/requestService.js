@@ -1,5 +1,15 @@
 import { get, postForm, patch, patchForm, del } from "./api";
 
+export async function fetchDepartments() {
+  const data = await get("/requests/departments");
+  return data.departments || [];
+}
+
+export async function fetchLocations() {
+  const data = await get("/requests/locations");
+  return data.locations || [];
+}
+
 export async function fetchRequests(params = {}) {
   const query = new URLSearchParams();
   Object.keys(params).forEach(key => {

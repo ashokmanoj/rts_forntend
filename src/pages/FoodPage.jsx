@@ -84,7 +84,7 @@ export default function FoodPage({ currentUser, refreshKey = 0 }) {
   const [addModalLoading, setAddModalLoading] = useState(false);
   const [allUsers,        setAllUsers]        = useState([]);
   const [usersLoading,    setUsersLoading]    = useState(false);
-  const [addForm, setAddForm] = useState({ empId: '', weekDate: '', amount: '', note: '' });
+  const [addForm, setAddForm] = useState({ empId: '', empIds: [], weekDate: '', amount: '', note: '' });
 
   // ── SuperUser: clear food votes ───────────────────────────────────────────
   const [clearPeriod,      setClearPeriod]      = useState('prev-month');
@@ -238,7 +238,7 @@ export default function FoodPage({ currentUser, refreshKey = 0 }) {
 
   // ── Open "Add User" modal — load user list ───────────────────────────────
   const openAddModal = async () => {
-    setAddForm({ empId: '', weekDate: new Date().toISOString().split('T')[0], amount: '', note: '' });
+    setAddForm({ empId: '', empIds: [], weekDate: new Date().toISOString().split('T')[0], amount: '', note: '' });
     setShowAddModal(true);
     if (allUsers.length === 0) {
       setUsersLoading(true);
@@ -246,13 +246,30 @@ export default function FoodPage({ currentUser, refreshKey = 0 }) {
     }
   };
 
+  const isSuperUser = currentUser?.role === 'SuperUser';
+
   const handleAddManualEntry = async () => {
-    if (!addForm.empId || !addForm.weekDate || !addForm.amount) return;
+    if (!addForm.weekDate || !addForm.amount) return;
+    if (isSuperUser && addForm.empIds.length === 0) return;
+    if (!isSuperUser && !addForm.empId) return;
     setAddModalLoading(true);
     try {
-      const res = await addFoodManualEntry(addForm.empId, addForm.weekDate, parseFloat(addForm.amount), addForm.note);
-      setShowAddModal(false);
-      setStatusMsg({ type: 'success', text: `${res.userName} added to food for week of ${res.weekStart}.` });
+      if (isSuperUser) {
+        const targets = addForm.empIds.length === allUsers.length
+          ? allUsers.map(u => u.empId)
+          : addForm.empIds;
+        const results = await Promise.allSettled(
+          targets.map(id => addFoodManualEntry(id, addForm.weekDate, parseFloat(addForm.amount), addForm.note))
+        );
+        const succeeded = results.filter(r => r.status === 'fulfilled').length;
+        const failed    = results.filter(r => r.status === 'rejected').length;
+        setShowAddModal(false);
+        setStatusMsg({ type: succeeded > 0 ? 'success' : 'error', text: failed > 0 ? `${succeeded} added, ${failed} failed.` : `${succeeded} user${succeeded !== 1 ? 's' : ''} added to food.` });
+      } else {
+        const res = await addFoodManualEntry(addForm.empId, addForm.weekDate, parseFloat(addForm.amount), addForm.note);
+        setShowAddModal(false);
+        setStatusMsg({ type: 'success', text: `${res.userName} added to food for week of ${res.weekStart}.` });
+      }
       if (reportData) loadReport();
     } catch (err) {
       setStatusMsg({ type: 'error', text: err?.response?.data?.error || 'Failed to add manual entry.' });
@@ -478,9 +495,39 @@ export default function FoodPage({ currentUser, refreshKey = 0 }) {
             <div className="space-y-3">
               {/* User select */}
               <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">Select User</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                    {isSuperUser ? 'Select Users' : 'Select User'}
+                  </label>
+                  {isSuperUser && !usersLoading && allUsers.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setAddForm(f => ({
+                        ...f,
+                        empIds: f.empIds.length === allUsers.length ? [] : allUsers.map(u => u.empId)
+                      }))}
+                      className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 transition-colors"
+                    >
+                      {addForm.empIds.length === allUsers.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  )}
+                </div>
                 {usersLoading ? (
                   <div className="text-[11px] text-slate-400 py-2">Loading users…</div>
+                ) : isSuperUser ? (
+                  <>
+                    <SearchableSelect
+                      multiSelect
+                      value={addForm.empIds}
+                      onChange={vals => setAddForm(f => ({ ...f, empIds: vals }))}
+                      options={allUsers.map(u => ({ value: u.empId, label: `${u.name} (${u.empId}) — ${u.dept}` }))}
+                      placeholder="Search and select users…"
+                      triggerClassName="border border-slate-200 py-2 px-3 rounded-xl text-[12px] font-bold text-slate-700 w-full hover:border-indigo-300"
+                    />
+                    {addForm.empIds.length > 0 && (
+                      <p className="text-[10px] text-indigo-600 font-bold mt-1">{addForm.empIds.length} user{addForm.empIds.length !== 1 ? 's' : ''} selected</p>
+                    )}
+                  </>
                 ) : (
                   <SearchableSelect
                     value={addForm.empId}
@@ -538,11 +585,11 @@ export default function FoodPage({ currentUser, refreshKey = 0 }) {
               </button>
               <button
                 onClick={handleAddManualEntry}
-                disabled={addModalLoading || !addForm.empId || !addForm.weekDate || !addForm.amount}
+                disabled={addModalLoading || !addForm.weekDate || !addForm.amount || (isSuperUser ? addForm.empIds.length === 0 : !addForm.empId)}
                 className="flex items-center gap-1.5 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[12px] font-black shadow-sm transition-all active:scale-95 disabled:opacity-50"
               >
                 {addModalLoading && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                Add to Food
+                {isSuperUser && addForm.empIds.length > 1 ? `Add ${addForm.empIds.length} Users` : 'Add to Food'}
               </button>
             </div>
           </div>

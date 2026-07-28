@@ -1,28 +1,16 @@
 import { useState, useEffect } from "react";
 import { X, Megaphone, Send, Users, MapPin } from "lucide-react";
 import { post, get } from "../../services/api";
+import { fetchDepartments } from "../../services/requestService";
 import SearchableSelect from "../ui/SearchableSelect";
 import { LinkPreview } from "../../utils/linkUtils";
-
-const DEPARTMENTS = [
-  "Academics-Assam","Academics-Karnataka","Academics-Mizoram","Academics-Tripura","Academics-Uttarakhand",
-  "Accounts-A","Accounts-G","Animation",
-  "Broadcasting-Assam","Broadcasting-Karnataka","Broadcasting-Mizoram","Broadcasting-Tripura","Broadcasting-Uttarakhand",
-  "Business Development","Corporate Communications","Documentation",
-  "Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing",
-  "Operations-Assam","Operations-Bihar","Operations-Karnataka","Operations-Maharashtra",
-  "Operations-Mizoram","Operations-Nagaland","Operations-Sundargarh, Odisha","Operations-Tripura","Operations-Uttarakhand",
-  "Purchase","RTS Help Desk","Software",
-  "Stores-Assam","Stores-Karnataka","Stores-Mizoram","Stores-Tripura",
-  "System Admin-Assam","System Admin-Karnataka","System Admin-Uttarakhand",
-  "TA Committee","Technical Support",
-];
 
 export default function BroadcastModal({ onClose }) {
   const [title,           setTitle]           = useState("");
   const [message,         setMessage]         = useState("");
   const [targetDepts,     setTargetDepts]     = useState([]);
   const [targetLocations, setTargetLocations] = useState([]);
+  const [departments,     setDepartments]     = useState([]);
   const [locations,       setLocations]       = useState([]);
   const [loading,         setLoading]         = useState(false);
   const [result,          setResult]          = useState(null);
@@ -30,6 +18,7 @@ export default function BroadcastModal({ onClose }) {
   const isAll = targetDepts.length === 0 && targetLocations.length === 0;
 
   useEffect(() => {
+    fetchDepartments().then(setDepartments).catch(() => {});
     get("/requests/locations")
       .then(data => setLocations(data.locations || []))
       .catch(() => {});
@@ -116,7 +105,7 @@ export default function BroadcastModal({ onClose }) {
               multiSelect
               value={targetDepts}
               onChange={setTargetDepts}
-              options={DEPARTMENTS.map(d => ({ value: d, label: d }))}
+              options={departments.map(d => ({ value: d, label: d }))}
               placeholder="Select specific departments..."
               triggerClassName="py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-bold hover:border-violet-300"
             />

@@ -10,21 +10,9 @@ import { useEscapeKey } from "../../hooks/useEscapeKey";
 import Spinner from "../ui/Spinner";
 import SearchableSelect from "../ui/SearchableSelect";
 import { get } from "../../services/api";
+import { fetchDepartments } from "../../services/requestService";
 import { LinkPreview } from "../../utils/linkUtils";
 import RichTextArea from "../ui/RichTextArea";
-
-const DEPARTMENTS = [
-  "Academics-Assam","Academics-Karnataka","Academics-Mizoram","Academics-Telangana","Academics-Tripura","Academics-Uttarakhand",
-  "Accounts-A","Accounts-G","Animation",
-
-  "Broadcasting-Assam","Broadcasting-Karnataka","Broadcasting-Mizoram","Broadcasting-Telangana","Broadcasting-Tripura","Broadcasting-Uttarakhand",
-  "Business Development","Corporate Communications","Documentation",
-  "Facilities","Food Committee","Game Development","Govt. Relations","HR","Management","Marketing",
-  "Operations-Assam","Operations-Bihar","Operations-Karnataka","Operations-Maharashtra","Operations-Mizoram","Operations-Nagaland","Operations-Sundargarh, Odisha","Operations-Tripura","Operations-Uttarakhand",
-  "Purchase","RTS Help Desk","Software","Stores-Assam","Stores-Karnataka","Stores-Mizoram","Stores-Tripura","Stores-Uttarakhand",
-  "System Admin-Assam","System Admin-Karnataka","System Admin-Uttarakhand",
-  "TA Committee","Technical Support",
-];
 
 const NO_USER_DEPTS = new Set(["Accounts-G"]);
 
@@ -275,6 +263,9 @@ async function idbDeleteFiles(key) {
 }
 
 export default function AddRequestModal({ onClose, onSubmit, currentUser, initialDept, threadParentId = null }) {
+  const [DEPARTMENTS, setDEPARTMENTS] = useState([]);
+  useEffect(() => { fetchDepartments().then(setDEPARTMENTS).catch(() => {}); }, []);
+
   // ── Core fields ──────────────────────────────────────────────────────────────
   const [purpose,       setPurpose]      = useState("");
   const [description,   setDescription] = useState("");

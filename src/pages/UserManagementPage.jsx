@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { get, post, patch } from "../services/api";
+import { fetchDepartments, fetchLocations } from "../services/requestService";
 import {
   UserPlus,
   UserMinus,
@@ -35,25 +36,6 @@ import {
 import SearchableSelect from "../components/ui/SearchableSelect";
 
 const ROLES = ["Requestor", "RM", "HOD", "DeptHOD", "Management", "Admin", "Intern", "ViewCloseTicket"];
-const DEPARTMENTS = [
-  "Academics-Assam", "Academics-Karnataka", "Academics-Mizoram", "Academics-Telangana", "Academics-Tripura", "Academics-Uttarakhand",
-  "Accounts-A", "Accounts-G", "Animation",
-  "Broadcasting-Assam", "Broadcasting-Karnataka", "Broadcasting-Mizoram", "Broadcasting-Telangana", "Broadcasting-Tripura", "Broadcasting-Uttarakhand",
-  "Business Development", "Corporate Communications", "Documentation",
-  "Facilities", "Food Committee", "Game Development", "Govt. Relations", "HR", "Interns", "Management",
-  "Marketing",
-  "Operations-Assam", "Operations-Bihar", "Operations-Karnataka", "Operations-Maharashtra", "Operations-Mizoram", "Operations-Nagaland", "Operations-Sundargarh, Odisha", "Operations-Tripura", "Operations-Uttarakhand",
-  "Purchase", "RTS Help Desk", "Software",
-  "Stores-Assam", "Stores-Karnataka", "Stores-Mizoram", "Stores-Tripura", "Stores-Uttarakhand",
-  "System Admin-Assam", "System Admin-Karnataka", "System Admin-Uttarakhand",
-  "TA Committee", "Technical Support"
-];
-
-const LOCATIONS = [
-  "Agartala", "Bangalore", "Bhagalpur", "Cachar", "Chamoli", "Delhi", "Dehradun",
-  "Dhemaji", "Diphu", "Guwahati", "Hubli", "Hyderabad", "Kokrajhar", "Maharashtra", "Nagaland",
-  "Silchar", "Singrauli", "Sonbhadra", "Sundargarh, Odisha", "Aizawl"
-];
 
 const DESIGNATIONS = [
   "Associate Cloud Data Engineer", "2D Animator", "2D Artist", "3D Animator", "3D Artist",
@@ -180,6 +162,13 @@ function EmpIdPicker({ value, onChange, users, placeholder = "Search by ID or na
 }
 
 export default function UserManagementPage({ currentUser }) {
+  const [departments, setDepartments] = useState([]);
+  const [locations,   setLocations]   = useState([]);
+  useEffect(() => {
+    fetchDepartments().then(setDepartments).catch(() => {});
+    fetchLocations().then(setLocations).catch(() => {});
+  }, []);
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -887,7 +876,7 @@ export default function UserManagementPage({ currentUser }) {
                   <SearchableSelect
                     value={formData.dept}
                     onChange={(val) => setFormData({ ...formData, dept: val })}
-                    options={DEPARTMENTS}
+                    options={departments}
                     placeholder="Select department…"
                   />
                 </div>
@@ -908,7 +897,7 @@ export default function UserManagementPage({ currentUser }) {
                   <SearchableSelect
                     value={formData.location}
                     onChange={(val) => setFormData({ ...formData, location: val })}
-                    options={LOCATIONS}
+                    options={locations}
                     placeholder="Select location…"
                   />
                 </div>
@@ -1164,7 +1153,7 @@ export default function UserManagementPage({ currentUser }) {
                   <SearchableSelect
                     value={editFormData.dept}
                     onChange={(val) => setEditFormData({ ...editFormData, dept: val })}
-                    options={DEPARTMENTS}
+                    options={departments}
                     placeholder="Select department…"
                   />
                 </div>
@@ -1185,7 +1174,7 @@ export default function UserManagementPage({ currentUser }) {
                   <SearchableSelect
                     value={editFormData.location}
                     onChange={(val) => setEditFormData({ ...editFormData, location: val })}
-                    options={LOCATIONS}
+                    options={locations}
                     placeholder="Select location…"
                   />
                 </div>
