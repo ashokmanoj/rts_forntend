@@ -32,6 +32,10 @@ export default function LoginPage({ onLogin }) {
   const [selectedCategory,  setSelectedCategory]  = useState(null);
   const [showGuide,         setShowGuide]         = useState(false);
 
+  const roleHome = (role) =>
+    role === "SuperUser"  ? "/super"      :
+    role === "Management" ? "/management" : "/";
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -42,7 +46,7 @@ export default function LoginPage({ onLogin }) {
         setPending(result);
         setSelectedCategory(null);
       } else {
-        window.location.replace("/");
+        window.location.replace(roleHome(result?.role));
       }
     } catch (err) {
       setError(err.response?.data?.error || "Login failed. Check your credentials.");
@@ -55,8 +59,8 @@ export default function LoginPage({ onLogin }) {
     setError("");
     setSelecting(true);
     try {
-      await selectRole(pending.tempToken, role, dept);
-      window.location.replace("/");
+      const user = await selectRole(pending.tempToken, role, dept);
+      window.location.replace(roleHome(user?.role));
     } catch (err) {
       setError(err.response?.data?.error || "Role selection failed. Please try again.");
       setPending(null);
