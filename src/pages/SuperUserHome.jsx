@@ -1096,7 +1096,7 @@ function FoodAdminTab({ currentUser }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // User Roles Tab
 // ─────────────────────────────────────────────────────────────────────────────
-const ALL_ROLES = ["Requestor","RM","HOD","DeptHOD","Management","Admin","HR","FoodCommittee","Intern","SuperUser"];
+const ALL_ROLES = ["Requestor","RM","HOD","DeptHOD","Management","Admin","HR","FoodCommittee","Intern","SuperUser","ViewCloseTicket"];
 
 function RoleModal({ title, initial, onSave, onClose, excludeEmpId }) {
   const [empId, setEmpId] = useState(initial?.empId || "");
