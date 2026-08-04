@@ -626,7 +626,7 @@ function RequestsTab({ currentUser, onLogout, onSwitchRole }) {
       {activeModal === "details" && selectedReq && (
         <DetailsModal
           req={selectedReq}
-          chatLogs={chatLogs[selectedReq.id] || []}
+          chatLogs={chatLogs}
           currentUser={currentUser}
           onClose={() => setActiveModal(null)}
           onSendMessage={handleSendMessage}
