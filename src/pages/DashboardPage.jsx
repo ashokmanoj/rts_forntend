@@ -58,7 +58,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   // Consolidate filters into one state object.
   // Priority: URL params → localStorage → defaults
   const [filters, setFilters] = useState(() => {
-    const urlKeys = ["name","dept","assignedDept","rmStatus","deptHodStatus","type","priority","unread","latest","sortOrder","sortMode","startDate","endDate","search"];
+    const urlKeys = ["name","dept","assignedDept","rmStatus","deptHodStatus","type","priority","unread","sortOrder","sortMode","startDate","endDate","search"];
     const hasUrlFilters = urlKeys.some(k => searchParams.has(k));
     if (!hasUrlFilters) {
       const stored = loadFiltersFromStorage(currentUserProp?.empId);
@@ -74,7 +74,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
       priority:       parseArr("priority"),
       unread:         searchParams.get("unread") === "true",
       latest:         searchParams.get("latest") === "true",
-      sortOrder:      searchParams.get("sortOrder") || "desc",
+      sortOrder:      searchParams.get("sortOrder") || "default",
       sortMode:       searchParams.get("sortMode") || "default",
       startDate:      searchParams.get("startDate") ? new Date(searchParams.get("startDate")) : null,
       endDate:        searchParams.get("endDate") ? new Date(searchParams.get("endDate")) : null,
@@ -227,7 +227,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   useEffect(() => {
     const newKey = `${currentUserProp?.role}-${currentUserProp?.dept}`;
     if (prevRoleKeyRef.current !== null && prevRoleKeyRef.current !== newKey) {
-      const cleared = { name: [], dept: [], assignedDept: [], rmStatus: [], deptHodStatus: [], type: [], priority: [], unread: false, latest: false, sortMode: "default", sortOrder: "desc", startDate: null, endDate: null, search: "" };
+      const cleared = { name: [], dept: [], assignedDept: [], rmStatus: [], deptHodStatus: [], type: [], priority: [], unread: false, latest: false, sortMode: "default", sortOrder: "default", startDate: null, endDate: null, search: "" };
       setFilters(cleared);
       setCurrentPage(1);
       loadFilterOptions();
@@ -475,7 +475,6 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
             { key: "desc",    label: "Descending Date" },
             { key: "asc",     label: "Ascending Date" },
             { key: "unread",  label: "Unread" },
-            { key: "latest",  label: "Latest" },
           ];
 
           const applySort = (mode) => {
@@ -483,8 +482,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
             if      (mode === "asc")    nf = { ...filters, sortMode: "asc",     sortOrder: "asc",  unread: false, latest: false };
             else if (mode === "desc")   nf = { ...filters, sortMode: "desc",    sortOrder: "desc", unread: false, latest: false };
             else if (mode === "unread") nf = { ...filters, sortMode: "unread",  sortOrder: "desc", unread: true,  latest: false };
-            else if (mode === "latest") nf = { ...filters, sortMode: "latest",  sortOrder: "desc", unread: false, latest: true  };
-            else                        nf = { ...filters, sortMode: "default", sortOrder: "desc", unread: false, latest: false };
+            else                        nf = { ...filters, sortMode: "default", sortOrder: "default", unread: false, latest: false };
             setFilters(nf);
             isFetchingRef.current = false;
             loadRequests(currentPage, nf);

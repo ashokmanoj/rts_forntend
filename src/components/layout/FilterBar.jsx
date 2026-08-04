@@ -76,7 +76,7 @@ export default function FilterBar({
   const resetFilters = () => {
     setLocalSearch("");
     onSearchChange("");
-    onFilterChange({ name: [], dept: [], assignedDept: [], rmStatus: [], deptHodStatus: [], type: [], priority: [], unread: false, latest: false, sortMode: "default", sortOrder: "desc", startDate: null, endDate: null, search: "" });
+    onFilterChange({ name: [], dept: [], assignedDept: [], rmStatus: [], deptHodStatus: [], type: [], priority: [], unread: false, latest: false, sortMode: "default", sortOrder: "default", startDate: null, endDate: null, search: "" });
     onClearFilters?.();
   };
 
