@@ -262,6 +262,8 @@ async function idbDeleteFiles(key) {
   } catch {}
 }
 
+const HIDDEN_USER_DEPTS = ["TA Committee"];
+
 export default function AddRequestModal({ onClose, onSubmit, currentUser, initialDept, threadParentId = null }) {
   const [DEPARTMENTS, setDEPARTMENTS] = useState([]);
   useEffect(() => { fetchDepartments().then(setDEPARTMENTS).catch(() => {}); }, []);
@@ -787,7 +789,7 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
                       const panelWidth = personPanelOpen ? Math.max(deptPickerRect.width, 480) : Math.max(deptPickerRect.width, 240);
                       const panelStyle = { position: "fixed", top, left: deptPickerRect.left, width: panelWidth, zIndex: 9999 };
 
-                      const users           = deptUsers[selectedDept] || [];
+                      const users           = HIDDEN_USER_DEPTS.includes(selectedDept) ? [] : (deptUsers[selectedDept] || []);
                       const selectable      = users.filter(u => u.empId !== currentUser?.empId);
                       const filteredDepts   = DEPARTMENTS.filter(d => d.toLowerCase().includes(deptSearch.toLowerCase()));
                       const filteredPersons = selectable.filter(u =>
@@ -979,8 +981,8 @@ export default function AddRequestModal({ onClose, onSubmit, currentUser, initia
 
               {ccPickerOpen && (() => {
                 const activeDept      = [...ccExpandedDepts][0] ?? null;
-                const activeUsers     = activeDept ? (ccDeptUsers[activeDept] || []) : [];
-                const activeLoading   = activeDept ? ccLoadingDepts.has(activeDept) : false;
+                const activeUsers     = activeDept && !HIDDEN_USER_DEPTS.includes(activeDept) ? (ccDeptUsers[activeDept] || []) : [];
+                const activeLoading   = activeDept && !HIDDEN_USER_DEPTS.includes(activeDept) ? ccLoadingDepts.has(activeDept) : false;
                 const activeSelectable = activeUsers.filter(u => u.empId !== currentUser?.empId);
                 const activeSelCount   = activeSelectable.filter(u => ccSelectedEmpIds.has(u.empId)).length;
                 return (

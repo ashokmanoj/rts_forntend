@@ -262,6 +262,15 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
   const isOwnRequest = req?.empId === currentUser?.empId;
   const isFromOtherDept = (req?.dept || "").trim().toLowerCase() !== (currentUser?.dept || "").trim().toLowerCase();
   const isAssignedToMyDept = (req?.assignedDept || "").trim().toLowerCase() === (currentUser?.dept || "").trim().toLowerCase();
+
+  // User's dept must be involved in this request (as requestor dept, assigned dept, or in the
+  // forwarding chain) before RM/HOD/DeptHOD can take any action on it.
+  const myDeptLower = (currentUser?.dept || "").trim().toLowerCase();
+  const assignedDeptsChain = (req?.assignedDepts || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+  const isDeptRelevant =
+    myDeptLower === (req?.dept || "").trim().toLowerCase() ||
+    myDeptLower === (req?.assignedDept || "").trim().toLowerCase() ||
+    assignedDeptsChain.includes(myDeptLower);
   const isTeamMemberIncoming = isFromOtherDept && isAssignedToMyDept;
 
   // If this RM/HOD is from the assigned dept (not requestor's dept) → use assigned fields
@@ -294,8 +303,8 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     (req?.ccEmpIds && req.ccEmpIds.split(",").map(s => s.trim()).some(e => e === currentUser?.empId))
   );
 
-  const canApprove    = (isRM || isHOD || isDeptHOD || isManagement) && !isClosed && !isPendingAck && !isOwnRequest && !isForwardedAway && !isCcUser;
-  const canChangeDept = (isRM || isHOD || isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck && !isForwardedAway && !isCcUser;
+  const canApprove    = (isRM || isHOD || isDeptHOD || isManagement) && !isClosed && !isPendingAck && !isOwnRequest && !isForwardedAway && !isCcUser && (isManagement || isDeptRelevant);
+  const canChangeDept = (isRM || isHOD || isDeptHOD || isManagement) && !isOwnRequest && !isClosed && !isPendingAck && !isForwardedAway && !isCcUser && (isManagement || isDeptRelevant);
   // Facilities requestor can close incoming requests assigned to Facilities (not their own)
   const isFacilitiesRequestorClose = currentUser?.dept === "Facilities" && roleLow === "requestor" && req?.assignedDept === "Facilities" && !isOwnRequest && !isClosed && !isPendingAck && !isCcUser;
   // ViewCloseTicket: buttons only visible after the assigned dept HOD or DeptHOD has approved

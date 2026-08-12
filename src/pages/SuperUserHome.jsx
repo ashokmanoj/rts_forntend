@@ -1387,9 +1387,10 @@ function UserRolesTab() {
 // Mobile Users Tab
 // ─────────────────────────────────────────────────────────────────────────────
 function MobileUsersTab() {
-  const [users,   setUsers]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search,  setSearch]  = useState("");
+  const [users,     setUsers]     = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [search,    setSearch]    = useState("");
+  const [todayOnly, setTodayOnly] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const load = useCallback(async () => {
@@ -1407,12 +1408,20 @@ function MobileUsersTab() {
     return () => clearInterval(id);
   }, [load]);
 
+  const isToday = (d) => {
+    if (!d) return false;
+    const t = new Date(d), n = new Date();
+    return t.getFullYear() === n.getFullYear() && t.getMonth() === n.getMonth() && t.getDate() === n.getDate();
+  };
+
+  const todayCount  = users.filter(u => isToday(u.lastSeen)).length;
+  const onlineCount = users.filter(u => u.isOnline).length;
+
   const filtered = users.filter(u => {
+    if (todayOnly && !isToday(u.lastSeen)) return false;
     const q = search.toLowerCase();
     return !q || u.name?.toLowerCase().includes(q) || u.empId?.toLowerCase().includes(q) || u.dept?.toLowerCase().includes(q) || u.location?.toLowerCase().includes(q);
   });
-
-  const onlineCount = users.filter(u => u.isOnline).length;
 
   const timeAgo = (d) => {
     if (!d) return "—";
@@ -1444,6 +1453,11 @@ function MobileUsersTab() {
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block"/>
                 {onlineCount} Online
               </div>
+              <button onClick={() => setTodayOnly(v => !v)}
+                className={`px-3 py-1.5 rounded-xl text-[12px] font-black flex items-center gap-1.5 transition-colors ${todayOnly ? "bg-blue-600 text-white shadow-sm" : "bg-blue-100 text-blue-700 hover:bg-blue-200"}`}>
+                <span className="w-2 h-2 rounded-full bg-current opacity-80 inline-block"/>
+                {todayCount} Seen Today
+              </button>
               <div className="px-3 py-1.5 bg-slate-100 rounded-xl text-[12px] font-black text-slate-600">
                 {users.length} Total
               </div>
