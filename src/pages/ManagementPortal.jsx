@@ -232,6 +232,10 @@ export default function ManagementPortal({ currentUser, onLogout }) {
   const [rmFilter,      setRmFilter]      = useState("all");   // all | pending | approved | rejected | checking
   const [deptFilter,    setDeptFilter]    = useState("all");   // all | <dept name>
 
+  const [portalPage, setPortalPage] = useState(1);
+  const [readOrder,  setReadOrder]  = useState([]); // IDs in the order they were opened this session
+  const PAGE_SIZE = 15;
+
   const pollRef = useRef(null);
 
   const load = useCallback(async (silent = false) => {
@@ -286,6 +290,10 @@ export default function ManagementPortal({ currentUser, onLogout }) {
     if (!row.seen) {
       markRequestSeen(row.id).catch(() => {});
       setRequests(prev => prev.map(r => r.id === row.id ? { ...r, seen: true } : r));
+      setReadOrder(prev => [...prev.filter(id => id !== row.id), row.id]);
+    } else {
+      // Re-opening an already-read ticket: move it to the bottom of read order
+      setReadOrder(prev => [...prev.filter(id => id !== row.id), row.id]);
     }
     try {
       const result = await fetchChat(row.id);
@@ -296,6 +304,8 @@ export default function ManagementPortal({ currentUser, onLogout }) {
   const handleMarkUnread = useCallback((reqId) => {
     markRequestUnread(reqId).catch(() => {});
     setRequests(prev => prev.map(r => r.id === reqId ? { ...r, seen: false } : r));
+    setReadOrder(prev => prev.filter(id => id !== reqId));
+    setPortalPage(1);
   }, []);
 
   const handleSendMessage = async (reqId, message) => {
@@ -362,12 +372,14 @@ export default function ManagementPortal({ currentUser, onLogout }) {
       if (deptFilter !== "all" && r.dept !== deptFilter) return false;
       return true;
     });
-    // Unread rows always appear first
-    return [
-      ...filtered.filter(r => !r.seen),
-      ...filtered.filter(r =>  r.seen),
-    ];
-  }, [requests, search, statusFilter, rmFilter, deptFilter]);
+    // 1. Unread — original server order (by id desc)
+    // 2. Read but not opened this session — sorted by ticket id
+    // 3. Read and opened this session — sorted by when they were opened (last opened = last row)
+    const unread      = filtered.filter(r => !r.seen);
+    const readOld     = filtered.filter(r =>  r.seen && !readOrder.includes(r.id)).sort((a, b) => a.id - b.id);
+    const readSession = filtered.filter(r =>  r.seen &&  readOrder.includes(r.id)).sort((a, b) => readOrder.indexOf(a.id) - readOrder.indexOf(b.id));
+    return [...unread, ...readOld, ...readSession];
+  }, [requests, search, statusFilter, rmFilter, deptFilter, readOrder]);
 
   const activeFilterCount = [
     search.trim() !== "",
@@ -381,7 +393,11 @@ export default function ManagementPortal({ currentUser, onLogout }) {
     setStatusFilter("all");
     setRmFilter("all");
     setDeptFilter("all");
+    setPortalPage(1);
   };
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => { setPortalPage(1); }, [search, statusFilter, rmFilter, deptFilter]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 font-sans flex flex-col" style={{height:"100dvh"}}>
@@ -594,48 +610,91 @@ export default function ManagementPortal({ currentUser, onLogout }) {
             <p className="text-sm text-slate-400">HOD requests and GN employee tickets will appear here.</p>
           </div>
         ) : (
-          <div className="flex-1 min-h-0 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-auto pb-4">
-            <table className="w-full border-collapse">
-              <thead className="sticky top-0 z-10">
-                <tr className="bg-amber-600 text-white text-[11px] font-black uppercase tracking-wide">
-                  <th className="px-3 py-3 text-center w-10">Ticket #</th>
-                  <th className="px-3 py-3 text-left">Date</th>
-                  <th className="px-3 py-3 text-left">Requestor</th>
-                  <th className="px-3 py-3 text-left">Purpose / Description</th>
-                  <th className="px-3 py-3 text-center">RM Status</th>
-                  <th className="px-3 py-3 text-center">HOD Status</th>
-                  <th className="px-3 py-3 text-left">Assigned Dept</th>
-                  <th className="px-3 py-3 text-center">Action</th>
-                  <th className="px-3 py-3 text-center">My Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRequests.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="py-16 text-center">
-                      <div className="flex flex-col items-center gap-2">
-                        <Search size={28} className="text-slate-300" />
-                        <p className="text-sm font-black text-slate-500">No results match your filters.</p>
-                        <button onClick={clearFilters} className="text-xs text-amber-600 font-bold underline hover:text-amber-800">
-                          Clear filters
+          (() => {
+            const totalPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE));
+            const safePage   = Math.min(portalPage, totalPages);
+            const pageSlice  = filteredRequests.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+            return (
+              <div className="flex-1 min-h-0 flex flex-col gap-2">
+                <div className="flex-1 min-h-0 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-auto">
+                  <table className="w-full border-collapse">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="bg-amber-600 text-white text-[11px] font-black uppercase tracking-wide">
+                        <th className="px-3 py-3 text-center w-10">Ticket #</th>
+                        <th className="px-3 py-3 text-left">Date</th>
+                        <th className="px-3 py-3 text-left">Requestor</th>
+                        <th className="px-3 py-3 text-left">Purpose / Description</th>
+                        <th className="px-3 py-3 text-center">RM Status</th>
+                        <th className="px-3 py-3 text-center">HOD Status</th>
+                        <th className="px-3 py-3 text-left">Assigned Dept</th>
+                        <th className="px-3 py-3 text-center">Action</th>
+                        <th className="px-3 py-3 text-center">My Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredRequests.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="py-16 text-center">
+                            <div className="flex flex-col items-center gap-2">
+                              <Search size={28} className="text-slate-300" />
+                              <p className="text-sm font-black text-slate-500">No results match your filters.</p>
+                              <button onClick={clearFilters} className="text-xs text-amber-600 font-bold underline hover:text-amber-800">
+                                Clear filters
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        pageSlice.map((row, idx) => (
+                          <RequestRow
+                            key={row.id}
+                            row={row}
+                            index={(safePage - 1) * PAGE_SIZE + idx}
+                            onViewDetails={handleViewDetails}
+                            onMarkUnread={handleMarkUnread}
+                          />
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* ── Pagination ── */}
+                {totalPages > 1 && (
+                  <div className="flex-shrink-0 flex items-center justify-between gap-3 px-1">
+                    <p className="text-[11px] text-slate-500 font-bold">
+                      Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filteredRequests.length)} of {filteredRequests.length}
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setPortalPage(p => Math.max(1, p - 1))}
+                        disabled={safePage === 1}
+                        className="px-3 py-1.5 rounded-lg text-xs font-black border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      >
+                        ‹ Prev
+                      </button>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                        <button
+                          key={p}
+                          onClick={() => setPortalPage(p)}
+                          className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${p === safePage ? "bg-amber-600 text-white shadow" : "bg-white border border-slate-200 text-slate-600 hover:bg-amber-50"}`}
+                        >
+                          {p}
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRequests.map((row, idx) => (
-                    <RequestRow
-                      key={row.id}
-                      row={row}
-                      index={idx}
-                      onViewDetails={handleViewDetails}
-                      onMarkUnread={handleMarkUnread}
-                    />
-                  ))
+                      ))}
+                      <button
+                        onClick={() => setPortalPage(p => Math.min(totalPages, p + 1))}
+                        disabled={safePage === totalPages}
+                        className="px-3 py-1.5 rounded-lg text-xs font-black border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      >
+                        Next ›
+                      </button>
+                    </div>
+                  </div>
                 )}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            );
+          })()
         )}
       </main>
 
