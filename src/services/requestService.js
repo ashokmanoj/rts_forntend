@@ -10,6 +10,10 @@ export async function fetchLocations() {
   return data.locations || [];
 }
 
+export async function fetchRequestCounts() {
+  return get("/requests/counts");
+}
+
 export async function fetchRequests(params = {}) {
   const query = new URLSearchParams();
   Object.keys(params).forEach(key => {

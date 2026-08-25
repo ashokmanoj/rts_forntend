@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { fetchRequests, fetchFilterOptions, createRequest, submitApproval, acknowledgeRequest, markRequestSeen, markRequestUnread, closeRequest, fetchRequestById } from "../services/requestService";
+import { fetchRequests, fetchRequestCounts, fetchFilterOptions, createRequest, submitApproval, acknowledgeRequest, markRequestSeen, markRequestUnread, closeRequest, fetchRequestById } from "../services/requestService";
 import { fetchChat, sendText, sendFile, sendVoice } from "../services/chatService";
 import { post } from "../services/api";
 import { getStoredUser } from "../services/authService";
@@ -79,6 +79,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
       startDate:      searchParams.get("startDate") ? new Date(searchParams.get("startDate")) : null,
       endDate:        searchParams.get("endDate") ? new Date(searchParams.get("endDate")) : null,
       search:         searchParams.get("search") || "",
+      status:         searchParams.get("status") || undefined,
     };
   });
 
@@ -95,6 +96,7 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   const [foodRefreshKey,   setFoodRefreshKey]   = useState(0);
   const [loadingReqs,      setLoadingReqs]      = useState(true);
   const [isFiltering,      setIsFiltering]      = useState(false); // For subtle loading state
+  const [reqCounts,        setReqCounts]        = useState({ open: 0, closed: 0, ackPending: 0, broadcast: 0 });
   const [fetchError,       setFetchError]       = useState("");
   const [toast,            setToast]            = useState(null); // { type: "success"|"error", message: string }
   const toastTimerRef = useRef(null);
@@ -127,6 +129,13 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
   }, []);
 
   // ── Core Fetch Request ────────────────────────────────────────────────────
+  const loadCounts = useCallback(async () => {
+    try {
+      const c = await fetchRequestCounts();
+      if (c) setReqCounts(c);
+    } catch { /* silent */ }
+  }, []);
+
   const loadRequests = useCallback(async (page = 1, currentFilters = {}, silent = false) => {
     if (isFetchingRef.current && !silent) return;
     if (!silent) setIsFiltering(true);
@@ -178,7 +187,8 @@ export default function DashboardPage({ currentUser: currentUserProp, onLogout, 
     // Automatic Fetching
     // Note: Search debouncing happens before this state update
     loadRequests(currentPage, filters);
-  }, [filters, currentPage, loadRequests, setSearchParams]);
+    loadCounts();
+  }, [filters, currentPage, loadRequests, loadCounts, setSearchParams]);
 
   useEffect(() => {
     loadFilterOptions();
