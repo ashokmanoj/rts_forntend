@@ -232,8 +232,8 @@ export default function ManagementPortal({ currentUser, onLogout }) {
   const [rmFilter,      setRmFilter]      = useState("all");   // all | pending | approved | rejected | checking
   const [deptFilter,    setDeptFilter]    = useState("all");   // all | <dept name>
 
-  const [portalPage, setPortalPage] = useState(1);
-  const [readOrder,  setReadOrder]  = useState([]); // IDs in the order they were opened this session
+  const [portalPage,      setPortalPage]      = useState(1);
+  const [readTimestamps,  setReadTimestamps]  = useState({}); // { [id]: Date.now() } when opened
   const PAGE_SIZE = 15;
 
   const pollRef = useRef(null);
@@ -290,11 +290,8 @@ export default function ManagementPortal({ currentUser, onLogout }) {
     if (!row.seen) {
       markRequestSeen(row.id).catch(() => {});
       setRequests(prev => prev.map(r => r.id === row.id ? { ...r, seen: true } : r));
-      setReadOrder(prev => [...prev.filter(id => id !== row.id), row.id]);
-    } else {
-      // Re-opening an already-read ticket: move it to the bottom of read order
-      setReadOrder(prev => [...prev.filter(id => id !== row.id), row.id]);
     }
+    setReadTimestamps(prev => ({ ...prev, [row.id]: Date.now() }));
     try {
       const result = await fetchChat(row.id);
       setChatLogs(prev => ({ ...prev, [row.id]: result?.data ?? result }));
@@ -304,7 +301,7 @@ export default function ManagementPortal({ currentUser, onLogout }) {
   const handleMarkUnread = useCallback((reqId) => {
     markRequestUnread(reqId).catch(() => {});
     setRequests(prev => prev.map(r => r.id === reqId ? { ...r, seen: false } : r));
-    setReadOrder(prev => prev.filter(id => id !== reqId));
+    setReadTimestamps(prev => { const n = { ...prev }; delete n[reqId]; return n; });
     setPortalPage(1);
   }, []);
 
@@ -372,14 +369,11 @@ export default function ManagementPortal({ currentUser, onLogout }) {
       if (deptFilter !== "all" && r.dept !== deptFilter) return false;
       return true;
     });
-    // 1. Unread — original server order (by id desc)
-    // 2. Read but not opened this session — sorted by ticket id
-    // 3. Read and opened this session — sorted by when they were opened (last opened = last row)
-    const unread      = filtered.filter(r => !r.seen);
-    const readOld     = filtered.filter(r =>  r.seen && !readOrder.includes(r.id)).sort((a, b) => a.id - b.id);
-    const readSession = filtered.filter(r =>  r.seen &&  readOrder.includes(r.id)).sort((a, b) => readOrder.indexOf(a.id) - readOrder.indexOf(b.id));
-    return [...unread, ...readOld, ...readSession];
-  }, [requests, search, statusFilter, rmFilter, deptFilter, readOrder]);
+    // Unread first, then read sorted by when they were opened this session (last opened = last)
+    const unread = filtered.filter(r => !r.seen);
+    const read   = filtered.filter(r =>  r.seen).sort((a, b) => (readTimestamps[a.id] ?? 0) - (readTimestamps[b.id] ?? 0));
+    return [...unread, ...read];
+  }, [requests, search, statusFilter, rmFilter, deptFilter, readTimestamps]);
 
   const activeFilterCount = [
     search.trim() !== "",
