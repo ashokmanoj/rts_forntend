@@ -140,8 +140,8 @@ function RequestRow({ row, index, onViewDetails, onMarkUnread }) {
       className={`border-b border-slate-100 hover:bg-amber-50/30 transition-colors cursor-pointer ${rowBg}`}
       onClick={() => onViewDetails(row)}
     >
-      {/* Sl */}
-      <td className="px-3 py-3 text-center text-xs text-slate-500 font-bold">{index + 1}</td>
+      {/* Ticket No */}
+      <td className="px-3 py-3 text-center text-xs text-slate-500 font-bold">#{row.id}</td>
       {/* Date */}
       <td className={`px-3 py-3 text-xs whitespace-nowrap ${isUnread ? "text-slate-800 font-black" : "text-slate-600"}`}>{row.date}</td>
       {/* Requestor */}
@@ -208,7 +208,7 @@ function RequestRow({ row, index, onViewDetails, onMarkUnread }) {
       </td>
       {/* My Status */}
       <td className="px-3 py-3 text-center">
-        <HodBadge status={row.hodStatus} />
+        <HodBadge status={row.managementStatus} />
       </td>
     </tr>
   );
@@ -598,7 +598,7 @@ export default function ManagementPortal({ currentUser, onLogout }) {
             <table className="w-full border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-amber-600 text-white text-[11px] font-black uppercase tracking-wide">
-                  <th className="px-3 py-3 text-center w-10">Sl.</th>
+                  <th className="px-3 py-3 text-center w-10">Ticket #</th>
                   <th className="px-3 py-3 text-left">Date</th>
                   <th className="px-3 py-3 text-left">Requestor</th>
                   <th className="px-3 py-3 text-left">Purpose / Description</th>
