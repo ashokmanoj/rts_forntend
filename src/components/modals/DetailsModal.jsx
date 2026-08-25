@@ -96,7 +96,9 @@ function ApprovalProgress({ rmStatus, hodStatus, assignedRmStatus, assignedHodSt
 
 export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSendMessage, onApproval, onOpenCloseTicket, onAcknowledge, onRefreshChat, onAddToThread, onOpenRequest }) {
   const [selectedDept,            setSelectedDept]            = useState(req?.assignedDept || "");
-  const [approvalComment,         setApprovalComment]         = useState("");
+  const [approvalComment,         setApprovalComment]         = useState(
+    currentUser?.dept === "TA Committee" ? "Kindly account and process the same and share ledger statement" : ""
+  );
   const [lightboxData,            setLightboxData]            = useState(null); // { urls, names, index }
   const [showCheckingModal,       setShowCheckingModal]       = useState(false);
   const [checkingDate,            setCheckingDate]            = useState("");
@@ -343,7 +345,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     try {
       const dateTime = getNowDateTime();
       await onApproval(req.id, decision, dateTime, currentUser, approvalComment, selectedDept, checkingDeadline, checkingReasonVal, extras);
-      setApprovalComment("");
+      setApprovalComment(currentUser?.dept === "TA Committee" ? "Kindly account and process the same and share ledger statement" : "");
     } finally {
       setApprovalLoading(false);
       setPendingDecision(null);
@@ -371,7 +373,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     try {
       const dateTime = getNowDateTime();
       await onApproval(req.id, "Forwarded", dateTime, currentUser, approvalComment, hodForwardDept, null, null, { dualDept: true });
-      setApprovalComment("");
+      setApprovalComment(currentUser?.dept === "TA Committee" ? "Kindly account and process the same and share ledger statement" : "");
       closeHodModal();
     } finally {
       setApprovalLoading(false);
@@ -396,7 +398,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     setApprovalLoading(true);
     try {
       await onApproval(req.id, "Approved", getNowDateTime(), currentUser, approvalComment, selectedDept, null, null, {});
-      setApprovalComment("");
+      setApprovalComment(currentUser?.dept === "TA Committee" ? "Kindly account and process the same and share ledger statement" : "");
       closeDeptHodModal();
     } finally {
       setApprovalLoading(false);
@@ -418,7 +420,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
       } else {
         await onApproval(req.id, "Forwarded", dateTime, currentUser, approvalComment, deptHodForwardDept, null, null, { dualDept: true });
       }
-      setApprovalComment("");
+      setApprovalComment(currentUser?.dept === "TA Committee" ? "Kindly account and process the same and share ledger statement" : "");
       closeDeptHodModal();
     } finally {
       setApprovalLoading(false);
