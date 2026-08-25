@@ -14,11 +14,11 @@ import { post } from "../services/api";
 import {
   LogOut, RefreshCw, CheckCircle2, XCircle, Clock,
   ChevronDown, ChevronUp, ShieldCheck, AlertCircle,
-  Search, X, SlidersHorizontal, LayoutDashboard, MessageSquare,
+  Search, X, SlidersHorizontal, LayoutDashboard, MessageSquare, EyeOff,
 } from "lucide-react";
 import SearchableSelect  from "../components/ui/SearchableSelect";
 import { fetchChat, sendText, sendFile, sendVoice } from "../services/chatService";
-import { submitApproval, closeRequest }             from "../services/requestService";
+import { submitApproval, closeRequest, markRequestSeen, markRequestUnread } from "../services/requestService";
 import DetailsModal      from "../components/modals/DetailsModal";
 import CloseTicketModal  from "../components/modals/CloseTicketModal";
 
@@ -123,10 +123,13 @@ function HodBadge({ status }) {
 }
 
 // ── Request row ───────────────────────────────────────────────────────────────
-function RequestRow({ row, index, onViewDetails }) {
-  const isGnRow = row.isGnRoute;
+function RequestRow({ row, index, onViewDetails, onMarkUnread }) {
+  const isGnRow  = row.isGnRoute;
+  const isUnread = !row.seen;
 
-  const rowBg = row.isClosed
+  const rowBg = isUnread
+    ? "bg-blue-50"
+    : row.isClosed
     ? "bg-emerald-50/40"
     : row.hodStatus === "Rejected"
     ? "bg-red-50/40"
@@ -140,10 +143,10 @@ function RequestRow({ row, index, onViewDetails }) {
       {/* Sl */}
       <td className="px-3 py-3 text-center text-xs text-slate-500 font-bold">{index + 1}</td>
       {/* Date */}
-      <td className="px-3 py-3 text-xs text-slate-600 whitespace-nowrap">{row.date}</td>
+      <td className={`px-3 py-3 text-xs whitespace-nowrap ${isUnread ? "text-slate-800 font-black" : "text-slate-600"}`}>{row.date}</td>
       {/* Requestor */}
       <td className="px-3 py-3">
-        <p className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+        <p className={`text-xs font-black text-slate-800 flex items-center gap-1.5`}>
           {row.name}
           {isGnRow && (
             <span className="text-[9px] font-black bg-purple-600 text-white px-1.5 py-0.5 rounded-full leading-none">GN</span>
@@ -154,7 +157,10 @@ function RequestRow({ row, index, onViewDetails }) {
       </td>
       {/* Purpose */}
       <td className="px-3 py-3">
-        <p className="text-xs font-bold text-blue-600">{row.purpose}</p>
+        <p className={`text-xs flex items-center gap-1.5 ${isUnread ? "font-black text-blue-700" : "font-bold text-blue-600"}`}>
+          {isUnread && <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />}
+          {row.purpose}
+        </p>
         {row.description && (
           <p className="text-[10px] text-slate-400 truncate max-w-[200px]">{row.description}</p>
         )}
@@ -173,21 +179,32 @@ function RequestRow({ row, index, onViewDetails }) {
       </td>
       {/* Actions */}
       <td className="px-3 py-3 text-center" onClick={e => e.stopPropagation()}>
-        {row.isClosed ? (
-          <button
-            onClick={() => onViewDetails(row)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[11px] font-black rounded-lg transition-all active:scale-95 mx-auto whitespace-nowrap"
-          >
-            <MessageSquare size={13} /> View Details
-          </button>
-        ) : (
-          <button
-            onClick={() => onViewDetails(row)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-[11px] font-black rounded-lg transition-all active:scale-95 mx-auto whitespace-nowrap"
-          >
-            <ShieldCheck size={13} /> Take Action
-          </button>
-        )}
+        <div className="flex items-center justify-center gap-1.5">
+          {row.isClosed ? (
+            <button
+              onClick={() => onViewDetails(row)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[11px] font-black rounded-lg transition-all active:scale-95 whitespace-nowrap"
+            >
+              <MessageSquare size={13} /> View Details
+            </button>
+          ) : (
+            <button
+              onClick={() => onViewDetails(row)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-[11px] font-black rounded-lg transition-all active:scale-95 whitespace-nowrap"
+            >
+              <ShieldCheck size={13} /> Take Action
+            </button>
+          )}
+          {!isUnread && (
+            <button
+              title="Mark as unread"
+              onClick={() => onMarkUnread(row.id)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            >
+              <EyeOff size={13} />
+            </button>
+          )}
+        </div>
       </td>
       {/* My Status */}
       <td className="px-3 py-3 text-center">
@@ -266,10 +283,19 @@ export default function ManagementPortal({ currentUser, onLogout }) {
 
   const handleViewDetails = useCallback(async (row) => {
     setSelectedReq(row);
+    if (!row.seen) {
+      markRequestSeen(row.id).catch(() => {});
+      setRequests(prev => prev.map(r => r.id === row.id ? { ...r, seen: true } : r));
+    }
     try {
       const result = await fetchChat(row.id);
       setChatLogs(prev => ({ ...prev, [row.id]: result?.data ?? result }));
     } catch {}
+  }, []);
+
+  const handleMarkUnread = useCallback((reqId) => {
+    markRequestUnread(reqId).catch(() => {});
+    setRequests(prev => prev.map(r => r.id === reqId ? { ...r, seen: false } : r));
   }, []);
 
   const handleSendMessage = async (reqId, message) => {
@@ -310,34 +336,37 @@ export default function ManagementPortal({ currentUser, onLogout }) {
     !r.isClosed && (!r.hodStatus || r.hodStatus === "--" || r.hodStatus === "Checking")
   ).length;
 
+  const unreadCount = requests.filter(r => !r.seen).length;
+
   // Unique sorted dept list derived from loaded requests
   const deptOptions = useMemo(() =>
     [...new Set(requests.map(r => r.dept).filter(Boolean))].sort()
   , [requests]);
 
   const filteredRequests = useMemo(() => {
-    return requests.filter(r => {
-      // Search across name, empId, dept, purpose, description
+    const filtered = requests.filter(r => {
       if (search.trim()) {
         const q = search.toLowerCase();
         const match = [r.name, r.empId, r.dept, r.purpose, r.description]
           .some(v => v?.toLowerCase().includes(q));
         if (!match) return false;
       }
-      // HOD status filter
       const isPend = !r.isClosed && (!r.hodStatus || r.hodStatus === "--" || r.hodStatus === "Checking");
       if (statusFilter === "pending"  && !isPend) return false;
       if (statusFilter === "approved" && r.hodStatus !== "Approved") return false;
       if (statusFilter === "rejected" && r.hodStatus !== "Rejected") return false;
-      // RM status filter
       if (rmFilter === "pending"  && r.rmStatus && r.rmStatus !== "--") return false;
       if (rmFilter === "approved" && r.rmStatus !== "Approved") return false;
       if (rmFilter === "rejected" && r.rmStatus !== "Rejected") return false;
       if (rmFilter === "checking" && r.rmStatus !== "Checking") return false;
-      // Department filter
       if (deptFilter !== "all" && r.dept !== deptFilter) return false;
       return true;
     });
+    // Unread rows always appear first
+    return [
+      ...filtered.filter(r => !r.seen),
+      ...filtered.filter(r =>  r.seen),
+    ];
   }, [requests, search, statusFilter, rmFilter, deptFilter]);
 
   const activeFilterCount = [
@@ -396,7 +425,7 @@ export default function ManagementPortal({ currentUser, onLogout }) {
       <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-5 pb-6 flex flex-col gap-4 overflow-hidden">
 
         {/* ── Stats bar ──────────────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="flex-shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-white rounded-2xl border border-amber-100 shadow-sm p-4 flex items-center gap-4">
             <div className="w-11 h-11 bg-amber-100 rounded-xl flex items-center justify-center">
               <Clock size={22} className="text-amber-600" />
@@ -425,6 +454,16 @@ export default function ManagementPortal({ currentUser, onLogout }) {
             </div>
           </div>
 
+          <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-4 flex items-center gap-4">
+            <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center">
+              <EyeOff size={20} className="text-blue-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-black text-slate-800">{unreadCount}</p>
+              <p className="text-xs text-slate-500 font-bold">Unread</p>
+            </div>
+          </div>
+
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-4">
             <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center">
               <AlertCircle size={20} className="text-blue-500" />
@@ -432,7 +471,7 @@ export default function ManagementPortal({ currentUser, onLogout }) {
             <div>
               <p className="text-xs font-black text-slate-700">Role</p>
               <p className="text-sm font-black text-blue-600">Management</p>
-              <p className="text-[10px] text-slate-400">Acting as HOD approver</p>
+              <p className="text-[10px] text-slate-400">HOD approver</p>
             </div>
           </div>
         </div>
@@ -590,6 +629,7 @@ export default function ManagementPortal({ currentUser, onLogout }) {
                       row={row}
                       index={idx}
                       onViewDetails={handleViewDetails}
+                      onMarkUnread={handleMarkUnread}
                     />
                   ))
                 )}
