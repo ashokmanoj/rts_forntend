@@ -96,9 +96,7 @@ function ApprovalProgress({ rmStatus, hodStatus, assignedRmStatus, assignedHodSt
 
 export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSendMessage, onApproval, onOpenCloseTicket, onAcknowledge, onRefreshChat, onAddToThread, onOpenRequest }) {
   const [selectedDept,            setSelectedDept]            = useState(req?.assignedDept || "");
-  const [approvalComment,         setApprovalComment]         = useState(
-    currentUser?.dept === "TA Committee" ? "Kindly account and process the same and share ledger statement" : ""
-  );
+  const [approvalComment,         setApprovalComment]         = useState("");
   const [lightboxData,            setLightboxData]            = useState(null); // { urls, names, index }
   const [showCheckingModal,       setShowCheckingModal]       = useState(false);
   const [checkingDate,            setCheckingDate]            = useState("");
@@ -345,7 +343,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     try {
       const dateTime = getNowDateTime();
       await onApproval(req.id, decision, dateTime, currentUser, approvalComment, selectedDept, checkingDeadline, checkingReasonVal, extras);
-      setApprovalComment(currentUser?.dept === "TA Committee" ? "Kindly account and process the same and share ledger statement" : "");
+      setApprovalComment("");
     } finally {
       setApprovalLoading(false);
       setPendingDecision(null);
@@ -373,7 +371,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     try {
       const dateTime = getNowDateTime();
       await onApproval(req.id, "Forwarded", dateTime, currentUser, approvalComment, hodForwardDept, null, null, { dualDept: true });
-      setApprovalComment(currentUser?.dept === "TA Committee" ? "Kindly account and process the same and share ledger statement" : "");
+      setApprovalComment("");
       closeHodModal();
     } finally {
       setApprovalLoading(false);
@@ -398,7 +396,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
     setApprovalLoading(true);
     try {
       await onApproval(req.id, "Approved", getNowDateTime(), currentUser, approvalComment, selectedDept, null, null, {});
-      setApprovalComment(currentUser?.dept === "TA Committee" ? "Kindly account and process the same and share ledger statement" : "");
+      setApprovalComment("");
       closeDeptHodModal();
     } finally {
       setApprovalLoading(false);
@@ -420,7 +418,7 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
       } else {
         await onApproval(req.id, "Forwarded", dateTime, currentUser, approvalComment, deptHodForwardDept, null, null, { dualDept: true });
       }
-      setApprovalComment(currentUser?.dept === "TA Committee" ? "Kindly account and process the same and share ledger statement" : "");
+      setApprovalComment("");
       closeDeptHodModal();
     } finally {
       setApprovalLoading(false);
@@ -1304,13 +1302,32 @@ export default function DetailsModal({ req, chatLogs, currentUser, onClose, onSe
                           </div>
                         ))}
                       </div>
-                      <RichTextArea
-                        value={approvalComment}
-                        onChange={(e) => setApprovalComment(e.target.value)}
-                        placeholder="Add your official comments here..."
-                        rows={2}
-                        disabled={approvalLoading}
-                      />
+                      <div
+                        onKeyDown={(e) => {
+                          if (e.key === "Tab" && currentUser?.dept === "TA Committee") {
+                            e.preventDefault();
+                            setApprovalComment("Kindly account and process the same and share ledger statement");
+                          }
+                        }}
+                      >
+                        <RichTextArea
+                          value={approvalComment}
+                          onChange={(e) => setApprovalComment(e.target.value)}
+                          placeholder="Add your official comments here..."
+                          rows={2}
+                          disabled={approvalLoading}
+                        />
+                        {currentUser?.dept === "TA Committee" && !approvalComment && (
+                          <button
+                            type="button"
+                            onClick={() => setApprovalComment("Kindly account and process the same and share ledger statement")}
+                            className="mt-1 flex items-center gap-1.5 text-[10px] text-slate-400 hover:text-blue-600 transition-colors group"
+                          >
+                            <span className="px-1 py-0.5 rounded border border-slate-200 bg-slate-50 font-mono text-[9px] group-hover:border-blue-300 group-hover:bg-blue-50 transition-colors">Tab</span>
+                            <span className="italic truncate max-w-[280px]">"Kindly account and process the same and share ledger statement"</span>
+                          </button>
+                        )}
+                      </div>
                       <LinkPreview text={approvalComment} />
                       {(() => {
                         const isActedApproved = myApprovalStatus === "Approved" || myApprovalStatus === "Forwarded";
